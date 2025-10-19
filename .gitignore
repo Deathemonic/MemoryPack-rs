@@ -1,0 +1,9 @@
+/target
+.idea
+*.bytes
+*.json
+
+.NETGenerateMemoryPack/
+.NETMemoryPack
+
+memorypack/examples/

@@ -1,0 +1,7 @@
+[workspace]
+members = ["memorypack", "memorypack-derive"]
+resolver = "2"
+
+[workspace.dependencies]
+byteorder = "1.5"
+thiserror = "2.0"
