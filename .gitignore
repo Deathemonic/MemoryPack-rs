@@ -7,3 +7,6 @@
 .NETMemoryPack
 
 memorypack/examples/
+
+*.exe
+*.pdb
