@@ -191,18 +191,7 @@ impl<T: MemoryPackDeserialize> MemoryPackDeserialize for Vec<T> {
 
 impl MemoryPackSerialize for Option<String> {
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<()> {
-        match self {
-            Some(value) => {
-                let bytes = value.as_bytes();
-                writer.write_i32(!(bytes.len() as i32))?;
-                writer.write_i32(bytes.len() as i32)?;
-                writer.buffer.extend_from_slice(bytes);
-            }
-            None => {
-                writer.write_i32(-1)?;
-            }
-        }
-        Ok(())
+        writer.write_string_option(self.as_deref())
     }
 }
 
@@ -211,6 +200,7 @@ impl MemoryPackDeserialize for Option<String> {
         let marker = reader.read_i32()?;
         match marker {
             -1 => Ok(None),
+            0 => Ok(Some(String::new())),
             n if n < 0 => {
                 let byte_count = !n as usize;
                 let _char_length = reader.read_i32()?;
@@ -218,12 +208,22 @@ impl MemoryPackDeserialize for Option<String> {
                 reader.cursor.read_exact(&mut buffer)?;
                 Ok(Some(String::from_utf8(buffer)?))
             }
-            _ => Err(crate::error::MemoryPackError::DeserializationError(
-                format!("Invalid Option<String> marker: {}", marker),
-            )),
+            _ => {
+                let char_count = marker as usize;
+                let byte_count = char_count * 2;
+                let mut buffer = vec![0u8; byte_count];
+                reader.cursor.read_exact(&mut buffer)?;
+                let utf16_chars: Vec<u16> = buffer
+                    .chunks_exact(2)
+                    .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
+                    .collect();
+                Ok(Some(String::from_utf16(&utf16_chars)
+                    .map_err(|_| crate::error::MemoryPackError::InvalidUtf8)?))
+            }
         }
     }
 }
+
 
 macro_rules! impl_tuple {
     ($($T:ident),+) => {

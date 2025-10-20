@@ -8,6 +8,7 @@ pub struct MemoryPackSerializer;
 
 impl MemoryPackSerializer {
     /// Serialize a value to a byte vector
+    #[inline]
     pub fn serialize<T: MemoryPackSerialize>(value: &T) -> Result<Vec<u8>> {
         let mut writer = MemoryPackWriter::new();
         value.serialize(&mut writer)?;
@@ -15,6 +16,7 @@ impl MemoryPackSerializer {
     }
 
     /// Serialize a value to an existing writer
+    #[inline]
     pub fn serialize_to<T: MemoryPackSerialize>(
         value: &T,
         writer: &mut MemoryPackWriter,
@@ -23,12 +25,14 @@ impl MemoryPackSerializer {
     }
 
     /// Deserialize a value from bytes
+    #[inline]
     pub fn deserialize<T: MemoryPackDeserialize>(data: &[u8]) -> Result<T> {
         let mut reader = MemoryPackReader::new(data);
         T::deserialize(&mut reader)
     }
 
     /// Deserialize a value from an existing reader
+    #[inline]
     pub fn deserialize_from<T: MemoryPackDeserialize>(reader: &mut MemoryPackReader) -> Result<T> {
         T::deserialize(reader)
     }

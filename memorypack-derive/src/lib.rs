@@ -43,35 +43,10 @@ pub fn derive_memorypack(input: TokenStream) -> TokenStream {
     let name = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
-    let is_transparent = input.attrs.iter().any(|attr| {
-        attr.path().is_ident("repr")
-            && attr
-                .meta
-                .require_list()
-                .map(|m| m.tokens.to_string().contains("transparent"))
-                .unwrap_or(false)
-    });
-
-    let is_flags = input.attrs.iter().any(|attr| {
-        attr.path().is_ident("memorypack")
-            && attr
-                .meta
-                .require_list()
-                .map(|m| m.tokens.to_string().contains("flags"))
-                .unwrap_or(false)
-    });
-
-    let is_union = input.attrs.iter().any(|attr| {
-        attr.path().is_ident("memorypack")
-            && attr
-                .meta
-                .require_list()
-                .map(|m| m.tokens.to_string().contains("union"))
-                .unwrap_or(false)
-    });
+    let attrs = AttributeFlags::parse(&input.attrs);
 
     let (serialize_impl, deserialize_impl) = match &input.data {
-        Data::Struct(data_struct) if is_transparent && is_single_field_i32(data_struct) => (
+        Data::Struct(data_struct) if attrs.is_transparent && is_single_field_i32(data_struct) => (
             generate_transparent_serialize(),
             generate_transparent_deserialize(),
         ),
@@ -79,15 +54,37 @@ pub fn derive_memorypack(input: TokenStream) -> TokenStream {
             generate_serialize(&input.data),
             generate_deserialize(&input.data),
         ),
-        Data::Enum(data_enum) if is_union => (
+        Data::Enum(data_enum) if attrs.is_union => (
             generate_union_serialize(data_enum),
             generate_union_deserialize(name, data_enum),
         ),
-        Data::Enum(_) => (generate_enum_serialize(), generate_enum_deserialize()),
-        Data::Union(_) => panic!("MemoryPackable cannot be derived for Rust unions (use enums for MemoryPack unions)"),
+        Data::Enum(data_enum) => {
+            let has_explicit = has_explicit_discriminants(data_enum);
+            
+            if !attrs.has_repr_i32 && !has_explicit {
+                return syn::Error::new_spanned(
+                    &input,
+                    "C-like enums for MemoryPack must have either #[repr(i32)] or explicit discriminants (e.g., Red = 0, Green = 1)"
+                ).to_compile_error().into();
+            }
+            
+            let deserialize = if has_explicit {
+                generate_enum_deserialize_safe(data_enum)
+            } else {
+                generate_enum_deserialize_unsafe()
+            };
+            
+            (generate_enum_serialize(), deserialize)
+        }
+        Data::Union(_) => {
+            return syn::Error::new_spanned(
+                &input,
+                "MemoryPackable cannot be derived for Rust unions (use enums for MemoryPack unions)"
+            ).to_compile_error().into();
+        }
     };
 
-    let flags_impl = if is_flags && is_transparent {
+    let flags_impl = if attrs.is_flags && attrs.is_transparent {
         generate_flags_impls(name)
     } else {
         quote! {}
@@ -113,44 +110,92 @@ pub fn derive_memorypack(input: TokenStream) -> TokenStream {
     expanded.into()
 }
 
-fn is_single_field_i32(data_struct: &syn::DataStruct) -> bool {
-    match &data_struct.fields {
-        Fields::Unnamed(fields) if fields.unnamed.len() == 1 => {
-            let field = fields.unnamed.first().unwrap();
-            if let syn::Type::Path(type_path) = &field.ty {
-                return type_path.path.is_ident("i32");
+struct AttributeFlags {
+    is_transparent: bool,
+    is_flags: bool,
+    is_union: bool,
+    has_repr_i32: bool,
+}
+
+impl AttributeFlags {
+    fn parse(attrs: &[syn::Attribute]) -> Self {
+        let mut result = Self {
+            is_transparent: false,
+            is_flags: false,
+            is_union: false,
+            has_repr_i32: false,
+        };
+
+        for attr in attrs {
+            if attr.path().is_ident("repr") {
+                if let Ok(list) = attr.meta.require_list() {
+                    let tokens = list.tokens.to_string();
+                    if tokens.contains("transparent") {
+                        result.is_transparent = true;
+                    }
+                    if tokens.contains("i32") {
+                        result.has_repr_i32 = true;
+                    }
+                }
+            } else if attr.path().is_ident("memorypack") {
+                if let Ok(list) = attr.meta.require_list() {
+                    let tokens = list.tokens.to_string();
+                    if tokens.contains("flags") {
+                        result.is_flags = true;
+                    }
+                    if tokens.contains("union") {
+                        result.is_union = true;
+                    }
+                }
             }
-            false
         }
-        _ => false,
+
+        result
     }
 }
 
+#[inline]
+fn is_single_field_i32(data_struct: &syn::DataStruct) -> bool {
+    matches!(&data_struct.fields,
+        Fields::Unnamed(fields) if fields.unnamed.len() == 1
+            && matches!(&fields.unnamed[0].ty,
+                syn::Type::Path(type_path) if type_path.path.is_ident("i32")
+            )
+    )
+}
+
+#[inline]
+fn has_explicit_discriminants(data_enum: &syn::DataEnum) -> bool {
+    data_enum.variants.iter().all(|v| v.discriminant.is_some())
+}
+
+#[inline]
 fn should_skip_field(field: &Field) -> bool {
-    field.attrs.iter().any(|attr| {
+    let has_skip_attr = field.attrs.iter().any(|attr| {
         attr.path().is_ident("memorypack")
-            && attr
-                .meta
-                .require_list()
+            && attr.meta.require_list()
                 .map(|m| m.tokens.to_string().contains("skip"))
                 .unwrap_or(false)
-    }) || field
-        .ident
-        .as_ref()
+    });
+
+    // Check if field name starts with underscore
+    let starts_with_underscore = field.ident.as_ref()
         .map(|ident| ident.to_string().starts_with('_'))
-        .unwrap_or(false)
+        .unwrap_or(false);
+
+    has_skip_attr || starts_with_underscore
 }
 
 fn generate_serialize(data: &Data) -> proc_macro2::TokenStream {
     let Data::Struct(data_struct) = data else {
-        panic!("MemoryPackable can only be derived for structs");
+        return quote! {
+            compile_error!("MemoryPackable serialize can only be derived for structs");
+        };
     };
 
     match &data_struct.fields {
         Fields::Named(fields) => {
-            let non_skip_fields: Vec<_> = fields
-                .named
-                .iter()
+            let non_skip_fields: Vec<_> = fields.named.iter()
                 .filter(|f| !should_skip_field(f))
                 .collect();
             let field_count = non_skip_fields.len() as u8;
@@ -167,10 +212,11 @@ fn generate_serialize(data: &Data) -> proc_macro2::TokenStream {
         }
         Fields::Unnamed(fields) => {
             let field_count = fields.unnamed.len() as u8;
-            let serialize_fields = fields.unnamed.iter().enumerate().map(|(i, _)| {
+            let serialize_fields = (0..fields.unnamed.len()).map(|i| {
                 let index = syn::Index::from(i);
                 quote! { memorypack::MemoryPackSerialize::serialize(&self.#index, writer)?; }
             });
+
             quote! {
                 writer.write_u8(#field_count)?;
                 #(#serialize_fields)*
@@ -182,15 +228,17 @@ fn generate_serialize(data: &Data) -> proc_macro2::TokenStream {
 
 fn generate_deserialize(data: &Data) -> proc_macro2::TokenStream {
     let Data::Struct(data_struct) = data else {
-        panic!("MemoryPackable can only be derived for structs");
+        return quote! {
+            compile_error!("MemoryPackable deserialize can only be derived for structs");
+        };
     };
 
     match &data_struct.fields {
         Fields::Named(fields) => {
             let deserialize_fields = fields.named.iter().map(|f| {
                 let name = &f.ident;
-                let ty = &f.ty;
                 if should_skip_field(f) {
+                    let ty = &f.ty;
                     quote! {
                         let _: #ty = memorypack::MemoryPackDeserialize::deserialize(reader)?;
                         let #name = Default::default();
@@ -201,6 +249,7 @@ fn generate_deserialize(data: &Data) -> proc_macro2::TokenStream {
             });
 
             let field_names = fields.named.iter().map(|f| &f.ident);
+
             quote! {
                 let _header = reader.read_u8()?;
                 #(#deserialize_fields)*
@@ -227,13 +276,14 @@ fn generate_deserialize(data: &Data) -> proc_macro2::TokenStream {
     }
 }
 
+#[inline]
 fn generate_enum_serialize() -> proc_macro2::TokenStream {
     quote! {
         writer.write_i32(*self as i32)?;
     }
 }
 
-fn generate_enum_deserialize() -> proc_macro2::TokenStream {
+fn generate_enum_deserialize_unsafe() -> proc_macro2::TokenStream {
     quote! {
         let value = reader.read_i32()?;
         // SAFETY: Transmuting i32 to repr(i32) enum.
@@ -244,12 +294,35 @@ fn generate_enum_deserialize() -> proc_macro2::TokenStream {
     }
 }
 
+fn generate_enum_deserialize_safe(data_enum: &syn::DataEnum) -> proc_macro2::TokenStream {
+    let variants = data_enum.variants.iter().map(|variant| {
+        let variant_name = &variant.ident;
+        let discriminant = &variant.discriminant.as_ref().unwrap().1;
+        
+        quote! {
+            #discriminant => Ok(Self::#variant_name),
+        }
+    });
+
+    quote! {
+        let value = reader.read_i32()?;
+        match value {
+            #(#variants)*
+            _ => Err(memorypack::MemoryPackError::DeserializationError(
+                format!("Invalid discriminant {} for enum {}", value, stringify!(Self))
+            ))
+        }
+    }
+}
+
+#[inline]
 fn generate_transparent_serialize() -> proc_macro2::TokenStream {
     quote! {
         writer.write_i32(self.0)?;
     }
 }
 
+#[inline]
 fn generate_transparent_deserialize() -> proc_macro2::TokenStream {
     quote! {
         Ok(Self(reader.read_i32()?))
@@ -259,17 +332,20 @@ fn generate_transparent_deserialize() -> proc_macro2::TokenStream {
 fn generate_flags_impls(name: &syn::Ident) -> proc_macro2::TokenStream {
     quote! {
         impl #name {
-            pub fn contains(self, other: #name) -> bool {
+            #[inline]
+            pub const fn contains(self, other: #name) -> bool {
                 (self.0 & other.0) == other.0
             }
 
-            pub fn is_empty(self) -> bool {
+            #[inline]
+            pub const fn is_empty(self) -> bool {
                 self.0 == 0
             }
         }
 
         impl std::ops::BitOr for #name {
             type Output = Self;
+            #[inline]
             fn bitor(self, rhs: Self) -> Self {
                 Self(self.0 | rhs.0)
             }
@@ -277,6 +353,7 @@ fn generate_flags_impls(name: &syn::Ident) -> proc_macro2::TokenStream {
 
         impl std::ops::BitAnd for #name {
             type Output = Self;
+            #[inline]
             fn bitand(self, rhs: Self) -> Self {
                 Self(self.0 & rhs.0)
             }
@@ -284,6 +361,7 @@ fn generate_flags_impls(name: &syn::Ident) -> proc_macro2::TokenStream {
 
         impl std::ops::BitXor for #name {
             type Output = Self;
+            #[inline]
             fn bitxor(self, rhs: Self) -> Self {
                 Self(self.0 ^ rhs.0)
             }
@@ -291,6 +369,7 @@ fn generate_flags_impls(name: &syn::Ident) -> proc_macro2::TokenStream {
 
         impl std::ops::Not for #name {
             type Output = Self;
+            #[inline]
             fn not(self) -> Self {
                 Self(!self.0)
             }
@@ -312,7 +391,11 @@ fn generate_union_serialize(data_enum: &syn::DataEnum) -> proc_macro2::TokenStre
                     }
                 }
             }
-            _ => panic!("Union variants must have exactly one unnamed field"),
+            _ => {
+                return quote! {
+                    compile_error!("Union variants must have exactly one unnamed field");
+                };
+            }
         }
     });
 

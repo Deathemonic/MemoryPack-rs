@@ -17,11 +17,17 @@ where
         }
 
         let count = reader.read_i32()?;
-        if count < 0 {
-            return Err(crate::error::MemoryPackError::InvalidLength(count));
+        if count <= 0 {
+            return if count == 0 {
+                Ok(HashMap::new())
+            } else {
+                Err(crate::error::MemoryPackError::InvalidLength(count))
+            };
         }
 
-        let mut map = HashMap::with_capacity(count as usize);
+        let capacity = ((count as usize * 4) / 3).max(count as usize);
+        let mut map = HashMap::with_capacity(capacity);
+        
         for _ in 0..count {
             let key = String::deserialize(reader)?;
             let _object_header = reader.read_i8()?;
