@@ -5,11 +5,13 @@ mod writer;
 pub mod varint;
 pub mod error;
 pub mod serializer;
+pub mod state;
 pub mod traits;
 
 pub use error::MemoryPackError;
 pub use reader::MemoryPackReader;
 pub use serializer::MemoryPackSerializer;
+pub use state::{MemoryPackReaderOptionalState, MemoryPackWriterOptionalState};
 pub use traits::{MemoryPackDeserialize, MemoryPackSerialize};
 pub use writer::MemoryPackWriter;
 

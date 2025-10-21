@@ -2,6 +2,9 @@ use crate::error::MemoryPackError;
 use crate::reader::MemoryPackReader;
 use crate::writer::MemoryPackWriter;
 
+use std::sync::Arc;
+use std::rc::Rc;
+
 pub trait MemoryPackSerialize {
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError>;
 }
@@ -211,6 +214,42 @@ impl<T: MemoryPackDeserialize> MemoryPackDeserialize for Option<T> {
         } else {
             Ok(Some(T::deserialize(reader)?))
         }
+    }
+}
+
+impl<T: MemoryPackSerialize> MemoryPackSerialize for Box<T> {
+    fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
+        (**self).serialize(writer)
+    }
+}
+
+impl<T: MemoryPackDeserialize> MemoryPackDeserialize for Box<T> {
+    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+        Ok(Box::new(T::deserialize(reader)?))
+    }
+}
+
+impl<T: MemoryPackSerialize> MemoryPackSerialize for Rc<T> {
+    fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
+        (**self).serialize(writer)
+    }
+}
+
+impl<T: MemoryPackDeserialize> MemoryPackDeserialize for Rc<T> {
+    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+        Ok(Rc::new(T::deserialize(reader)?))
+    }
+}
+
+impl<T: MemoryPackSerialize> MemoryPackSerialize for Arc<T> {
+    fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
+        (**self).serialize(writer)
+    }
+}
+
+impl<T: MemoryPackDeserialize> MemoryPackDeserialize for Arc<T> {
+    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+        Ok(Arc::new(T::deserialize(reader)?))
     }
 }
 
