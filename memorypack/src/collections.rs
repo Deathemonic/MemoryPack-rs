@@ -1,4 +1,4 @@
-use crate::error::Result;
+use crate::error::MemoryPackError;
 use crate::reader::MemoryPackReader;
 use crate::traits::{MemoryPackDeserialize, MemoryPackSerialize};
 use crate::writer::MemoryPackWriter;
@@ -9,7 +9,7 @@ impl<T> MemoryPackDeserialize for HashMap<String, T>
 where
     T: MemoryPackDeserialize + Default,
 {
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self> {
+    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
         let count = reader.read_i32()?;
         
         if count == -1 {
@@ -17,7 +17,7 @@ where
         }
         
         if count < 0 {
-            return Err(crate::error::MemoryPackError::InvalidLength(count));
+            return Err(MemoryPackError::InvalidLength(count));
         }
         
         if count == 0 {
@@ -41,7 +41,7 @@ impl<T> MemoryPackSerialize for HashMap<String, T>
 where
     T: MemoryPackSerialize,
 {
-    fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<()> {
+    fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
         writer.write_i32(self.len() as i32)?;
         for (key, value) in self.iter() {
             key.serialize(writer)?;

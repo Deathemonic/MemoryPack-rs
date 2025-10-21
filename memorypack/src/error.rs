@@ -28,4 +28,3 @@ pub enum MemoryPackError {
     UnexpectedEnd,
 }
 
-pub type Result<T> = std::result::Result<T, MemoryPackError>;

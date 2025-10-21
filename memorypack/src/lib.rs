@@ -11,10 +11,12 @@
 //!     name: String,
 //! }
 //!
+//! # fn main() -> eyre::Result<()> {
 //! let person = Person { age: 40, name: "John".to_string() };
 //! let bytes = MemoryPackSerializer::serialize(&person)?;
 //! let decoded: Person = MemoryPackSerializer::deserialize(&bytes)?;
-//! # Ok::<(), memorypack::MemoryPackError>(())
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! # Enums
@@ -31,7 +33,6 @@
 //!     Active = 1,
 //!     Completed = 2,
 //! }
-//! # Ok::<(), memorypack::MemoryPackError>(())
 //! ```
 //!
 //! # Flags / Bitfields
@@ -58,9 +59,11 @@
 //!     }
 //! }
 //!
+//! # fn main() -> eyre::Result<()> {
 //! let perms = Permissions::READ | Permissions::WRITE;
 //! let bytes = MemoryPackSerializer::serialize(&perms)?;
-//! # Ok::<(), memorypack::MemoryPackError>(())
+//! # Ok(())
+//! # }
 //! ```
 
 mod collections;
@@ -71,7 +74,7 @@ pub mod error;
 pub mod serializer;
 pub mod traits;
 
-pub use error::{MemoryPackError, Result};
+pub use error::MemoryPackError;
 pub use reader::MemoryPackReader;
 pub use serializer::MemoryPackSerializer;
 pub use traits::{MemoryPackDeserialize, MemoryPackSerialize};
@@ -81,7 +84,7 @@ pub use writer::MemoryPackWriter;
 pub use memorypack_derive::MemoryPackable;
 
 pub mod prelude {
-    pub use crate::error::{MemoryPackError, Result};
+    pub use crate::error::MemoryPackError;
     pub use crate::serializer::MemoryPackSerializer;
     pub use crate::traits::{MemoryPackDeserialize, MemoryPackSerialize};
 
