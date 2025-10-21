@@ -1,6 +1,6 @@
 use crate::error::MemoryPackError;
 use byteorder::{LittleEndian, ReadBytesExt};
-use std::io::{Cursor, Read};
+use std::io::{Cursor, Read, Seek, SeekFrom};
 
 pub struct MemoryPackReader<'a> {
     pub(crate) cursor: Cursor<&'a [u8]>,
@@ -103,5 +103,11 @@ impl<'a> MemoryPackReader<'a> {
 
     pub fn position(&self) -> u64 {
         self.cursor.position()
+    }
+
+    #[inline]
+    pub fn skip(&mut self, n: usize) -> Result<(), MemoryPackError> {
+        self.cursor.seek(SeekFrom::Current(n as i64))?;
+        Ok(())
     }
 }

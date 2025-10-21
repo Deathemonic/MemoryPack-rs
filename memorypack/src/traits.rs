@@ -1,4 +1,3 @@
-use std::io::Read;
 use crate::error::MemoryPackError;
 use crate::reader::MemoryPackReader;
 use crate::writer::MemoryPackWriter;
@@ -189,37 +188,28 @@ impl<T: MemoryPackDeserialize> MemoryPackDeserialize for Vec<T> {
     }
 }
 
-impl MemoryPackSerialize for Option<String> {
+impl<T: MemoryPackSerialize> MemoryPackSerialize for Option<T> {
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
-        writer.write_string_option(self.as_deref())
+        match self {
+            Some(value) => {
+                writer.write_u8(1)?;
+                value.serialize(writer)?;
+            }
+            None => {
+                writer.write_u8(0)?;
+            }
+        }
+        Ok(())
     }
 }
 
-impl MemoryPackDeserialize for Option<String> {
+impl<T: MemoryPackDeserialize> MemoryPackDeserialize for Option<T> {
     fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
-        let marker = reader.read_i32()?;
-        match marker {
-            -1 => Ok(None),
-            0 => Ok(Some(String::new())),
-            n if n < 0 => {
-                let byte_count = !n as usize;
-                let _char_length = reader.read_i32()?;
-                let mut buffer = vec![0u8; byte_count];
-                reader.cursor.read_exact(&mut buffer)?;
-                Ok(Some(String::from_utf8(buffer)?))
-            }
-            _ => {
-                let char_count = marker as usize;
-                let byte_count = char_count * 2;
-                let mut buffer = vec![0u8; byte_count];
-                reader.cursor.read_exact(&mut buffer)?;
-                let utf16_chars: Vec<u16> = buffer
-                    .chunks_exact(2)
-                    .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
-                    .collect();
-                Ok(Some(String::from_utf16(&utf16_chars)
-                    .map_err(|_| MemoryPackError::InvalidUtf8)?))
-            }
+        let has_value = reader.read_u8()?;
+        if has_value == 0 {
+            Ok(None)
+        } else {
+            Ok(Some(T::deserialize(reader)?))
         }
     }
 }

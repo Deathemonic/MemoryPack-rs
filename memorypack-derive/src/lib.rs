@@ -2,41 +2,6 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, Data, DeriveInput, Field, Fields};
 
-/// Derive macro for MemoryPackable trait.
-///
-/// # Structs
-/// Fields starting with `_` or marked with `#[memorypack(skip)]` are skipped.
-///
-/// # Transparent Wrappers (Flags)
-/// Use `#[memorypack(flags)]` to generate bitwise operators:
-///
-/// ```ignore
-/// #[derive(MemoryPackable)]
-/// #[memorypack(flags)]
-/// #[repr(transparent)]
-/// struct Permissions(i32);
-/// ```
-///
-/// # Enums (Simple)
-/// C-like enums are serialized as i32:
-///
-/// ```ignore
-/// #[derive(MemoryPackable)]
-/// #[repr(i32)]
-/// enum Color { Red, Green, Blue }
-/// ```
-///
-/// # Unions (Polymorphism)
-/// Rust enums with data variants become C# Union types:
-///
-/// ```ignore
-/// #[derive(MemoryPackable)]
-/// #[memorypack(union)]
-/// enum Shape {
-///     Circle(CircleData),      // tag = 0
-///     Rectangle(RectangleData), // tag = 1
-/// }
-/// ```
 #[proc_macro_derive(MemoryPackable, attributes(memorypack, tag))]
 pub fn derive_memorypack(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -49,6 +14,10 @@ pub fn derive_memorypack(input: TokenStream) -> TokenStream {
         Data::Struct(data_struct) if attrs.is_transparent && is_single_field_i32(data_struct) => (
             generate_transparent_serialize(),
             generate_transparent_deserialize(),
+        ),
+        Data::Struct(_) if attrs.is_version_tolerant => (
+            generate_version_tolerant_serialize(&input.data),
+            generate_version_tolerant_deserialize(&input.data),
         ),
         Data::Struct(_) => (
             generate_serialize(&input.data),
@@ -64,7 +33,7 @@ pub fn derive_memorypack(input: TokenStream) -> TokenStream {
             if !attrs.has_repr_i32 && !has_explicit {
                 return syn::Error::new_spanned(
                     &input,
-                    "C-like enums for MemoryPack must have either #[repr(i32)] or explicit discriminants (e.g., Red = 0, Green = 1)"
+                    "C-like enums for MemoryPack must have either #[repr(i32)] or explicit discriminants"
                 ).to_compile_error().into();
             }
             
@@ -79,7 +48,7 @@ pub fn derive_memorypack(input: TokenStream) -> TokenStream {
         Data::Union(_) => {
             return syn::Error::new_spanned(
                 &input,
-                "MemoryPackable cannot be derived for Rust unions (use enums for MemoryPack unions)"
+                "MemoryPackable cannot be derived for Rust unions"
             ).to_compile_error().into();
         }
     };
@@ -92,14 +61,14 @@ pub fn derive_memorypack(input: TokenStream) -> TokenStream {
 
     let expanded = quote! {
         impl #impl_generics memorypack::MemoryPackSerialize for #name #ty_generics #where_clause {
-            fn serialize(&self, writer: &mut memorypack::MemoryPackWriter) -> memorypack::Result<()> {
+            fn serialize(&self, writer: &mut memorypack::MemoryPackWriter) -> Result<(), memorypack::MemoryPackError> {
                 #serialize_impl
                 Ok(())
             }
         }
 
         impl #impl_generics memorypack::MemoryPackDeserialize for #name #ty_generics #where_clause {
-            fn deserialize(reader: &mut memorypack::MemoryPackReader) -> memorypack::Result<Self> {
+            fn deserialize(reader: &mut memorypack::MemoryPackReader) -> Result<Self, memorypack::MemoryPackError> {
                 #deserialize_impl
             }
         }
@@ -114,6 +83,7 @@ struct AttributeFlags {
     is_transparent: bool,
     is_flags: bool,
     is_union: bool,
+    is_version_tolerant: bool,
     has_repr_i32: bool,
 }
 
@@ -123,6 +93,7 @@ impl AttributeFlags {
             is_transparent: false,
             is_flags: false,
             is_union: false,
+            is_version_tolerant: false,
             has_repr_i32: false,
         };
 
@@ -145,6 +116,9 @@ impl AttributeFlags {
                     }
                     if tokens.contains("union") {
                         result.is_union = true;
+                    }
+                    if tokens.contains("version_tolerant") {
+                        result.is_version_tolerant = true;
                     }
                 }
             }
@@ -171,19 +145,55 @@ fn has_explicit_discriminants(data_enum: &syn::DataEnum) -> bool {
 
 #[inline]
 fn should_skip_field(field: &Field) -> bool {
-    let has_skip_attr = field.attrs.iter().any(|attr| {
+    field.attrs.iter().any(|attr| {
         attr.path().is_ident("memorypack")
             && attr.meta.require_list()
                 .map(|m| m.tokens.to_string().contains("skip"))
                 .unwrap_or(false)
-    });
-
-    // Check if field name starts with underscore
-    let starts_with_underscore = field.ident.as_ref()
+    }) || field.ident.as_ref()
         .map(|ident| ident.to_string().starts_with('_'))
-        .unwrap_or(false);
+        .unwrap_or(false)
+}
 
-    has_skip_attr || starts_with_underscore
+fn get_field_order(field: &Field) -> Option<usize> {
+    field.attrs.iter().find_map(|attr| {
+        if !attr.path().is_ident("memorypack") {
+            return None;
+        }
+        
+        let list = attr.meta.require_list().ok()?;
+        let tokens = list.tokens.to_string();
+        let order_pos = tokens.find("order")?;
+        let after_order = &tokens[order_pos..];
+        let eq_pos = after_order.find('=')?;
+        let after_eq = after_order[eq_pos + 1..].trim();
+        
+        let num_str = after_eq
+            .find(|c: char| !c.is_ascii_digit())
+            .map(|end| &after_eq[..end])
+            .unwrap_or(after_eq);
+        
+        num_str.parse::<usize>().ok()
+    })
+}
+
+struct OrderedField<'a> {
+    order: usize,
+    field: &'a Field,
+    ident: &'a Option<syn::Ident>,
+}
+
+fn prepare_ordered_fields<'a>(fields: &'a [&'a Field]) -> Vec<OrderedField<'a>> {
+    let mut ordered: Vec<_> = fields.iter()
+        .enumerate()
+        .map(|(idx, f)| OrderedField {
+            order: get_field_order(f).unwrap_or(idx),
+            field: f,
+            ident: &f.ident,
+        })
+        .collect();
+    ordered.sort_by_key(|f| f.order);
+    ordered
 }
 
 fn generate_serialize(data: &Data) -> proc_macro2::TokenStream {
@@ -195,13 +205,12 @@ fn generate_serialize(data: &Data) -> proc_macro2::TokenStream {
 
     match &data_struct.fields {
         Fields::Named(fields) => {
-            let non_skip_fields: Vec<_> = fields.named.iter()
-                .filter(|f| !should_skip_field(f))
-                .collect();
-            let field_count = non_skip_fields.len() as u8;
+            let non_skip: Vec<_> = fields.named.iter().filter(|f| !should_skip_field(f)).collect();
+            let ordered = prepare_ordered_fields(&non_skip);
+            let field_count = ordered.len() as u8;
 
-            let serialize_fields = non_skip_fields.iter().map(|f| {
-                let name = &f.ident;
+            let serialize_fields = ordered.iter().map(|of| {
+                let name = of.ident;
                 quote! { memorypack::MemoryPackSerialize::serialize(&self.#name, writer)?; }
             });
 
@@ -235,7 +244,12 @@ fn generate_deserialize(data: &Data) -> proc_macro2::TokenStream {
 
     match &data_struct.fields {
         Fields::Named(fields) => {
-            let deserialize_fields = fields.named.iter().map(|f| {
+            let non_skip: Vec<_> = fields.named.iter().filter(|f| !should_skip_field(f)).collect();
+            let ordered = prepare_ordered_fields(&non_skip);
+            
+            let all_field_names: Vec<_> = fields.named.iter().map(|f| &f.ident).collect();
+            
+            let deserialize_stmts: Vec<_> = fields.named.iter().map(|f| {
                 let name = &f.ident;
                 if should_skip_field(f) {
                     let ty = &f.ty;
@@ -246,14 +260,29 @@ fn generate_deserialize(data: &Data) -> proc_macro2::TokenStream {
                 } else {
                     quote! { let #name = memorypack::MemoryPackDeserialize::deserialize(reader)?; }
                 }
-            });
+            }).collect();
 
-            let field_names = fields.named.iter().map(|f| &f.ident);
+            let mut ordered_deserialize = Vec::new();
+            let mut skip_field_idx = 0;
+            let mut ordered_idx = 0;
+            
+            for f in &fields.named {
+                if should_skip_field(f) {
+                    ordered_deserialize.push(deserialize_stmts[skip_field_idx + ordered_idx].clone());
+                    skip_field_idx += 1;
+                } else if ordered_idx < ordered.len() {
+                    let field_idx = fields.named.iter()
+                        .position(|field| std::ptr::eq(field, ordered[ordered_idx].field))
+                        .unwrap();
+                    ordered_deserialize.push(deserialize_stmts[field_idx].clone());
+                    ordered_idx += 1;
+                }
+            }
 
             quote! {
                 let _header = reader.read_u8()?;
-                #(#deserialize_fields)*
-                Ok(Self { #(#field_names),* })
+                #(#ordered_deserialize)*
+                Ok(Self { #(#all_field_names),* })
             }
         }
         Fields::Unnamed(fields) => {
@@ -286,10 +315,6 @@ fn generate_enum_serialize() -> proc_macro2::TokenStream {
 fn generate_enum_deserialize_unsafe() -> proc_macro2::TokenStream {
     quote! {
         let value = reader.read_i32()?;
-        // SAFETY: Transmuting i32 to repr(i32) enum.
-        // This requires the enum to have #[repr(i32)] attribute.
-        // For invalid discriminant values, this may produce undefined behavior,
-        // but matches C# MemoryPack's behavior for enum serialization.
         Ok(unsafe { std::mem::transmute(value) })
     }
 }
@@ -430,5 +455,173 @@ fn generate_union_deserialize(
                 format!("Unknown union tag {} for {}", tag, stringify!(#name))
             ))
         }
+    }
+}
+
+fn generate_version_tolerant_serialize(data: &Data) -> proc_macro2::TokenStream {
+    let Data::Struct(data_struct) = data else {
+        return quote! {
+            compile_error!("MemoryPackable version_tolerant can only be derived for structs");
+        };
+    };
+
+    match &data_struct.fields {
+        Fields::Named(fields) => {
+            let non_skip: Vec<_> = fields.named.iter().filter(|f| !should_skip_field(f)).collect();
+
+            if non_skip.is_empty() {
+                return quote! { writer.write_u8(0)?; };
+            }
+
+            let ordered = prepare_ordered_fields(&non_skip);
+            let max_order = ordered.last().map(|f| f.order).unwrap_or(0);
+            let member_count = max_order + 1;
+
+            let serialize_logic = (0..member_count).map(|order| {
+                if let Some(of) = ordered.iter().find(|f| f.order == order) {
+                    let name = of.ident;
+                    quote! {
+                        let mut temp_writer = memorypack::MemoryPackWriter::new();
+                        memorypack::MemoryPackSerialize::serialize(&self.#name, &mut temp_writer)?;
+                        let field_bytes = temp_writer.into_bytes();
+                        field_buffers.push((field_bytes.len() as i64, field_bytes));
+                    }
+                } else {
+                    quote! { field_buffers.push((0i64, Vec::new())); }
+                }
+            });
+
+            quote! {
+                writer.write_u8(#member_count as u8)?;
+                let mut field_buffers = Vec::with_capacity(#member_count);
+                #(#serialize_logic)*
+                for (length, _) in &field_buffers {
+                    memorypack::varint::write_varint(writer, *length)?;
+                }
+                for (_, buf) in field_buffers {
+                    writer.buffer.extend_from_slice(&buf);
+                }
+            }
+        }
+        Fields::Unnamed(fields) => {
+            let field_count = fields.unnamed.len();
+            let field_indices: Vec<_> = (0..field_count).map(syn::Index::from).collect();
+
+            let serialize_to_buffers = field_indices.iter().map(|idx| {
+                quote! {
+                    let mut temp_writer = memorypack::MemoryPackWriter::new();
+                    memorypack::MemoryPackSerialize::serialize(&self.#idx, &mut temp_writer)?;
+                    let field_bytes = temp_writer.into_bytes();
+                    field_buffers.push((field_bytes.len() as i64, field_bytes));
+                }
+            });
+
+            quote! {
+                writer.write_u8(#field_count as u8)?;
+                let mut field_buffers = Vec::with_capacity(#field_count);
+                #(#serialize_to_buffers)*
+                for (length, _) in &field_buffers {
+                    memorypack::varint::write_varint(writer, *length)?;
+                }
+                for (_, buf) in field_buffers {
+                    writer.buffer.extend_from_slice(&buf);
+                }
+            }
+        }
+        Fields::Unit => quote! { writer.write_u8(0)?; },
+    }
+}
+
+fn generate_version_tolerant_deserialize(data: &Data) -> proc_macro2::TokenStream {
+    let Data::Struct(data_struct) = data else {
+        return quote! {
+            compile_error!("MemoryPackable version_tolerant can only be derived for structs");
+        };
+    };
+
+    match &data_struct.fields {
+        Fields::Named(fields) => {
+            let non_skip: Vec<_> = fields.named.iter().filter(|f| !should_skip_field(f)).collect();
+            
+            if non_skip.is_empty() {
+                return quote! {
+                    let _member_count = reader.read_u8()?;
+                    Ok(Self {})
+                };
+            }
+
+            let ordered = prepare_ordered_fields(&non_skip);
+            let all_field_names: Vec<_> = fields.named.iter().map(|f| &f.ident).collect();
+
+            let deserialize_logic: Vec<_> = ordered.iter().map(|of| {
+                let name = of.ident;
+                let order = of.order;
+                quote! {
+                    let #name = if #order < member_count && lengths[#order] > 0 {
+                        memorypack::MemoryPackDeserialize::deserialize(reader)?
+                    } else {
+                        if #order < member_count {
+                            reader.skip(lengths[#order])?;
+                        }
+                        Default::default()
+                    };
+                }
+            }).collect();
+
+            let skip_extra_fields = if let Some(max_order) = ordered.last().map(|f| f.order) {
+                let next_order = max_order + 1;
+                quote! {
+                    for i in #next_order..member_count {
+                        reader.skip(lengths[i])?;
+                    }
+                }
+            } else {
+                quote! {}
+            };
+
+            quote! {
+                let member_count = reader.read_u8()? as usize;
+                let mut lengths = Vec::with_capacity(member_count);
+                for _ in 0..member_count {
+                    lengths.push(memorypack::varint::read_varint(reader)? as usize);
+                }
+                #(#deserialize_logic)*
+                #skip_extra_fields
+                Ok(Self { #(#all_field_names),* })
+            }
+        }
+        Fields::Unnamed(fields) => {
+            let field_count = fields.unnamed.len();
+            let field_vars: Vec<_> = (0..field_count)
+                .map(|i| syn::Ident::new(&format!("field_{}", i), proc_macro2::Span::call_site()))
+                .collect();
+
+            let deserialize_fields = field_vars.iter().enumerate().map(|(i, var)| {
+                quote! {
+                    let #var = if #i < member_count {
+                        memorypack::MemoryPackDeserialize::deserialize(reader)?
+                    } else {
+                        Default::default()
+                    };
+                }
+            });
+
+            quote! {
+                let member_count = reader.read_u8()? as usize;
+                let mut lengths = Vec::with_capacity(member_count);
+                for _ in 0..member_count {
+                    lengths.push(memorypack::varint::read_varint(reader)? as usize);
+                }
+                #(#deserialize_fields)*
+                for i in #field_count..member_count {
+                    reader.skip(lengths[i])?;
+                }
+                Ok(Self(#(#field_vars),*))
+            }
+        }
+        Fields::Unit => quote! {
+            let _member_count = reader.read_u8()?;
+            Ok(Self)
+        },
     }
 }

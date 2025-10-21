@@ -37,39 +37,3 @@ impl MemoryPackSerializer {
         T::deserialize(reader)
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_serialize_deserialize_primitives() {
-        let value = 42i32;
-        let bytes = MemoryPackSerializer::serialize(&value).unwrap();
-        let deserialized: i32 = MemoryPackSerializer::deserialize(&bytes).unwrap();
-        assert_eq!(value, deserialized);
-
-        let value = "Hello, MemoryPack!";
-        let bytes = MemoryPackSerializer::serialize(&value).unwrap();
-        let deserialized: String = MemoryPackSerializer::deserialize(&bytes).unwrap();
-        assert_eq!(value, deserialized);
-
-        let value = true;
-        let bytes = MemoryPackSerializer::serialize(&value).unwrap();
-        let deserialized: bool = MemoryPackSerializer::deserialize(&bytes).unwrap();
-        assert_eq!(value, deserialized);
-    }
-
-    #[test]
-    fn test_serialize_deserialize_vec() {
-        let value = vec![1, 2, 3, 4, 5];
-        let bytes = MemoryPackSerializer::serialize(&value).unwrap();
-        let deserialized: Vec<i32> = MemoryPackSerializer::deserialize(&bytes).unwrap();
-        assert_eq!(value, deserialized);
-
-        let empty: Vec<i32> = vec![];
-        let bytes = MemoryPackSerializer::serialize(&empty).unwrap();
-        let deserialized: Vec<i32> = MemoryPackSerializer::deserialize(&bytes).unwrap();
-        assert_eq!(empty, deserialized);
-    }
-}

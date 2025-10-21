@@ -2,7 +2,7 @@ use crate::error::MemoryPackError;
 use byteorder::{LittleEndian, WriteBytesExt};
 
 pub struct MemoryPackWriter {
-    pub(crate) buffer: Vec<u8>,
+    pub buffer: Vec<u8>,
 }
 
 impl MemoryPackWriter {
