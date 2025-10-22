@@ -9,6 +9,7 @@ impl<T> MemoryPackDeserialize for HashMap<String, T>
 where
     T: MemoryPackDeserialize + Default,
 {
+    #[inline]
     fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
         let count = reader.read_i32()?;
         
@@ -41,6 +42,7 @@ impl<T> MemoryPackSerialize for HashMap<String, T>
 where
     T: MemoryPackSerialize,
 {
+    #[inline]
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
         writer.write_i32(self.len() as i32)?;
         for (key, value) in self.iter() {
