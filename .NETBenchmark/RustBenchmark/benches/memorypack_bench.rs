@@ -1,9 +1,31 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use memorypack::prelude::*;
 use std::collections::HashMap;
+use std::alloc::{GlobalAlloc, Layout, System};
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+struct CountingAlloc;
+
+static ALLOCATED: AtomicUsize = AtomicUsize::new(0);
+static DEALLOCATED: AtomicUsize = AtomicUsize::new(0);
+
+unsafe impl GlobalAlloc for CountingAlloc {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        let ret = System.alloc(layout);
+        if !ret.is_null() {
+            ALLOCATED.fetch_add(layout.size(), Ordering::SeqCst);
+        }
+        ret
+    }
+
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        System.dealloc(ptr, layout);
+        DEALLOCATED.fetch_add(layout.size(), Ordering::SeqCst);
+    }
+}
 
 #[global_allocator]
-static ALLOC: dhat::Alloc = dhat::Alloc;
+static GLOBAL: CountingAlloc = CountingAlloc;
 
 #[derive(MemoryPackable, Clone)]
 struct SimpleData {
@@ -67,18 +89,26 @@ fn create_version_tolerant_data() -> VersionTolerantData {
     }
 }
 
+fn reset_counters() {
+    ALLOCATED.store(0, Ordering::SeqCst);
+    DEALLOCATED.store(0, Ordering::SeqCst);
+}
+
+fn get_net_allocated() -> usize {
+    let allocated = ALLOCATED.load(Ordering::SeqCst);
+    let deallocated = DEALLOCATED.load(Ordering::SeqCst);
+    allocated.saturating_sub(deallocated)
+}
+
 fn measure_allocations<F, T>(name: &str, f: F) -> T
 where
     F: FnOnce() -> T,
 {
-    let stats_before = dhat::HeapStats::get();
+    reset_counters();
     let result = f();
-    let stats_after = dhat::HeapStats::get();
+    let net_allocated = get_net_allocated();
     
-    let allocated = stats_after.total_bytes - stats_before.total_bytes;
-    let blocks = stats_after.total_blocks - stats_before.total_blocks;
-    
-    println!("{}: {} bytes allocated in {} blocks", name, allocated, blocks);
+    println!("{}: {} bytes allocated (net)", name, net_allocated);
     result
 }
 
