@@ -1,12 +1,19 @@
-/target
+obj/
+bin/
+
+
+target/
+
 .idea
+
 *.bytes
 *.json
 
 .NETGenerateMemoryPack/
-.NETMemoryPack
+.NETMemoryPack/
 
 memorypack/examples/
+memorypack-benchmark/
 
 *.exe
 *.pdb

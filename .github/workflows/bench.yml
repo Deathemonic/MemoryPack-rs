@@ -1,0 +1,53 @@
+name: Benchmark
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  benchmark:
+    runs-on: macos-15
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Rust
+      uses: actions-rust-lang/setup-rust-toolchain@v1
+      with:
+        toolchain: stable
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+    
+    - name: Cache Rust dependencies
+      uses: Swatinem/rust-cache@v2
+    
+    - name: Run Rust benchmarks
+      run: |
+        cd .NETBenchmark/RustBenchmark
+        cargo bench --no-fail-fast
+    
+    - name: Restore .NET dependencies
+      run: |
+        cd .NETBenchmark/MemoryPackBenchmark
+        dotnet restore
+    
+    - name: Run .NET benchmarks
+      run: |
+        cd .NETBenchmark/MemoryPackBenchmark
+        dotnet run -c Release
+    
+    - name: Upload benchmark results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: benchmark-results
+        path: |
+          .NETBenchmark/RustBenchmark/target/criterion/
+          .NETBenchmark/MemoryPackBenchmark/BenchmarkDotNet.Artifacts/
+

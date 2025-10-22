@@ -1,5 +1,5 @@
 [workspace]
-members = ["memorypack", "memorypack-derive"]
+members = ["memorypack", "memorypack-benchmark", "memorypack-derive"]
 resolver = "2"
 
 [workspace.dependencies]

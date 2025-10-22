@@ -1,0 +1,12 @@
+[package]
+name = "memorypack-benchmark"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+memorypack = { path = "../memorypack" }
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "memorypack_bench"
+harness = false
