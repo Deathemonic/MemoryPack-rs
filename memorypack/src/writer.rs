@@ -1,18 +1,31 @@
 use crate::error::MemoryPackError;
+use crate::state::MemoryPackWriterOptionalState;
 use byteorder::{LittleEndian, WriteBytesExt};
 
 pub struct MemoryPackWriter {
     pub buffer: Vec<u8>,
+    pub optional_state: Option<MemoryPackWriterOptionalState>,
 }
 
 impl MemoryPackWriter {
     pub fn new() -> Self {
-        Self { buffer: Vec::new() }
+        Self {
+            buffer: Vec::new(),
+            optional_state: None,
+        }
+    }
+
+    pub fn new_with_state() -> Self {
+        Self {
+            buffer: Vec::new(),
+            optional_state: Some(MemoryPackWriterOptionalState::new()),
+        }
     }
 
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             buffer: Vec::with_capacity(capacity),
+            optional_state: None,
         }
     }
 
@@ -103,10 +116,12 @@ impl MemoryPackWriter {
         Ok(())
     }
 
+    #[inline]
     pub fn into_bytes(self) -> Vec<u8> {
         self.buffer
     }
 
+    #[inline]
     pub fn as_bytes(&self) -> &[u8] {
         &self.buffer
     }
@@ -115,5 +130,13 @@ impl MemoryPackWriter {
 impl Default for MemoryPackWriter {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl MemoryPackWriter {
+    pub fn write_object_reference_id(&mut self, reference_id: u32) -> Result<(), MemoryPackError> {
+        self.write_u8(250)?;
+        crate::varint::write_varint(self, reference_id as i64)?;
+        Ok(())
     }
 }

@@ -1,15 +1,25 @@
 use crate::error::MemoryPackError;
+use crate::state::MemoryPackReaderOptionalState;
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::io::{Cursor, Read, Seek, SeekFrom};
 
 pub struct MemoryPackReader<'a> {
     pub(crate) cursor: Cursor<&'a [u8]>,
+    pub optional_state: Option<MemoryPackReaderOptionalState>,
 }
 
 impl<'a> MemoryPackReader<'a> {
     pub fn new(data: &'a [u8]) -> Self {
         Self {
             cursor: Cursor::new(data),
+            optional_state: None,
+        }
+    }
+
+    pub fn new_with_state(data: &'a [u8]) -> Self {
+        Self {
+            cursor: Cursor::new(data),
+            optional_state: Some(MemoryPackReaderOptionalState::new()),
         }
     }
 
@@ -101,13 +111,20 @@ impl<'a> MemoryPackReader<'a> {
         Ok(self.cursor.read_f64::<LittleEndian>()?)
     }
 
-    pub fn position(&self) -> u64 {
-        self.cursor.position()
-    }
-
     #[inline]
     pub fn skip(&mut self, n: usize) -> Result<(), MemoryPackError> {
         self.cursor.seek(SeekFrom::Current(n as i64))?;
         Ok(())
+    }
+
+    #[inline]
+    pub fn rewind(&mut self, n: usize) -> Result<(), MemoryPackError> {
+        self.cursor.seek(SeekFrom::Current(-(n as i64)))?;
+        Ok(())
+    }
+
+    #[inline]
+    pub fn position(&self) -> u64 {
+        self.cursor.position()
     }
 }
