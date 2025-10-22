@@ -2,6 +2,9 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use memorypack::prelude::*;
 use std::collections::HashMap;
 
+#[global_allocator]
+static ALLOC: dhat::Alloc = dhat::Alloc;
+
 #[derive(MemoryPackable, Clone)]
 struct SimpleData {
     id: i32,
@@ -64,8 +67,29 @@ fn create_version_tolerant_data() -> VersionTolerantData {
     }
 }
 
+fn measure_allocations<F, T>(name: &str, f: F) -> T
+where
+    F: FnOnce() -> T,
+{
+    let stats_before = dhat::HeapStats::get();
+    let result = f();
+    let stats_after = dhat::HeapStats::get();
+    
+    let allocated = stats_after.total_bytes - stats_before.total_bytes;
+    let blocks = stats_after.total_blocks - stats_before.total_blocks;
+    
+    println!("{}: {} bytes allocated in {} blocks", name, allocated, blocks);
+    result
+}
+
 fn benchmark_serialize_simple(c: &mut Criterion) {
     let data = create_simple_data();
+    
+    let bytes = measure_allocations("serialize_simple (single run)", || {
+        MemoryPackSerializer::serialize(&data).unwrap()
+    });
+    println!("serialize_simple output size: {} bytes\n", bytes.len());
+    
     c.bench_function("serialize_simple", |b| {
         b.iter(|| MemoryPackSerializer::serialize(black_box(&data)).unwrap())
     });
@@ -74,6 +98,12 @@ fn benchmark_serialize_simple(c: &mut Criterion) {
 fn benchmark_deserialize_simple(c: &mut Criterion) {
     let data = create_simple_data();
     let bytes = MemoryPackSerializer::serialize(&data).unwrap();
+    
+    measure_allocations("deserialize_simple (single run)", || {
+        MemoryPackSerializer::deserialize::<SimpleData>(&bytes).unwrap()
+    });
+    println!();
+    
     c.bench_function("deserialize_simple", |b| {
         b.iter(|| MemoryPackSerializer::deserialize::<SimpleData>(black_box(&bytes)).unwrap())
     });
@@ -81,6 +111,12 @@ fn benchmark_deserialize_simple(c: &mut Criterion) {
 
 fn benchmark_serialize_complex(c: &mut Criterion) {
     let data = create_complex_data();
+    
+    let bytes = measure_allocations("serialize_complex (single run)", || {
+        MemoryPackSerializer::serialize(&data).unwrap()
+    });
+    println!("serialize_complex output size: {} bytes\n", bytes.len());
+    
     c.bench_function("serialize_complex", |b| {
         b.iter(|| MemoryPackSerializer::serialize(black_box(&data)).unwrap())
     });
@@ -89,6 +125,12 @@ fn benchmark_serialize_complex(c: &mut Criterion) {
 fn benchmark_deserialize_complex(c: &mut Criterion) {
     let data = create_complex_data();
     let bytes = MemoryPackSerializer::serialize(&data).unwrap();
+    
+    measure_allocations("deserialize_complex (single run)", || {
+        MemoryPackSerializer::deserialize::<ComplexData>(&bytes).unwrap()
+    });
+    println!();
+    
     c.bench_function("deserialize_complex", |b| {
         b.iter(|| MemoryPackSerializer::deserialize::<ComplexData>(black_box(&bytes)).unwrap())
     });
@@ -96,6 +138,12 @@ fn benchmark_deserialize_complex(c: &mut Criterion) {
 
 fn benchmark_serialize_version_tolerant(c: &mut Criterion) {
     let data = create_version_tolerant_data();
+    
+    let bytes = measure_allocations("serialize_version_tolerant (single run)", || {
+        MemoryPackSerializer::serialize(&data).unwrap()
+    });
+    println!("serialize_version_tolerant output size: {} bytes\n", bytes.len());
+    
     c.bench_function("serialize_version_tolerant", |b| {
         b.iter(|| MemoryPackSerializer::serialize(black_box(&data)).unwrap())
     });
@@ -104,6 +152,12 @@ fn benchmark_serialize_version_tolerant(c: &mut Criterion) {
 fn benchmark_deserialize_version_tolerant(c: &mut Criterion) {
     let data = create_version_tolerant_data();
     let bytes = MemoryPackSerializer::serialize(&data).unwrap();
+    
+    measure_allocations("deserialize_version_tolerant (single run)", || {
+        MemoryPackSerializer::deserialize::<VersionTolerantData>(&bytes).unwrap()
+    });
+    println!();
+    
     c.bench_function("deserialize_version_tolerant", |b| {
         b.iter(|| MemoryPackSerializer::deserialize::<VersionTolerantData>(black_box(&bytes)).unwrap())
     });
@@ -119,4 +173,3 @@ criterion_group!(
     benchmark_deserialize_version_tolerant
 );
 criterion_main!(benches);
-
