@@ -19,32 +19,24 @@ impl AttributeFlags {
         };
 
         for attr in attrs {
-            if attr.path().is_ident("repr") {
-                if let Ok(list) = attr.meta.require_list() {
-                    let tokens = list.tokens.to_string();
-                    if tokens.contains("transparent") {
-                        result.is_transparent = true;
-                    }
-                    if tokens.contains("i32") {
-                        result.has_repr_i32 = true;
+            match attr.path() {
+                path if path.is_ident("repr") => {
+                    if let Ok(list) = attr.meta.require_list() {
+                        let tokens = list.tokens.to_string();
+                        result.is_transparent = tokens.contains("transparent");
+                        result.has_repr_i32 = tokens.contains("i32");
                     }
                 }
-            } else if attr.path().is_ident("memorypack") {
-                if let Ok(list) = attr.meta.require_list() {
-                    let tokens = list.tokens.to_string();
-                    if tokens.contains("flags") {
-                        result.is_flags = true;
-                    }
-                    if tokens.contains("union") {
-                        result.is_union = true;
-                    }
-                    if tokens.contains("version_tolerant") {
-                        result.is_version_tolerant = true;
-                    }
-                    if tokens.contains("circular") {
-                        result.is_circular = true;
+                path if path.is_ident("memorypack") => {
+                    if let Ok(list) = attr.meta.require_list() {
+                        let tokens = list.tokens.to_string();
+                        result.is_flags = tokens.contains("flags");
+                        result.is_union = tokens.contains("union");
+                        result.is_version_tolerant = tokens.contains("version_tolerant");
+                        result.is_circular = tokens.contains("circular");
                     }
                 }
+                _ => {}
             }
         }
 
