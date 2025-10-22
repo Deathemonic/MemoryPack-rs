@@ -55,10 +55,11 @@ impl MemoryPackReaderOptionalState {
         self.ref_to_object.clear();
     }
 
-    pub fn get_object_reference<T: 'static>(&self, id: u32) -> Result<&T, MemoryPackError> {
+    pub fn get_object_reference<T: 'static + Clone>(&self, id: u32) -> Result<T, MemoryPackError> {
         self.ref_to_object
             .get(&id)
             .and_then(|boxed| boxed.downcast_ref::<T>())
+            .cloned()
             .ok_or_else(|| MemoryPackError::DeserializationError(
                 format!("Object is not found in this reference id: {}", id)
             ))
@@ -72,6 +73,17 @@ impl MemoryPackReaderOptionalState {
         }
         self.ref_to_object.insert(id, Box::new(value));
         Ok(())
+    }
+
+    pub fn update_object_reference<T: 'static>(&mut self, id: u32, value: T) -> Result<(), MemoryPackError> {
+        if let Some(entry) = self.ref_to_object.get_mut(&id) {
+            *entry = Box::new(value);
+            Ok(())
+        } else {
+            Err(MemoryPackError::DeserializationError(
+                format!("Object not found for update, id: {}", id)
+            ))
+        }
     }
 }
 
