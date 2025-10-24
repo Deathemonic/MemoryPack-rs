@@ -15,5 +15,7 @@ target/
 memorypack/examples/
 memorypack-benchmark/
 
+profiling-results/
+
 *.exe
 *.pdb

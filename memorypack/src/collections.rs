@@ -2,7 +2,7 @@ use crate::error::MemoryPackError;
 use crate::reader::MemoryPackReader;
 use crate::traits::{MemoryPackDeserialize, MemoryPackSerialize};
 use crate::writer::MemoryPackWriter;
-use std::collections::HashMap;
+use hashbrown::HashMap;
 
 
 impl<T> MemoryPackDeserialize for HashMap<String, T>

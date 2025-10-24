@@ -9,6 +9,7 @@ dhat-heap = ["dhat"]
 [dependencies]
 memorypack = { path = "../../memorypack" }
 dhat = { version = "0.3", optional = true }
+hashbrown = { version = "0.16", features = ["serde"] }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }

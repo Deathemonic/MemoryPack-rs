@@ -1,5 +1,5 @@
 use crate::error::MemoryPackError;
-use std::collections::HashMap;
+use hashbrown::HashMap;
 use std::any::Any;
 
 pub struct MemoryPackWriterOptionalState {

@@ -1,5 +1,5 @@
 use memorypack::prelude::*;
-use std::collections::HashMap;
+use hashbrown::HashMap;
 
 #[cfg(feature = "dhat-heap")]
 #[global_allocator]
