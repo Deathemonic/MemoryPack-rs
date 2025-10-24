@@ -36,15 +36,10 @@ jobs:
         mkdir -p profiling_output
         cargo expand --example memorypack_profile > profiling_output/memorypack_profile_expanded.rs 2>&1 || true
     
-    - name: Build with dhat
-      run: |
-        cd .NETBenchmark/RustBenchmark
-        cargo build --example memorypack_profile --release --features dhat-heap
-    
     - name: Run dhat heap profiling
       run: |
         cd .NETBenchmark/RustBenchmark
-        ./target/release/examples/memorypack_profile
+        cargo run --example memorypack_profile --release --features dhat-heap
         if [ -f dhat-heap.json ]; then
           mv dhat-heap.json profiling_output/
           echo "dhat heap profile generated"
