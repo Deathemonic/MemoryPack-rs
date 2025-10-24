@@ -26,5 +26,11 @@ pub enum MemoryPackError {
 
     #[error("Unexpected end of data")]
     UnexpectedEnd,
+
+    #[error("Unexpected end of buffer")]
+    UnexpectedEndOfBuffer,
+
+    #[error("UTF-16 strings are not supported for zero-copy deserialization")]
+    Utf16NotSupportedForZeroCopy,
 }
 

@@ -13,6 +13,10 @@ pub trait MemoryPackDeserialize: Sized {
     fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError>;
 }
 
+pub trait MemoryPackDeserializeZeroCopy<'a>: Sized {
+    fn deserialize(reader: &mut MemoryPackReader<'a>) -> Result<Self, MemoryPackError>;
+}
+
 impl MemoryPackSerialize for bool {
     #[inline]
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
@@ -185,6 +189,13 @@ impl MemoryPackSerialize for &str {
     #[inline]
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
         writer.write_string(self)
+    }
+}
+
+impl<'a> MemoryPackDeserializeZeroCopy<'a> for &'a str {
+    #[inline]
+    fn deserialize(reader: &mut MemoryPackReader<'a>) -> Result<Self, MemoryPackError> {
+        reader.read_str()
     }
 }
 

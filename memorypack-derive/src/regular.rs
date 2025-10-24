@@ -1,6 +1,6 @@
 use quote::quote;
 use syn::{Data, Fields};
-use crate::helpers::{should_skip_field, prepare_ordered_fields};
+use crate::helpers::{should_skip_field, prepare_ordered_fields, generate_field_deserialize};
 
 pub fn generate_serialize(data: &Data) -> proc_macro2::TokenStream {
     let Data::Struct(data_struct) = data else {
@@ -41,7 +41,7 @@ pub fn generate_serialize(data: &Data) -> proc_macro2::TokenStream {
     }
 }
 
-pub fn generate_deserialize(data: &Data) -> proc_macro2::TokenStream {
+pub fn generate_deserialize(data: &Data, is_zero_copy: bool) -> proc_macro2::TokenStream {
     let Data::Struct(data_struct) = data else {
         return quote! {
             compile_error!("MemoryPackable deserialize can only be derived for structs");
@@ -55,18 +55,9 @@ pub fn generate_deserialize(data: &Data) -> proc_macro2::TokenStream {
             
             let all_field_names: Vec<_> = fields.named.iter().map(|f| &f.ident).collect();
             
-            let deserialize_stmts: Vec<_> = fields.named.iter().map(|f| {
-                let name = &f.ident;
-                if should_skip_field(f) {
-                    let ty = &f.ty;
-                    quote! {
-                        let _: #ty = memorypack::MemoryPackDeserialize::deserialize(reader)?;
-                        let #name = Default::default();
-                    }
-                } else {
-                    quote! { let #name = memorypack::MemoryPackDeserialize::deserialize(reader)?; }
-                }
-            }).collect();
+            let deserialize_stmts: Vec<_> = fields.named.iter()
+                .map(|f| generate_field_deserialize(f, is_zero_copy))
+                .collect();
 
             let mut ordered_deserialize = Vec::new();
             let mut skip_field_idx = 0;

@@ -36,4 +36,14 @@ impl MemoryPackSerializer {
     pub fn deserialize_from<T: MemoryPackDeserialize>(reader: &mut MemoryPackReader) -> Result<T, MemoryPackError> {
         T::deserialize(reader)
     }
+
+    /// Deserialize a value with zero-copy
+    #[inline]
+    pub fn deserialize_zero_copy<'a, T>(data: &'a [u8]) -> Result<T, MemoryPackError>
+    where
+        T: crate::traits::MemoryPackDeserializeZeroCopy<'a>,
+    {
+        let mut reader = MemoryPackReader::new(data);
+        T::deserialize(&mut reader)
+    }
 }

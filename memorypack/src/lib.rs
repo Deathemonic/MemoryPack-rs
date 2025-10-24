@@ -12,7 +12,7 @@ pub use error::MemoryPackError;
 pub use reader::MemoryPackReader;
 pub use serializer::MemoryPackSerializer;
 pub use state::{MemoryPackReaderOptionalState, MemoryPackWriterOptionalState};
-pub use traits::{MemoryPackDeserialize, MemoryPackSerialize};
+pub use traits::{MemoryPackDeserialize, MemoryPackDeserializeZeroCopy, MemoryPackSerialize};
 pub use writer::MemoryPackWriter;
 
 #[cfg(feature = "derive")]
@@ -20,8 +20,10 @@ pub use memorypack_derive::MemoryPackable;
 
 pub mod prelude {
     pub use crate::error::MemoryPackError;
+    pub use crate::reader::MemoryPackReader;
     pub use crate::serializer::MemoryPackSerializer;
     pub use crate::traits::{MemoryPackDeserialize, MemoryPackSerialize};
+    pub use crate::writer::MemoryPackWriter;
 
     #[cfg(feature = "derive")]
     pub use memorypack_derive::MemoryPackable;

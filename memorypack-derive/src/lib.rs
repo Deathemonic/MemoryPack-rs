@@ -44,7 +44,7 @@ pub fn derive_memorypack(input: TokenStream) -> TokenStream {
         ),
         Data::Struct(_) => (
             generate_serialize(&input.data),
-            generate_deserialize(&input.data),
+            generate_deserialize(&input.data, attrs.is_zero_copy),
         ),
         Data::Enum(data_enum) if attrs.is_union => (
             generate_union_serialize(data_enum),
@@ -82,6 +82,39 @@ pub fn derive_memorypack(input: TokenStream) -> TokenStream {
         quote! {}
     };
 
+    let zero_copy_impl = if attrs.is_zero_copy {
+        quote! {
+            impl<'a> memorypack::MemoryPackDeserializeZeroCopy<'a> for #name<'a> {
+                fn deserialize(reader: &mut memorypack::MemoryPackReader<'a>) -> Result<Self, memorypack::MemoryPackError> {
+                    #deserialize_impl
+                }
+            }
+            
+            impl<'a> memorypack::MemoryPackDeserialize for #name<'a> {
+                fn deserialize(reader: &mut memorypack::MemoryPackReader) -> Result<Self, memorypack::MemoryPackError> {
+                    let reader_with_lifetime: &mut memorypack::MemoryPackReader<'a> = unsafe {
+                        std::mem::transmute(reader)
+                    };
+                    <Self as memorypack::MemoryPackDeserializeZeroCopy<'a>>::deserialize(reader_with_lifetime)
+                }
+            }
+        }
+    } else {
+        quote! {}
+    };
+
+    let deserialize_regular_impl = if attrs.is_zero_copy {
+        quote! {}
+    } else {
+        quote! {
+            impl #impl_generics memorypack::MemoryPackDeserialize for #name #ty_generics #where_clause {
+                fn deserialize(reader: &mut memorypack::MemoryPackReader) -> Result<Self, memorypack::MemoryPackError> {
+                    #deserialize_impl
+                }
+            }
+        }
+    };
+
     let expanded = quote! {
         impl #impl_generics memorypack::MemoryPackSerialize for #name #ty_generics #where_clause {
             fn serialize(&self, writer: &mut memorypack::MemoryPackWriter) -> Result<(), memorypack::MemoryPackError> {
@@ -90,11 +123,9 @@ pub fn derive_memorypack(input: TokenStream) -> TokenStream {
             }
         }
 
-        impl #impl_generics memorypack::MemoryPackDeserialize for #name #ty_generics #where_clause {
-            fn deserialize(reader: &mut memorypack::MemoryPackReader) -> Result<Self, memorypack::MemoryPackError> {
-                #deserialize_impl
-            }
-        }
+        #deserialize_regular_impl
+
+        #zero_copy_impl
 
         #flags_impl
     };

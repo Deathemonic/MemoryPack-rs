@@ -21,7 +21,10 @@ pub fn should_skip_field(field: &Field) -> bool {
     field.attrs.iter().any(|attr| {
         attr.path().is_ident("memorypack")
             && attr.meta.require_list()
-                .map(|m| m.tokens.to_string().contains("skip"))
+                .map(|m| {
+                    let tokens = m.tokens.to_string();
+                    tokens.contains("skip") || tokens.contains("ignore")
+                })
                 .unwrap_or(false)
     }) || field.ident.as_ref()
         .map(|ident| ident.to_string().starts_with('_'))
@@ -48,6 +51,34 @@ pub fn get_field_order(field: &Field) -> Option<usize> {
         
         num_str.parse::<usize>().ok()
     })
+}
+
+#[inline]
+pub fn is_zero_copy_field(field: &Field) -> bool {
+    field.attrs.iter().any(|attr| {
+        attr.path().is_ident("memorypack")
+            && attr.meta.require_list()
+                .map(|m| m.tokens.to_string().contains("zero_copy"))
+                .unwrap_or(false)
+    })
+}
+
+#[inline]
+pub fn is_borrowed_str(ty: &syn::Type) -> bool {
+    if let syn::Type::Reference(type_ref) = ty {
+        if let syn::Type::Path(inner_path) = &*type_ref.elem {
+            return inner_path.path.is_ident("str");
+        }
+    }
+    false
+}
+
+#[inline]
+pub fn is_borrowed_slice(ty: &syn::Type) -> bool {
+    if let syn::Type::Reference(type_ref) = ty {
+        return matches!(&*type_ref.elem, syn::Type::Slice(_));
+    }
+    false
 }
 
 pub fn is_option_box(ty: &syn::Type) -> bool {
@@ -83,5 +114,36 @@ pub fn prepare_ordered_fields<'a>(fields: &'a [&'a Field]) -> Vec<OrderedField<'
         .collect();
     ordered.sort_by_key(|f| f.order);
     ordered
+}
+
+pub fn generate_field_deserialize(field: &Field, is_zero_copy_struct: bool) -> proc_macro2::TokenStream {
+    use quote::quote;
+    
+    let name = &field.ident;
+    let ty = &field.ty;
+    
+    if should_skip_field(field) {
+        return quote! {
+            let mut temp_reader = memorypack::MemoryPackReader::new(&[]);
+            let _: #ty = memorypack::MemoryPackDeserialize::deserialize(&mut temp_reader)?;
+            let #name = Default::default();
+        };
+    }
+    
+    let is_field_zero_copy = is_zero_copy_field(field);
+    
+    if is_zero_copy_struct || is_field_zero_copy {
+        if is_borrowed_str(ty) {
+            return quote! { let #name = reader.read_str()?; };
+        }
+        if is_borrowed_slice(ty) {
+            return quote! { let #name = reader.read_bytes()?; };
+        }
+        if is_field_zero_copy {
+            return quote! { let #name = memorypack::MemoryPackDeserializeZeroCopy::deserialize(reader)?; };
+        }
+    }
+    
+    quote! { let #name = memorypack::MemoryPackDeserialize::deserialize(reader)?; }
 }
 
