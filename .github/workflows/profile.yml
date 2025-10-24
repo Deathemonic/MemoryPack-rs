@@ -48,7 +48,7 @@ jobs:
     - name: Generate flamegraph
       run: |
         cd .NETBenchmark/RustBenchmark
-        sudo env "PATH=$PATH" CARGO_PROFILE_RELEASE_DEBUG=true cargo flamegraph --example memorypack_profile -o profiling_output/flamegraph.svg
+        sudo -E env "PATH=$HOME/.cargo/bin:$PATH" CARGO_PROFILE_RELEASE_DEBUG=true cargo flamegraph --example memorypack_profile -o profiling_output/flamegraph.svg
       continue-on-error: true
     
     - name: Upload profiling results
