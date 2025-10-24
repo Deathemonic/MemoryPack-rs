@@ -25,8 +25,7 @@ where
             return Ok(HashMap::new());
         }
 
-        let capacity = ((count as usize * 4) / 3).max(count as usize);
-        let mut map = HashMap::with_capacity(capacity);
+        let mut map = HashMap::with_capacity(count as usize);
         
         for _ in 0..count {
             let key = String::deserialize(reader)?;

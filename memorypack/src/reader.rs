@@ -45,7 +45,10 @@ impl<'a> MemoryPackReader<'a> {
     #[inline]
     fn read_utf8_string(&mut self, byte_count: usize) -> Result<String, MemoryPackError> {
         let _char_length = self.read_i32()?;
-        let mut buffer = vec![0u8; byte_count];
+        let mut buffer = Vec::with_capacity(byte_count);
+        unsafe {
+            buffer.set_len(byte_count);
+        }
         self.cursor.read_exact(&mut buffer)?;
         String::from_utf8(buffer).map_err(|e| e.into())
     }
@@ -99,7 +102,10 @@ impl<'a> MemoryPackReader<'a> {
     #[inline]
     fn read_utf16_string(&mut self, char_count: usize) -> Result<String, MemoryPackError> {
         let byte_count = char_count * 2;
-        let mut buffer = vec![0u8; byte_count];
+        let mut buffer = Vec::with_capacity(byte_count);
+        unsafe {
+            buffer.set_len(byte_count);
+        }
         self.cursor.read_exact(&mut buffer)?;
 
         let utf16_chars: Vec<u16> = buffer
