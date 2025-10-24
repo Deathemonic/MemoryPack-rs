@@ -26,7 +26,7 @@ jobs:
     - name: Run Rust benchmarks
       run: |
         cd .NETBenchmark/RustBenchmark
-        cargo bench --no-fail-fast
+        cargo bench --no-fail-fast | tee rust_benchmark_results.txt
     
     - name: Restore .NET dependencies
       run: |
@@ -44,6 +44,7 @@ jobs:
       with:
         name: benchmark-results
         path: |
+          .NETBenchmark/RustBenchmark/rust_benchmark_results.txt
           .NETBenchmark/RustBenchmark/target/criterion/
           .NETBenchmark/MemoryPackBenchmark/BenchmarkDotNet.Artifacts/
 

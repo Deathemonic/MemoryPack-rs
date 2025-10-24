@@ -115,7 +115,7 @@ where
 fn benchmark_serialize_simple(c: &mut Criterion) {
     let data = create_simple_data();
     
-    let bytes = measure_allocations("serialize_simple (single run)", || {
+    let bytes = measure_allocations("serialize_simple", || {
         MemoryPackSerializer::serialize(&data).unwrap()
     });
     println!("serialize_simple output size: {} bytes\n", bytes.len());
@@ -129,7 +129,7 @@ fn benchmark_deserialize_simple(c: &mut Criterion) {
     let data = create_simple_data();
     let bytes = MemoryPackSerializer::serialize(&data).unwrap();
     
-    measure_allocations("deserialize_simple (single run)", || {
+    measure_allocations("deserialize_simple", || {
         MemoryPackSerializer::deserialize::<SimpleData>(&bytes).unwrap()
     });
     println!();
@@ -142,7 +142,7 @@ fn benchmark_deserialize_simple(c: &mut Criterion) {
 fn benchmark_serialize_complex(c: &mut Criterion) {
     let data = create_complex_data();
     
-    let bytes = measure_allocations("serialize_complex (single run)", || {
+    let bytes = measure_allocations("serialize_complex", || {
         MemoryPackSerializer::serialize(&data).unwrap()
     });
     println!("serialize_complex output size: {} bytes\n", bytes.len());
@@ -156,7 +156,7 @@ fn benchmark_deserialize_complex(c: &mut Criterion) {
     let data = create_complex_data();
     let bytes = MemoryPackSerializer::serialize(&data).unwrap();
     
-    measure_allocations("deserialize_complex (single run)", || {
+    measure_allocations("deserialize_complex", || {
         MemoryPackSerializer::deserialize::<ComplexData>(&bytes).unwrap()
     });
     println!();
@@ -169,7 +169,7 @@ fn benchmark_deserialize_complex(c: &mut Criterion) {
 fn benchmark_serialize_version_tolerant(c: &mut Criterion) {
     let data = create_version_tolerant_data();
     
-    let bytes = measure_allocations("serialize_version_tolerant (single run)", || {
+    let bytes = measure_allocations("serialize_version_tolerant", || {
         MemoryPackSerializer::serialize(&data).unwrap()
     });
     println!("serialize_version_tolerant output size: {} bytes\n", bytes.len());
@@ -183,7 +183,7 @@ fn benchmark_deserialize_version_tolerant(c: &mut Criterion) {
     let data = create_version_tolerant_data();
     let bytes = MemoryPackSerializer::serialize(&data).unwrap();
     
-    measure_allocations("deserialize_version_tolerant (single run)", || {
+    measure_allocations("deserialize_version_tolerant", || {
         MemoryPackSerializer::deserialize::<VersionTolerantData>(&bytes).unwrap()
     });
     println!();
