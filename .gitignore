@@ -19,3 +19,5 @@ profiling-results/
 
 *.exe
 *.pdb
+
+*.py

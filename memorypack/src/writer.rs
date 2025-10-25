@@ -30,6 +30,16 @@ impl MemoryPackWriter {
     }
 
     #[inline]
+    pub fn len(&self) -> usize {
+        self.buffer.len()
+    }
+
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.buffer.is_empty()
+    }
+
+    #[inline]
     pub fn write_string(&mut self, value: &str) -> Result<(), MemoryPackError> {
         if value.is_empty() {
             return self.write_i32(0);
