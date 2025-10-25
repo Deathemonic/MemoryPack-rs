@@ -85,12 +85,14 @@ pub fn derive_memorypack(input: TokenStream) -> TokenStream {
     let zero_copy_impl = if attrs.is_zero_copy {
         quote! {
             impl<'a> memorypack::MemoryPackDeserializeZeroCopy<'a> for #name<'a> {
+                #[inline]
                 fn deserialize(reader: &mut memorypack::MemoryPackReader<'a>) -> Result<Self, memorypack::MemoryPackError> {
                     #deserialize_impl
                 }
             }
             
             impl<'a> memorypack::MemoryPackDeserialize for #name<'a> {
+                #[inline]
                 fn deserialize(reader: &mut memorypack::MemoryPackReader) -> Result<Self, memorypack::MemoryPackError> {
                     let reader_with_lifetime: &mut memorypack::MemoryPackReader<'a> = unsafe {
                         std::mem::transmute(reader)
@@ -108,6 +110,7 @@ pub fn derive_memorypack(input: TokenStream) -> TokenStream {
     } else {
         quote! {
             impl #impl_generics memorypack::MemoryPackDeserialize for #name #ty_generics #where_clause {
+                #[inline]
                 fn deserialize(reader: &mut memorypack::MemoryPackReader) -> Result<Self, memorypack::MemoryPackError> {
                     #deserialize_impl
                 }
@@ -117,6 +120,7 @@ pub fn derive_memorypack(input: TokenStream) -> TokenStream {
 
     let expanded = quote! {
         impl #impl_generics memorypack::MemoryPackSerialize for #name #ty_generics #where_clause {
+            #[inline]
             fn serialize(&self, writer: &mut memorypack::MemoryPackWriter) -> Result<(), memorypack::MemoryPackError> {
                 #serialize_impl
                 Ok(())
