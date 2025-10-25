@@ -47,7 +47,11 @@ impl<'a> MemoryPackReader<'a> {
         let _char_length = self.read_i32()?;
         let mut buffer = vec![0u8; byte_count];
         self.cursor.read_exact(&mut buffer)?;
-        String::from_utf8(buffer).map_err(|e| e.into())
+        
+        simdutf8::basic::from_utf8(&buffer)
+            .map_err(|_| MemoryPackError::InvalidUtf8)?;
+        
+        Ok(unsafe { String::from_utf8_unchecked(buffer) })
     }
 
     #[inline]
@@ -75,7 +79,7 @@ impl<'a> MemoryPackReader<'a> {
             return Err(MemoryPackError::UnexpectedEndOfBuffer);
         }
 
-        let str_slice = std::str::from_utf8(&buffer[pos..pos + byte_count])
+        let str_slice = simdutf8::basic::from_utf8(&buffer[pos..pos + byte_count])
             .map_err(|_| MemoryPackError::InvalidUtf8)?;
         
         self.cursor.set_position((pos + byte_count) as u64);

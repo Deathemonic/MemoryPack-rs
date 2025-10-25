@@ -11,6 +11,7 @@ memorypack-derive = { path = "../memorypack-derive", optional = true }
 serde = { version = "1.0", features = ["derive"], optional = true }
 serde_json = { version = "1.0", optional = true }
 hashbrown = { version = "0.16", features = ["serde"] }
+simdutf8 = "0.1.5"
 
 [dev-dependencies]
 serde = { version = "1.0", features = ["derive"] }
