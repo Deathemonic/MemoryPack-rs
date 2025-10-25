@@ -1,3 +1,6 @@
+#![cfg_attr(feature = "nightly", feature(specialization))]
+#![cfg_attr(feature = "nightly", allow(incomplete_features))]
+
 mod collections;
 mod reader;
 mod writer;
@@ -14,6 +17,9 @@ pub use serializer::MemoryPackSerializer;
 pub use state::{MemoryPackReaderOptionalState, MemoryPackWriterOptionalState};
 pub use traits::{MemoryPackDeserialize, MemoryPackDeserializeZeroCopy, MemoryPackSerialize};
 pub use writer::MemoryPackWriter;
+
+#[cfg(not(feature = "nightly"))]
+pub use traits::{NullableString, NullableVec};
 
 #[cfg(feature = "derive")]
 pub use memorypack_derive::MemoryPackable;
