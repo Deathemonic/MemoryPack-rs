@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use memorypack::prelude::*;
 use hashbrown::HashMap;
 
