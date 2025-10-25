@@ -159,15 +159,30 @@ pub fn generate_version_tolerant_deserialize(data: &Data) -> proc_macro2::TokenS
                 quote! {}
             };
 
-            quote! {
-                let member_count = reader.read_u8()? as usize;
-                let mut lengths = Vec::with_capacity(member_count);
-                for _ in 0..member_count {
-                    lengths.push(memorypack::varint::read_varint(reader)? as usize);
+            let max_fields = ordered.last().map(|f| f.order + 1).unwrap_or(0);
+            
+            if max_fields <= 8 {
+                quote! {
+                    let member_count = reader.read_u8()? as usize;
+                    let mut lengths = [0usize; 8];
+                    for i in 0..member_count.min(8) {
+                        lengths[i] = memorypack::varint::read_varint(reader)? as usize;
+                    }
+                    #(#deserialize_logic)*
+                    #skip_extra_fields
+                    Ok(Self { #(#all_field_names),* })
                 }
-                #(#deserialize_logic)*
-                #skip_extra_fields
-                Ok(Self { #(#all_field_names),* })
+            } else {
+                quote! {
+                    let member_count = reader.read_u8()? as usize;
+                    let mut lengths = Vec::with_capacity(member_count);
+                    for _ in 0..member_count {
+                        lengths.push(memorypack::varint::read_varint(reader)? as usize);
+                    }
+                    #(#deserialize_logic)*
+                    #skip_extra_fields
+                    Ok(Self { #(#all_field_names),* })
+                }
             }
         }
         Fields::Unnamed(fields) => {
