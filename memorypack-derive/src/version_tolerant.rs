@@ -21,33 +21,63 @@ pub fn generate_version_tolerant_serialize(data: &Data) -> proc_macro2::TokenStr
             let max_order = ordered.last().map(|f| f.order).unwrap_or(0);
             let member_count = max_order + 1;
 
-            let serialize_to_temp = (0..member_count).map(|order| {
-                if let Some(of) = ordered.iter().find(|f| f.order == order) {
-                    let name = of.ident;
-                    quote! {
-                        let start_pos = temp_buf.len();
-                        memorypack::MemoryPackSerialize::serialize(&self.#name, &mut temp_buf)?;
-                        let field_len = temp_buf.len() - start_pos;
-                        field_lengths.push(field_len as i64);
+            if member_count <= 3 {
+                let serialize_fields_array = (0..member_count).map(|order| {
+                    if let Some(of) = ordered.iter().find(|f| f.order == order) {
+                        let name = of.ident;
+                        quote! {
+                            let start_pos = temp_buf.len();
+                            memorypack::MemoryPackSerialize::serialize(&self.#name, &mut temp_buf)?;
+                            field_lengths[#order] = (temp_buf.len() - start_pos) as i64;
+                        }
+                    } else {
+                        quote! { field_lengths[#order] = 0i64; }
                     }
-                } else {
-                    quote! { field_lengths.push(0i64); }
-                }
-            });
+                });
 
-            quote! {
-                writer.write_u8(#member_count as u8)?;
-                
-                let mut temp_buf = memorypack::MemoryPackWriter::with_capacity(64);
-                let mut field_lengths = Vec::with_capacity(#member_count);
-                
-                #(#serialize_to_temp)*
-                
-                for &length in &field_lengths {
-                    memorypack::varint::write_varint(writer, length)?;
+                quote! {
+                    writer.write_u8(#member_count as u8)?;
+                    
+                    let mut temp_buf = memorypack::MemoryPackWriter::with_capacity(64);
+                    let mut field_lengths = [0i64; #member_count];
+                    
+                    #(#serialize_fields_array)*
+                    
+                    for &length in &field_lengths {
+                        memorypack::varint::write_varint(writer, length)?;
+                    }
+                    
+                    writer.buffer.extend_from_slice(&temp_buf.buffer);
                 }
-                
-                writer.buffer.extend_from_slice(&temp_buf.buffer);
+            } else {
+                let serialize_to_temp = (0..member_count).map(|order| {
+                    if let Some(of) = ordered.iter().find(|f| f.order == order) {
+                        let name = of.ident;
+                        quote! {
+                            let start_pos = temp_buf.len();
+                            memorypack::MemoryPackSerialize::serialize(&self.#name, &mut temp_buf)?;
+                            let field_len = temp_buf.len() - start_pos;
+                            field_lengths.push(field_len as i64);
+                        }
+                    } else {
+                        quote! { field_lengths.push(0i64); }
+                    }
+                });
+
+                quote! {
+                    writer.write_u8(#member_count as u8)?;
+                    
+                    let mut temp_buf = memorypack::MemoryPackWriter::with_capacity(128);
+                    let mut field_lengths = Vec::with_capacity(#member_count);
+                    
+                    #(#serialize_to_temp)*
+                    
+                    for &length in &field_lengths {
+                        memorypack::varint::write_varint(writer, length)?;
+                    }
+                    
+                    writer.buffer.extend_from_slice(&temp_buf.buffer);
+                }
             }
         }
         Fields::Unnamed(fields) => {
