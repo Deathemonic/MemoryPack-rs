@@ -17,6 +17,9 @@ mod extended;
 #[cfg(feature = "chrono")]
 mod datetime;
 
+#[cfg(any(feature = "glam", feature = "num-complex"))]
+mod math;
+
 #[allow(unused_imports)]
 pub use {
     collections::*, multidim::*, options::*, primitives::*, smart_ptrs::*, strings::*, tuples::*,
