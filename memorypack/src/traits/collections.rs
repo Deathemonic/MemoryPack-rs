@@ -90,3 +90,6 @@ impl_hashmap!(i32);
 impl_hashmap!(u32);
 impl_hashmap!(i64);
 impl_hashmap!(u64);
+impl_hashmap!(i128);
+impl_hashmap!(u128);
+impl_hashmap!(char);

@@ -127,6 +127,24 @@ impl MemoryPackWriter {
         Ok(())
     }
 
+    #[inline(always)]
+    pub fn write_i128(&mut self, value: i128) -> Result<(), MemoryPackError> {
+        self.buffer.write_i128::<LittleEndian>(value)?;
+        Ok(())
+    }
+
+    #[inline(always)]
+    pub fn write_u128(&mut self, value: u128) -> Result<(), MemoryPackError> {
+        self.buffer.write_u128::<LittleEndian>(value)?;
+        Ok(())
+    }
+
+    #[inline(always)]
+    pub fn write_char(&mut self, value: char) -> Result<(), MemoryPackError> {
+        self.buffer.write_u32::<LittleEndian>(value as u32)?;
+        Ok(())
+    }
+
     #[inline]
     pub fn into_bytes(self) -> Vec<u8> {
         self.buffer

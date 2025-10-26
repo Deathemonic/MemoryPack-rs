@@ -169,6 +169,23 @@ impl<'a> MemoryPackReader<'a> {
         Ok(self.cursor.read_f64::<LittleEndian>()?)
     }
 
+    #[inline(always)]
+    pub fn read_i128(&mut self) -> Result<i128, MemoryPackError> {
+        Ok(self.cursor.read_i128::<LittleEndian>()?)
+    }
+
+    #[inline(always)]
+    pub fn read_u128(&mut self) -> Result<u128, MemoryPackError> {
+        Ok(self.cursor.read_u128::<LittleEndian>()?)
+    }
+
+    #[inline(always)]
+    pub fn read_char(&mut self) -> Result<char, MemoryPackError> {
+        let code_point = self.cursor.read_u32::<LittleEndian>()?;
+        char::from_u32(code_point)
+            .ok_or_else(|| MemoryPackError::DeserializationError("Invalid Unicode code point".into()))
+    }
+
     #[inline]
     pub fn skip(&mut self, n: usize) -> Result<(), MemoryPackError> {
         self.cursor.seek(SeekFrom::Current(n as i64))?;

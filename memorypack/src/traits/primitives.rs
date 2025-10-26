@@ -156,3 +156,45 @@ impl MemoryPackDeserialize for f64 {
         reader.read_f64()
     }
 }
+
+impl MemoryPackSerialize for i128 {
+    #[inline(always)]
+    fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
+        writer.write_i128(*self)
+    }
+}
+
+impl MemoryPackDeserialize for i128 {
+    #[inline(always)]
+    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+        reader.read_i128()
+    }
+}
+
+impl MemoryPackSerialize for u128 {
+    #[inline(always)]
+    fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
+        writer.write_u128(*self)
+    }
+}
+
+impl MemoryPackDeserialize for u128 {
+    #[inline(always)]
+    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+        reader.read_u128()
+    }
+}
+
+impl MemoryPackSerialize for char {
+    #[inline(always)]
+    fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
+        writer.write_char(*self)
+    }
+}
+
+impl MemoryPackDeserialize for char {
+    #[inline(always)]
+    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+        reader.read_char()
+    }
+}
