@@ -1,5 +1,7 @@
 use crate::error::MemoryPackError;
 use crate::state::MemoryPackWriterOptionalState;
+use crate::varint;
+
 use byteorder::{LittleEndian, WriteBytesExt};
 
 pub struct MemoryPackWriter {
@@ -165,7 +167,7 @@ impl Default for MemoryPackWriter {
 impl MemoryPackWriter {
     pub fn write_object_reference_id(&mut self, reference_id: u32) -> Result<(), MemoryPackError> {
         self.write_u8(250)?;
-        crate::varint::write_varint(self, reference_id as i64)?;
+        varint::write_varint(self, reference_id as i64)?;
         Ok(())
     }
 }

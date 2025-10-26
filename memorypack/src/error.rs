@@ -32,4 +32,3 @@ pub enum MemoryPackError {
     #[error("UTF-16 strings are not supported for zero-copy deserialization")]
     Utf16NotSupportedForZeroCopy,
 }
-

@@ -56,4 +56,3 @@ pub fn generate_union_deserialize(
         }
     }
 }
-

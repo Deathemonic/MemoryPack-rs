@@ -18,7 +18,7 @@ pub fn generate_enum_deserialize_safe(data_enum: &syn::DataEnum) -> proc_macro2:
     let variants = data_enum.variants.iter().map(|variant| {
         let variant_name = &variant.ident;
         let discriminant = &variant.discriminant.as_ref().unwrap().1;
-        
+
         quote! {
             #discriminant => Ok(Self::#variant_name),
         }
@@ -96,4 +96,3 @@ pub fn generate_flags_impls(name: &syn::Ident) -> proc_macro2::TokenStream {
         }
     }
 }
-

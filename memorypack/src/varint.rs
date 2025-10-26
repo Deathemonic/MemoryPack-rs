@@ -5,7 +5,7 @@ use crate::writer::MemoryPackWriter;
 mod codes {
     pub const MAX_SINGLE_VALUE: i8 = 127;
     pub const MIN_SINGLE_VALUE: i8 = -120;
-    
+
     pub const BYTE: i8 = -121;
     pub const SBYTE: i8 = -122;
     pub const UINT16: i8 = -123;
@@ -52,7 +52,7 @@ pub fn write_varint(writer: &mut MemoryPackWriter, value: i64) -> Result<(), Mem
 
 pub fn read_varint(reader: &mut MemoryPackReader) -> Result<i64, MemoryPackError> {
     let type_code = reader.read_i8()?;
-    
+
     match type_code {
         codes::BYTE => Ok(reader.read_u8()? as i64),
         codes::SBYTE => Ok(reader.read_i8()? as i64),

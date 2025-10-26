@@ -1,25 +1,27 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, Data, DeriveInput};
+use syn::{Data, DeriveInput, parse_macro_input};
 
 mod attributes;
+mod circular;
+mod enums;
 mod helpers;
 mod regular;
-mod enums;
 mod unions;
 mod version_tolerant;
-mod circular;
 
 use attributes::AttributeFlags;
-use helpers::{is_single_field_i32, has_explicit_discriminants};
-use regular::{generate_serialize, generate_deserialize};
+use circular::{generate_circular_deserialize, generate_circular_serialize};
 use enums::{
-    generate_enum_serialize, generate_enum_deserialize_safe, generate_enum_deserialize_unsafe,
-    generate_transparent_serialize, generate_transparent_deserialize, generate_flags_impls,
+    generate_enum_deserialize_safe, generate_enum_deserialize_unsafe, generate_enum_serialize,
+    generate_flags_impls, generate_transparent_deserialize, generate_transparent_serialize,
 };
-use unions::{generate_union_serialize, generate_union_deserialize};
-use version_tolerant::{generate_version_tolerant_serialize, generate_version_tolerant_deserialize};
-use circular::{generate_circular_serialize, generate_circular_deserialize};
+use helpers::{has_explicit_discriminants, is_single_field_i32};
+use regular::{generate_deserialize, generate_serialize};
+use unions::{generate_union_deserialize, generate_union_serialize};
+use version_tolerant::{
+    generate_version_tolerant_deserialize, generate_version_tolerant_serialize,
+};
 
 #[proc_macro_derive(MemoryPackable, attributes(memorypack, tag))]
 pub fn derive_memorypack(input: TokenStream) -> TokenStream {
@@ -52,27 +54,29 @@ pub fn derive_memorypack(input: TokenStream) -> TokenStream {
         ),
         Data::Enum(data_enum) => {
             let has_explicit = has_explicit_discriminants(data_enum);
-            
+
             if !attrs.has_repr_i32 && !has_explicit {
                 return syn::Error::new_spanned(
                     &input,
                     "C-like enums for MemoryPack must have either #[repr(i32)] or explicit discriminants"
                 ).to_compile_error().into();
             }
-            
+
             let deserialize = if has_explicit {
                 generate_enum_deserialize_safe(data_enum)
             } else {
                 generate_enum_deserialize_unsafe()
             };
-            
+
             (generate_enum_serialize(), deserialize)
         }
         Data::Union(_) => {
             return syn::Error::new_spanned(
                 &input,
-                "MemoryPackable cannot be derived for Rust unions"
-            ).to_compile_error().into();
+                "MemoryPackable cannot be derived for Rust unions",
+            )
+            .to_compile_error()
+            .into();
         }
     };
 
@@ -90,7 +94,7 @@ pub fn derive_memorypack(input: TokenStream) -> TokenStream {
                     #deserialize_impl
                 }
             }
-            
+
             impl<'a> memorypack::MemoryPackDeserialize for #name<'a> {
                 #[inline]
                 fn deserialize(reader: &mut memorypack::MemoryPackReader) -> Result<Self, memorypack::MemoryPackError> {

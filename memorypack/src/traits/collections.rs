@@ -2,6 +2,7 @@ use crate::error::MemoryPackError;
 use crate::reader::MemoryPackReader;
 use crate::traits::{MemoryPackDeserialize, MemoryPackSerialize};
 use crate::writer::MemoryPackWriter;
+
 use hashbrown::HashMap;
 
 impl<T: MemoryPackSerialize> MemoryPackSerialize for Vec<T> {
@@ -43,17 +44,17 @@ macro_rules! impl_hashmap {
             #[inline(always)]
             fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
                 let count = reader.read_i32()?;
-                
+
                 if count == -1 || count == 0 {
                     return Ok(HashMap::new());
                 }
-                
+
                 if count < 0 {
                     return Err(MemoryPackError::InvalidLength(count));
                 }
 
                 let mut map = HashMap::with_capacity(count as usize);
-                
+
                 for _ in 0..count {
                     let key = <$key_type>::deserialize(reader)?;
                     let value = T::deserialize(reader)?;

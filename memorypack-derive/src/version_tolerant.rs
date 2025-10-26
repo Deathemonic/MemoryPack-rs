@@ -1,6 +1,7 @@
+use crate::helpers::{prepare_ordered_fields, should_skip_field};
+
 use quote::quote;
 use syn::{Data, Fields};
-use crate::helpers::{should_skip_field, prepare_ordered_fields};
 
 pub fn generate_version_tolerant_serialize(data: &Data) -> proc_macro2::TokenStream {
     let Data::Struct(data_struct) = data else {
@@ -11,7 +12,11 @@ pub fn generate_version_tolerant_serialize(data: &Data) -> proc_macro2::TokenStr
 
     match &data_struct.fields {
         Fields::Named(fields) => {
-            let non_skip: Vec<_> = fields.named.iter().filter(|f| !should_skip_field(f)).collect();
+            let non_skip: Vec<_> = fields
+                .named
+                .iter()
+                .filter(|f| !should_skip_field(f))
+                .collect();
 
             if non_skip.is_empty() {
                 return quote! { writer.write_u8(0)?; };
@@ -37,16 +42,16 @@ pub fn generate_version_tolerant_serialize(data: &Data) -> proc_macro2::TokenStr
 
                 quote! {
                     writer.write_u8(#member_count as u8)?;
-                    
+
                     let mut temp_buf = memorypack::MemoryPackWriter::with_capacity(64);
                     let mut field_lengths = [0i64; #member_count];
-                    
+
                     #(#serialize_fields_array)*
-                    
+
                     for &length in &field_lengths {
                         memorypack::varint::write_varint(writer, length)?;
                     }
-                    
+
                     writer.buffer.extend_from_slice(&temp_buf.buffer);
                 }
             } else {
@@ -66,16 +71,16 @@ pub fn generate_version_tolerant_serialize(data: &Data) -> proc_macro2::TokenStr
 
                 quote! {
                     writer.write_u8(#member_count as u8)?;
-                    
+
                     let mut temp_buf = memorypack::MemoryPackWriter::with_capacity(128);
                     let mut field_lengths = Vec::with_capacity(#member_count);
-                    
+
                     #(#serialize_to_temp)*
-                    
+
                     for &length in &field_lengths {
                         memorypack::varint::write_varint(writer, length)?;
                     }
-                    
+
                     writer.buffer.extend_from_slice(&temp_buf.buffer);
                 }
             }
@@ -95,16 +100,16 @@ pub fn generate_version_tolerant_serialize(data: &Data) -> proc_macro2::TokenStr
 
             quote! {
                 writer.write_u8(#field_count as u8)?;
-                
+
                 let mut temp_buf = memorypack::MemoryPackWriter::with_capacity(64);
                 let mut field_lengths = Vec::with_capacity(#field_count);
-                
+
                 #(#serialize_to_temp)*
-                
+
                 for &length in &field_lengths {
                     memorypack::varint::write_varint(writer, length)?;
                 }
-                
+
                 writer.buffer.extend_from_slice(&temp_buf.buffer);
             }
         }
@@ -121,8 +126,12 @@ pub fn generate_version_tolerant_deserialize(data: &Data) -> proc_macro2::TokenS
 
     match &data_struct.fields {
         Fields::Named(fields) => {
-            let non_skip: Vec<_> = fields.named.iter().filter(|f| !should_skip_field(f)).collect();
-            
+            let non_skip: Vec<_> = fields
+                .named
+                .iter()
+                .filter(|f| !should_skip_field(f))
+                .collect();
+
             if non_skip.is_empty() {
                 return quote! {
                     let _member_count = reader.read_u8()?;
@@ -133,20 +142,23 @@ pub fn generate_version_tolerant_deserialize(data: &Data) -> proc_macro2::TokenS
             let ordered = prepare_ordered_fields(&non_skip);
             let all_field_names: Vec<_> = fields.named.iter().map(|f| &f.ident).collect();
 
-            let deserialize_logic: Vec<_> = ordered.iter().map(|of| {
-                let name = of.ident;
-                let order = of.order;
-                quote! {
-                    let #name = if #order < member_count && lengths[#order] > 0 {
-                        memorypack::MemoryPackDeserialize::deserialize(reader)?
-                    } else {
-                        if #order < member_count {
-                            reader.skip(lengths[#order])?;
-                        }
-                        Default::default()
-                    };
-                }
-            }).collect();
+            let deserialize_logic: Vec<_> = ordered
+                .iter()
+                .map(|of| {
+                    let name = of.ident;
+                    let order = of.order;
+                    quote! {
+                        let #name = if #order < member_count && lengths[#order] > 0 {
+                            memorypack::MemoryPackDeserialize::deserialize(reader)?
+                        } else {
+                            if #order < member_count {
+                                reader.skip(lengths[#order])?;
+                            }
+                            Default::default()
+                        };
+                    }
+                })
+                .collect();
 
             let skip_extra_fields = if let Some(max_order) = ordered.last().map(|f| f.order) {
                 let next_order = max_order + 1;
@@ -160,7 +172,7 @@ pub fn generate_version_tolerant_deserialize(data: &Data) -> proc_macro2::TokenS
             };
 
             let max_fields = ordered.last().map(|f| f.order + 1).unwrap_or(0);
-            
+
             if max_fields <= 8 {
                 quote! {
                     let member_count = reader.read_u8()? as usize;
@@ -220,4 +232,3 @@ pub fn generate_version_tolerant_deserialize(data: &Data) -> proc_macro2::TokenS
         },
     }
 }
-

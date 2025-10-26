@@ -1,6 +1,8 @@
 use crate::error::MemoryPackError;
 use crate::state::MemoryPackReaderOptionalState;
+
 use byteorder::{LittleEndian, ReadBytesExt};
+use simdutf8::basic;
 use std::io::{Cursor, Read, Seek, SeekFrom};
 
 pub struct MemoryPackReader<'a> {
@@ -47,10 +49,9 @@ impl<'a> MemoryPackReader<'a> {
         let _char_length = self.read_i32()?;
         let mut buffer = vec![0u8; byte_count];
         self.cursor.read_exact(&mut buffer)?;
-        
-        simdutf8::basic::from_utf8(&buffer)
-            .map_err(|_| MemoryPackError::InvalidUtf8)?;
-        
+
+        basic::from_utf8(&buffer).map_err(|_| MemoryPackError::InvalidUtf8)?;
+
         Ok(unsafe { String::from_utf8_unchecked(buffer) })
     }
 
@@ -74,14 +75,14 @@ impl<'a> MemoryPackReader<'a> {
         let _char_length = self.read_i32()?;
         let pos = self.cursor.position() as usize;
         let buffer = self.cursor.get_ref();
-        
+
         if pos + byte_count > buffer.len() {
             return Err(MemoryPackError::UnexpectedEndOfBuffer);
         }
 
-        let str_slice = simdutf8::basic::from_utf8(&buffer[pos..pos + byte_count])
+        let str_slice = basic::from_utf8(&buffer[pos..pos + byte_count])
             .map_err(|_| MemoryPackError::InvalidUtf8)?;
-        
+
         self.cursor.set_position((pos + byte_count) as u64);
         Ok(str_slice)
     }
@@ -90,7 +91,7 @@ impl<'a> MemoryPackReader<'a> {
     pub fn read_bytes(&mut self, length: usize) -> Result<&'a [u8], MemoryPackError> {
         let pos = self.cursor.position() as usize;
         let buffer = self.cursor.get_ref();
-        
+
         if pos + length > buffer.len() {
             return Err(MemoryPackError::UnexpectedEndOfBuffer);
         }
@@ -182,8 +183,9 @@ impl<'a> MemoryPackReader<'a> {
     #[inline(always)]
     pub fn read_char(&mut self) -> Result<char, MemoryPackError> {
         let code_point = self.cursor.read_u32::<LittleEndian>()?;
-        char::from_u32(code_point)
-            .ok_or_else(|| MemoryPackError::DeserializationError("Invalid Unicode code point".into()))
+        char::from_u32(code_point).ok_or_else(|| {
+            MemoryPackError::DeserializationError("Invalid Unicode code point".into())
+        })
     }
 
     #[inline]

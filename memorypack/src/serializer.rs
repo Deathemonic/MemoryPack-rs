@@ -33,7 +33,9 @@ impl MemoryPackSerializer {
 
     /// Deserialize a value from an existing reader
     #[inline]
-    pub fn deserialize_from<T: MemoryPackDeserialize>(reader: &mut MemoryPackReader) -> Result<T, MemoryPackError> {
+    pub fn deserialize_from<T: MemoryPackDeserialize>(
+        reader: &mut MemoryPackReader,
+    ) -> Result<T, MemoryPackError> {
         T::deserialize(reader)
     }
 

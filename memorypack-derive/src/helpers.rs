@@ -20,13 +20,17 @@ pub fn has_explicit_discriminants(data_enum: &syn::DataEnum) -> bool {
 pub fn should_skip_field(field: &Field) -> bool {
     field.attrs.iter().any(|attr| {
         attr.path().is_ident("memorypack")
-            && attr.meta.require_list()
+            && attr
+                .meta
+                .require_list()
                 .map(|m| {
                     let tokens = m.tokens.to_string();
                     tokens.contains("skip") || tokens.contains("ignore")
                 })
                 .unwrap_or(false)
-    }) || field.ident.as_ref()
+    }) || field
+        .ident
+        .as_ref()
         .map(|ident| ident.to_string().starts_with('_'))
         .unwrap_or(false)
 }
@@ -36,19 +40,19 @@ pub fn get_field_order(field: &Field) -> Option<usize> {
         if !attr.path().is_ident("memorypack") {
             return None;
         }
-        
+
         let list = attr.meta.require_list().ok()?;
         let tokens = list.tokens.to_string();
         let order_pos = tokens.find("order")?;
         let after_order = &tokens[order_pos..];
         let eq_pos = after_order.find('=')?;
         let after_eq = after_order[eq_pos + 1..].trim();
-        
+
         let num_str = after_eq
             .find(|c: char| !c.is_ascii_digit())
             .map(|end| &after_eq[..end])
             .unwrap_or(after_eq);
-        
+
         num_str.parse::<usize>().ok()
     })
 }
@@ -57,7 +61,9 @@ pub fn get_field_order(field: &Field) -> Option<usize> {
 pub fn is_zero_copy_field(field: &Field) -> bool {
     field.attrs.iter().any(|attr| {
         attr.path().is_ident("memorypack")
-            && attr.meta.require_list()
+            && attr
+                .meta
+                .require_list()
                 .map(|m| m.tokens.to_string().contains("zero_copy"))
                 .unwrap_or(false)
     })
@@ -82,18 +88,30 @@ pub fn is_borrowed_slice(ty: &syn::Type) -> bool {
 }
 
 pub fn is_option_box(ty: &syn::Type) -> bool {
-    let syn::Type::Path(type_path) = ty else { return false; };
-    let Some(segment) = type_path.path.segments.last() else { return false; };
-    
+    let syn::Type::Path(type_path) = ty else {
+        return false;
+    };
+    let Some(segment) = type_path.path.segments.last() else {
+        return false;
+    };
+
     if segment.ident != "Option" {
         return false;
     }
-    
-    let syn::PathArguments::AngleBracketed(args) = &segment.arguments else { return false; };
-    let Some(syn::GenericArgument::Type(inner_ty)) = args.args.first() else { return false; };
-    let syn::Type::Path(inner_path) = inner_ty else { return false; };
-    let Some(inner_segment) = inner_path.path.segments.last() else { return false; };
-    
+
+    let syn::PathArguments::AngleBracketed(args) = &segment.arguments else {
+        return false;
+    };
+    let Some(syn::GenericArgument::Type(inner_ty)) = args.args.first() else {
+        return false;
+    };
+    let syn::Type::Path(inner_path) = inner_ty else {
+        return false;
+    };
+    let Some(inner_segment) = inner_path.path.segments.last() else {
+        return false;
+    };
+
     inner_segment.ident == "Box"
 }
 
@@ -104,7 +122,8 @@ pub struct OrderedField<'a> {
 }
 
 pub fn prepare_ordered_fields<'a>(fields: &'a [&'a Field]) -> Vec<OrderedField<'a>> {
-    let mut ordered: Vec<_> = fields.iter()
+    let mut ordered: Vec<_> = fields
+        .iter()
         .enumerate()
         .map(|(idx, f)| OrderedField {
             order: get_field_order(f).unwrap_or(idx),
@@ -116,12 +135,15 @@ pub fn prepare_ordered_fields<'a>(fields: &'a [&'a Field]) -> Vec<OrderedField<'
     ordered
 }
 
-pub fn generate_field_deserialize(field: &Field, is_zero_copy_struct: bool) -> proc_macro2::TokenStream {
+pub fn generate_field_deserialize(
+    field: &Field,
+    is_zero_copy_struct: bool,
+) -> proc_macro2::TokenStream {
     use quote::quote;
-    
+
     let name = &field.ident;
     let ty = &field.ty;
-    
+
     if should_skip_field(field) {
         return quote! {
             let mut temp_reader = memorypack::MemoryPackReader::new(&[]);
@@ -129,9 +151,9 @@ pub fn generate_field_deserialize(field: &Field, is_zero_copy_struct: bool) -> p
             let #name = Default::default();
         };
     }
-    
+
     let is_field_zero_copy = is_zero_copy_field(field);
-    
+
     if is_zero_copy_struct || is_field_zero_copy {
         if is_borrowed_str(ty) {
             return quote! { let #name = reader.read_str()?; };
@@ -143,7 +165,6 @@ pub fn generate_field_deserialize(field: &Field, is_zero_copy_struct: bool) -> p
             return quote! { let #name = memorypack::MemoryPackDeserializeZeroCopy::deserialize(reader)?; };
         }
     }
-    
+
     quote! { let #name = memorypack::MemoryPackDeserialize::deserialize(reader)?; }
 }
-

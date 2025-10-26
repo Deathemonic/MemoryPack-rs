@@ -4,11 +4,11 @@
 mod reader;
 mod writer;
 
-pub mod varint;
 pub mod error;
 pub mod serializer;
 pub mod state;
 pub mod traits;
+pub mod varint;
 
 pub use error::MemoryPackError;
 pub use reader::MemoryPackReader;

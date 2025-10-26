@@ -1,6 +1,7 @@
+use crate::helpers::{generate_field_deserialize, prepare_ordered_fields, should_skip_field};
+
 use quote::quote;
 use syn::{Data, Fields};
-use crate::helpers::{should_skip_field, prepare_ordered_fields, generate_field_deserialize};
 
 pub fn generate_serialize(data: &Data) -> proc_macro2::TokenStream {
     let Data::Struct(data_struct) = data else {
@@ -11,7 +12,11 @@ pub fn generate_serialize(data: &Data) -> proc_macro2::TokenStream {
 
     match &data_struct.fields {
         Fields::Named(fields) => {
-            let non_skip: Vec<_> = fields.named.iter().filter(|f| !should_skip_field(f)).collect();
+            let non_skip: Vec<_> = fields
+                .named
+                .iter()
+                .filter(|f| !should_skip_field(f))
+                .collect();
             let ordered = prepare_ordered_fields(&non_skip);
             let field_count = ordered.len() as u8;
 
@@ -50,25 +55,34 @@ pub fn generate_deserialize(data: &Data, is_zero_copy: bool) -> proc_macro2::Tok
 
     match &data_struct.fields {
         Fields::Named(fields) => {
-            let non_skip: Vec<_> = fields.named.iter().filter(|f| !should_skip_field(f)).collect();
+            let non_skip: Vec<_> = fields
+                .named
+                .iter()
+                .filter(|f| !should_skip_field(f))
+                .collect();
             let ordered = prepare_ordered_fields(&non_skip);
-            
+
             let all_field_names: Vec<_> = fields.named.iter().map(|f| &f.ident).collect();
-            
-            let deserialize_stmts: Vec<_> = fields.named.iter()
+
+            let deserialize_stmts: Vec<_> = fields
+                .named
+                .iter()
                 .map(|f| generate_field_deserialize(f, is_zero_copy))
                 .collect();
 
             let mut ordered_deserialize = Vec::new();
             let mut skip_field_idx = 0;
             let mut ordered_idx = 0;
-            
+
             for f in &fields.named {
                 if should_skip_field(f) {
-                    ordered_deserialize.push(deserialize_stmts[skip_field_idx + ordered_idx].clone());
+                    ordered_deserialize
+                        .push(deserialize_stmts[skip_field_idx + ordered_idx].clone());
                     skip_field_idx += 1;
                 } else if ordered_idx < ordered.len() {
-                    let field_idx = fields.named.iter()
+                    let field_idx = fields
+                        .named
+                        .iter()
                         .position(|field| std::ptr::eq(field, ordered[ordered_idx].field))
                         .unwrap();
                     ordered_deserialize.push(deserialize_stmts[field_idx].clone());
@@ -101,4 +115,3 @@ pub fn generate_deserialize(data: &Data, is_zero_copy: bool) -> proc_macro2::Tok
         Fields::Unit => quote! { Ok(Self) },
     }
 }
-

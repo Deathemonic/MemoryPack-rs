@@ -1,6 +1,7 @@
+use crate::helpers::{is_option_box, prepare_ordered_fields, should_skip_field};
+
 use quote::quote;
 use syn::{Data, Fields};
-use crate::helpers::{should_skip_field, prepare_ordered_fields, is_option_box};
 
 pub fn generate_circular_serialize(data: &Data, needs_state: bool) -> proc_macro2::TokenStream {
     let Data::Struct(data_struct) = data else {
@@ -11,7 +12,11 @@ pub fn generate_circular_serialize(data: &Data, needs_state: bool) -> proc_macro
 
     match &data_struct.fields {
         Fields::Named(fields) => {
-            let non_skip: Vec<_> = fields.named.iter().filter(|f| !should_skip_field(f)).collect();
+            let non_skip: Vec<_> = fields
+                .named
+                .iter()
+                .filter(|f| !should_skip_field(f))
+                .collect();
             let ordered = prepare_ordered_fields(&non_skip);
             let max_order = ordered.last().map(|f| f.order).unwrap_or(0);
             let member_count = max_order + 1;
@@ -19,7 +24,7 @@ pub fn generate_circular_serialize(data: &Data, needs_state: bool) -> proc_macro
             let field_serialization: Vec<_> = ordered.iter().map(|of| {
                 let name = of.ident;
                 let field = of.field;
-                
+
                 if is_option_box(&field.ty) {
                     quote! {
                         let mut temp_writer = memorypack::MemoryPackWriter::new();
@@ -47,19 +52,19 @@ pub fn generate_circular_serialize(data: &Data, needs_state: bool) -> proc_macro
                     if writer.optional_state.is_none() {
                         writer.optional_state = Some(memorypack::MemoryPackWriterOptionalState::new());
                     }
-                    
+
                     let (is_existing, ref_id) = writer.optional_state.as_mut().unwrap().get_or_add_reference(self);
-                    
+
                     if is_existing {
                         writer.write_u8(250)?;
                         memorypack::varint::write_varint(writer, ref_id as i64)?;
                         return Ok(());
                     }
-                    
+
                     writer.write_u8(#member_count as u8)?;
                     let mut field_buffers: Vec<Vec<u8>> = Vec::new();
                     #(#field_serialization)*
-                    
+
                     for i in 0..#member_count {
                         if i < field_buffers.len() {
                             memorypack::varint::write_varint(writer, field_buffers[i].len() as i64)?;
@@ -67,9 +72,9 @@ pub fn generate_circular_serialize(data: &Data, needs_state: bool) -> proc_macro
                             memorypack::varint::write_varint(writer, 0)?;
                         }
                     }
-                    
+
                     memorypack::varint::write_varint(writer, ref_id as i64)?;
-                    
+
                     for buf in field_buffers {
                         writer.buffer.extend_from_slice(&buf);
                     }
@@ -79,7 +84,7 @@ pub fn generate_circular_serialize(data: &Data, needs_state: bool) -> proc_macro
                     writer.write_u8(#member_count as u8)?;
                     let mut field_buffers: Vec<Vec<u8>> = Vec::new();
                     #(#field_serialization)*
-                    
+
                     for i in 0..#member_count {
                         if i < field_buffers.len() {
                             memorypack::varint::write_varint(writer, field_buffers[i].len() as i64)?;
@@ -87,9 +92,9 @@ pub fn generate_circular_serialize(data: &Data, needs_state: bool) -> proc_macro
                             memorypack::varint::write_varint(writer, 0)?;
                         }
                     }
-                    
+
                     memorypack::varint::write_varint(writer, 0)?;
-                    
+
                     for buf in field_buffers {
                         writer.buffer.extend_from_slice(&buf);
                     }
@@ -105,7 +110,7 @@ pub fn generate_circular_serialize(data: &Data, needs_state: bool) -> proc_macro
             let field_serialization: Vec<_> = field_indices.iter().map(|i| {
                 let idx = syn::Index::from(*i);
                 let field = &fields.unnamed[*i];
-                
+
                 if is_option_box(&field.ty) {
                     quote! {
                         let mut temp_writer = memorypack::MemoryPackWriter::new();
@@ -133,25 +138,25 @@ pub fn generate_circular_serialize(data: &Data, needs_state: bool) -> proc_macro
                     if writer.optional_state.is_none() {
                         writer.optional_state = Some(memorypack::MemoryPackWriterOptionalState::new());
                     }
-                    
+
                     let (is_existing, ref_id) = writer.optional_state.as_mut().unwrap().get_or_add_reference(self);
-                    
+
                     if is_existing {
                         writer.write_u8(250)?;
                         memorypack::varint::write_varint(writer, ref_id as i64)?;
                         return Ok(());
                     }
-                    
+
                     writer.write_u8(#field_count as u8)?;
                     let mut field_buffers: Vec<Vec<u8>> = Vec::new();
                     #(#field_serialization)*
-                    
+
                     for buf in &field_buffers {
                         memorypack::varint::write_varint(writer, buf.len() as i64)?;
                     }
-                    
+
                     memorypack::varint::write_varint(writer, ref_id as i64)?;
-                    
+
                     for buf in field_buffers {
                         writer.buffer.extend_from_slice(&buf);
                     }
@@ -161,13 +166,13 @@ pub fn generate_circular_serialize(data: &Data, needs_state: bool) -> proc_macro
                     writer.write_u8(#field_count as u8)?;
                     let mut field_buffers: Vec<Vec<u8>> = Vec::new();
                     #(#field_serialization)*
-                    
+
                     for buf in &field_buffers {
                         memorypack::varint::write_varint(writer, buf.len() as i64)?;
                     }
-                    
+
                     memorypack::varint::write_varint(writer, 0)?;
-                    
+
                     for buf in field_buffers {
                         writer.buffer.extend_from_slice(&buf);
                     }
@@ -190,14 +195,18 @@ pub fn generate_circular_deserialize(data: &Data, needs_state: bool) -> proc_mac
 
     match &data_struct.fields {
         Fields::Named(fields) => {
-            let non_skip: Vec<_> = fields.named.iter().filter(|f| !should_skip_field(f)).collect();
-            
+            let non_skip: Vec<_> = fields
+                .named
+                .iter()
+                .filter(|f| !should_skip_field(f))
+                .collect();
+
             if non_skip.is_empty() {
                 return quote! {
                     if reader.optional_state.is_none() {
                         reader.optional_state = Some(memorypack::MemoryPackReaderOptionalState::new());
                     }
-                    
+
                     let member_count_or_ref = reader.read_u8()?;
                     if member_count_or_ref == 250 {
                         let ref_id = memorypack::varint::read_varint(reader)? as u32;
@@ -217,7 +226,7 @@ pub fn generate_circular_deserialize(data: &Data, needs_state: bool) -> proc_mac
                 let name = of.ident;
                 let order = of.order;
                 let field = of.field;
-                
+
                 if is_option_box(&field.ty) {
                     quote! {
                         let #name = if #order < member_count && lengths[#order] > 0 {
@@ -264,30 +273,30 @@ pub fn generate_circular_deserialize(data: &Data, needs_state: bool) -> proc_mac
                 if reader.optional_state.is_none() {
                     reader.optional_state = Some(memorypack::MemoryPackReaderOptionalState::new());
                 }
-                
+
                 let member_count_or_ref = reader.read_u8()?;
-                
+
                 if member_count_or_ref == 250 {
                     let ref_id = memorypack::varint::read_varint(reader)? as u32;
                     return reader.optional_state.as_ref().unwrap().get_object_reference::<Self>(ref_id);
                 }
-                
+
                 let member_count = member_count_or_ref as usize;
                 let mut lengths = Vec::with_capacity(member_count);
                 for _ in 0..member_count {
                     lengths.push(memorypack::varint::read_varint(reader)? as usize);
                 }
                 let ref_id = memorypack::varint::read_varint(reader)? as u32;
-                
+
                 let placeholder = Self { #(#all_field_names: Default::default()),* };
                 reader.optional_state.as_mut().unwrap().add_object_reference(ref_id, placeholder)?;
-                
+
                 #(#deserialize_logic)*
                 #skip_extra_fields
-                
+
                 let result = Self { #(#all_field_names),* };
                 reader.optional_state.as_mut().unwrap().update_object_reference(ref_id, result.clone())?;
-                
+
                 Ok(result)
             }
         }
@@ -311,29 +320,29 @@ pub fn generate_circular_deserialize(data: &Data, needs_state: bool) -> proc_mac
                 if reader.optional_state.is_none() {
                     reader.optional_state = Some(memorypack::MemoryPackReaderOptionalState::new());
                 }
-                
+
                 let member_count_or_ref = reader.read_u8()?;
-                
+
                 if member_count_or_ref == 250 {
                     let ref_id = memorypack::varint::read_varint(reader)? as u32;
                     return reader.optional_state.as_ref().unwrap().get_object_reference::<Self>(ref_id);
                 }
-                
+
                 let member_count = member_count_or_ref as usize;
                 let mut lengths = Vec::with_capacity(member_count);
                 for _ in 0..member_count {
                     lengths.push(memorypack::varint::read_varint(reader)? as usize);
                 }
                 let ref_id = memorypack::varint::read_varint(reader)? as u32;
-                
+
                 #(#deserialize_fields)*
                 for i in #field_count..member_count {
                     reader.skip(lengths[i])?;
                 }
-                
+
                 let result = Self(#(#field_vars),*);
                 reader.optional_state.as_mut().unwrap().add_object_reference(ref_id, result.clone())?;
-                
+
                 Ok(result)
             }
         }
@@ -341,7 +350,7 @@ pub fn generate_circular_deserialize(data: &Data, needs_state: bool) -> proc_mac
             if reader.optional_state.is_none() {
                 reader.optional_state = Some(memorypack::MemoryPackReaderOptionalState::new());
             }
-            
+
             let member_count_or_ref = reader.read_u8()?;
             if member_count_or_ref == 250 {
                 let ref_id = memorypack::varint::read_varint(reader)? as u32;
@@ -354,4 +363,3 @@ pub fn generate_circular_deserialize(data: &Data, needs_state: bool) -> proc_mac
         },
     }
 }
-
