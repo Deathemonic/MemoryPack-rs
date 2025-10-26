@@ -5,7 +5,7 @@ use crate::writer::MemoryPackWriter;
 use hashbrown::HashMap;
 
 impl<T: MemoryPackSerialize> MemoryPackSerialize for Vec<T> {
-    #[inline]
+    #[inline(always)]
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
         writer.write_i32(self.len() as i32)?;
         for item in self.iter() {
@@ -16,7 +16,7 @@ impl<T: MemoryPackSerialize> MemoryPackSerialize for Vec<T> {
 }
 
 impl<T: MemoryPackDeserialize> MemoryPackDeserialize for Vec<T> {
-    #[inline]
+    #[inline(always)]
     fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
         let size = reader.read_i32()?;
         if size == -1 {
@@ -40,7 +40,7 @@ macro_rules! impl_hashmap {
         where
             T: MemoryPackDeserialize + Default,
         {
-            #[inline]
+            #[inline(always)]
             fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
                 let count = reader.read_i32()?;
                 
@@ -68,7 +68,7 @@ macro_rules! impl_hashmap {
         where
             T: MemoryPackSerialize,
         {
-            #[inline]
+            #[inline(always)]
             fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
                 writer.write_i32(self.len() as i32)?;
                 for (key, value) in self.iter() {

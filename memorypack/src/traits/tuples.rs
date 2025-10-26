@@ -10,6 +10,7 @@ macro_rules! impl_tuple {
             $($T: MemoryPackSerialize,)+
         {
             #[allow(non_snake_case)]
+            #[inline]
             fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
                 let ($($T,)+) = self;
                 $($T.serialize(writer)?;)+
@@ -21,6 +22,7 @@ macro_rules! impl_tuple {
         where
             $($T: MemoryPackDeserialize,)+
         {
+            #[inline]
             fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
                 Ok(($($T::deserialize(reader)?,)+))
             }

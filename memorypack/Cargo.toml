@@ -22,4 +22,3 @@ eyre = "0.6"
 default = ["derive", "serde"]
 derive = ["memorypack-derive"]
 nightly = []
-
