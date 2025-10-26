@@ -27,7 +27,7 @@ unsafe impl GlobalAlloc for CountingAlloc {
 #[global_allocator]
 static GLOBAL: CountingAlloc = CountingAlloc;
 
-#[derive(MemoryPackable, Clone)]
+#[derive(MemoryPackable, Clone, Default)]
 struct SimpleData {
     id: i32,
     name: String,
