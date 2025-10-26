@@ -12,13 +12,20 @@ serde = { version = "1.0", features = ["derive"], optional = true }
 serde_json = { version = "1.0", optional = true }
 hashbrown = { version = "0.16", features = ["serde"] }
 simdutf8 = "0.1.5"
+uuid = { version = "1.18", optional = true, features = ["serde"] }
+rust_decimal = { version = "1.39", optional = true, features = ["serde"] }
+rust_decimal_macros = { version = "1.39", optional = true }
+half = { version = "2.7", optional = true, features = ["serde"] }
+num-bigint = { version = "0.4", optional = true, features = ["serde"] }
 
 [dev-dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 eyre = "0.6"
+rust_decimal_macros = "1.39"
 
 [features]
 default = ["derive", "serde"]
 derive = ["memorypack-derive"]
 nightly = []
+extended_types = ["uuid", "rust_decimal", "rust_decimal_macros", "half", "num-bigint"]

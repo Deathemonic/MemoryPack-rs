@@ -6,6 +6,9 @@ mod smart_ptrs;
 mod tuples;
 mod multidim;
 
+#[cfg(any(feature = "uuid", feature = "rust_decimal", feature = "half", feature = "num-bigint"))]
+mod extended;
+
 #[allow(unused_imports)]
 pub use {primitives::*, strings::*, collections::*, options::*, smart_ptrs::*, tuples::*, multidim::*};
 

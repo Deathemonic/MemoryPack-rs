@@ -102,6 +102,20 @@ impl<'a> MemoryPackReader<'a> {
     }
 
     #[inline]
+    pub fn read_bytes_vec(&mut self, length: usize) -> Result<Vec<u8>, MemoryPackError> {
+        let mut buffer = vec![0u8; length];
+        self.cursor.read_exact(&mut buffer)?;
+        Ok(buffer)
+    }
+
+    #[inline]
+    pub fn read_fixed_bytes<const N: usize>(&mut self) -> Result<[u8; N], MemoryPackError> {
+        let mut buffer = [0u8; N];
+        self.cursor.read_exact(&mut buffer)?;
+        Ok(buffer)
+    }
+
+    #[inline]
     fn read_utf16_string(&mut self, char_count: usize) -> Result<String, MemoryPackError> {
         let byte_count = char_count * 2;
         let mut buffer = vec![0u8; byte_count];
