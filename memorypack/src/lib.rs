@@ -1,7 +1,6 @@
 #![cfg_attr(feature = "nightly", feature(specialization))]
 #![cfg_attr(feature = "nightly", allow(incomplete_features))]
 
-mod collections;
 mod reader;
 mod writer;
 
