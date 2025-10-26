@@ -5,7 +5,7 @@ use hashbrown::HashMap;
 #[global_allocator]
 static ALLOC: dhat::Alloc = dhat::Alloc;
 
-#[derive(MemoryPackable, Clone)]
+#[derive(MemoryPackable, Clone, Default)]
 struct SimpleData {
     id: i32,
     name: String,

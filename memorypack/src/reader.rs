@@ -114,57 +114,57 @@ impl<'a> MemoryPackReader<'a> {
         String::from_utf16(&utf16_chars).map_err(|_| MemoryPackError::InvalidUtf8)
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn read_bool(&mut self) -> Result<bool, MemoryPackError> {
         Ok(self.cursor.read_u8()? == 1)
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn read_i8(&mut self) -> Result<i8, MemoryPackError> {
         Ok(self.cursor.read_i8()?)
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn read_u8(&mut self) -> Result<u8, MemoryPackError> {
         Ok(self.cursor.read_u8()?)
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn read_i16(&mut self) -> Result<i16, MemoryPackError> {
         Ok(self.cursor.read_i16::<LittleEndian>()?)
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn read_u16(&mut self) -> Result<u16, MemoryPackError> {
         Ok(self.cursor.read_u16::<LittleEndian>()?)
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn read_i32(&mut self) -> Result<i32, MemoryPackError> {
         Ok(self.cursor.read_i32::<LittleEndian>()?)
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn read_u32(&mut self) -> Result<u32, MemoryPackError> {
         Ok(self.cursor.read_u32::<LittleEndian>()?)
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn read_i64(&mut self) -> Result<i64, MemoryPackError> {
         Ok(self.cursor.read_i64::<LittleEndian>()?)
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn read_u64(&mut self) -> Result<u64, MemoryPackError> {
         Ok(self.cursor.read_u64::<LittleEndian>()?)
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn read_f32(&mut self) -> Result<f32, MemoryPackError> {
         Ok(self.cursor.read_f32::<LittleEndian>()?)
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn read_f64(&mut self) -> Result<f64, MemoryPackError> {
         Ok(self.cursor.read_f64::<LittleEndian>()?)
     }

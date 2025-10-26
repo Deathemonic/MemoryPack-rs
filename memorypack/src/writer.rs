@@ -61,67 +61,67 @@ impl MemoryPackWriter {
         }
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn write_bool(&mut self, value: bool) -> Result<(), MemoryPackError> {
         self.buffer.write_u8(if value { 1 } else { 0 })?;
         Ok(())
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn write_i8(&mut self, value: i8) -> Result<(), MemoryPackError> {
         self.buffer.write_i8(value)?;
         Ok(())
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn write_u8(&mut self, value: u8) -> Result<(), MemoryPackError> {
         self.buffer.write_u8(value)?;
         Ok(())
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn write_i16(&mut self, value: i16) -> Result<(), MemoryPackError> {
         self.buffer.write_i16::<LittleEndian>(value)?;
         Ok(())
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn write_u16(&mut self, value: u16) -> Result<(), MemoryPackError> {
         self.buffer.write_u16::<LittleEndian>(value)?;
         Ok(())
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn write_i32(&mut self, value: i32) -> Result<(), MemoryPackError> {
         self.buffer.write_i32::<LittleEndian>(value)?;
         Ok(())
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn write_u32(&mut self, value: u32) -> Result<(), MemoryPackError> {
         self.buffer.write_u32::<LittleEndian>(value)?;
         Ok(())
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn write_i64(&mut self, value: i64) -> Result<(), MemoryPackError> {
         self.buffer.write_i64::<LittleEndian>(value)?;
         Ok(())
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn write_u64(&mut self, value: u64) -> Result<(), MemoryPackError> {
         self.buffer.write_u64::<LittleEndian>(value)?;
         Ok(())
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn write_f32(&mut self, value: f32) -> Result<(), MemoryPackError> {
         self.buffer.write_f32::<LittleEndian>(value)?;
         Ok(())
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn write_f64(&mut self, value: f64) -> Result<(), MemoryPackError> {
         self.buffer.write_f64::<LittleEndian>(value)?;
         Ok(())
