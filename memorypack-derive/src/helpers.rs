@@ -71,10 +71,10 @@ pub fn is_zero_copy_field(field: &Field) -> bool {
 
 #[inline]
 pub fn is_borrowed_str(ty: &syn::Type) -> bool {
-    if let syn::Type::Reference(type_ref) = ty {
-        if let syn::Type::Path(inner_path) = &*type_ref.elem {
-            return inner_path.path.is_ident("str");
-        }
+    if let syn::Type::Reference(type_ref) = ty
+        && let syn::Type::Path(inner_path) = &*type_ref.elem
+    {
+        return inner_path.path.is_ident("str");
     }
     false
 }

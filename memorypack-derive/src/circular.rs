@@ -47,7 +47,7 @@ pub fn generate_circular_serialize(data: &Data, needs_state: bool) -> proc_macro
                 }
             }).collect();
 
-            let serialize_body = if needs_state {
+            if needs_state {
                 quote! {
                     if writer.optional_state.is_none() {
                         writer.optional_state = Some(memorypack::MemoryPackWriterOptionalState::new());
@@ -99,9 +99,7 @@ pub fn generate_circular_serialize(data: &Data, needs_state: bool) -> proc_macro
                         writer.buffer.extend_from_slice(&buf);
                     }
                 }
-            };
-
-            serialize_body
+            }
         }
         Fields::Unnamed(fields) => {
             let field_count = fields.unnamed.len();

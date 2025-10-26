@@ -2,23 +2,25 @@ use quote::quote;
 use syn::Fields;
 
 pub fn generate_union_serialize(data_enum: &syn::DataEnum) -> proc_macro2::TokenStream {
-    let variants = data_enum.variants.iter().enumerate().map(|(tag, variant)| {
-        let variant_name = &variant.ident;
-        let tag_value = tag as u8;
-
+    for variant in &data_enum.variants {
         match &variant.fields {
-            Fields::Unnamed(fields) if fields.unnamed.len() == 1 => {
-                quote! {
-                    Self::#variant_name(inner) => {
-                        writer.write_u8(#tag_value)?;
-                        memorypack::MemoryPackSerialize::serialize(inner, writer)?;
-                    }
-                }
-            }
+            Fields::Unnamed(fields) if fields.unnamed.len() == 1 => {}
             _ => {
                 return quote! {
                     compile_error!("Union variants must have exactly one unnamed field");
                 };
+            }
+        }
+    }
+
+    let variants = data_enum.variants.iter().enumerate().map(|(tag, variant)| {
+        let variant_name = &variant.ident;
+        let tag_value = tag as u8;
+
+        quote! {
+            Self::#variant_name(inner) => {
+                writer.write_u8(#tag_value)?;
+                memorypack::MemoryPackSerialize::serialize(inner, writer)?;
             }
         }
     });

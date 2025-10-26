@@ -30,22 +30,20 @@ pub fn write_varint(writer: &mut MemoryPackWriter, value: i64) -> Result<(), Mem
             writer.write_i8(codes::INT64)?;
             writer.write_i64(value)?;
         }
+    } else if value >= codes::MIN_SINGLE_VALUE as i64 {
+        writer.write_i8(value as i8)?;
+    } else if value >= i8::MIN as i64 {
+        writer.write_i8(codes::SBYTE)?;
+        writer.write_i8(value as i8)?;
+    } else if value >= i16::MIN as i64 {
+        writer.write_i8(codes::INT16)?;
+        writer.write_i16(value as i16)?;
+    } else if value >= i32::MIN as i64 {
+        writer.write_i8(codes::INT32)?;
+        writer.write_i32(value as i32)?;
     } else {
-        if value >= codes::MIN_SINGLE_VALUE as i64 {
-            writer.write_i8(value as i8)?;
-        } else if value >= i8::MIN as i64 {
-            writer.write_i8(codes::SBYTE)?;
-            writer.write_i8(value as i8)?;
-        } else if value >= i16::MIN as i64 {
-            writer.write_i8(codes::INT16)?;
-            writer.write_i16(value as i16)?;
-        } else if value >= i32::MIN as i64 {
-            writer.write_i8(codes::INT32)?;
-            writer.write_i32(value as i32)?;
-        } else {
-            writer.write_i8(codes::INT64)?;
-            writer.write_i64(value)?;
-        }
+        writer.write_i8(codes::INT64)?;
+        writer.write_i64(value)?;
     }
     Ok(())
 }
