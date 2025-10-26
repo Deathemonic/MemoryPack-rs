@@ -1,25 +1,46 @@
+# Cargo
+debug/
+target/
+
+# Dotnet
 obj/
 bin/
 
+# Backup files from rustfmt
+**/*.rs.bk
 
-target/
+# MSVC Windows builds of rustc
+*.pdb
 
-.idea
+# Cargo mutants
+**/mutants.out*/
 
-*.bytes
-*.json
+# RustRover
+.idea/
 
-.NETGenerateMemoryPack/
-.NETMemoryPack/
+# VSCode
+.vscode/
 
-memorypack/examples/
-memorypack-benchmark/
-
-profiling-results/
-
+# Executables
 *.exe
 *.pdb
 
+# Scripts
 *.py
+*.sh
+*.ps1
 
+# Data
+*.bytes
+*.json
+
+# Profiling
+results/
+
+# Tests
+.NETGenerateMemoryPack/
+.NETMemoryPack/
+
+# Custom
+memorypack/examples/
 read_bytes.rs

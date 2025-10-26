@@ -23,19 +23,50 @@ jobs:
     - name: Cache Rust dependencies
       uses: Swatinem/rust-cache@v2
     
-    - name: Run Rust benchmarks
+    - name: Install critcmp
+      run: cargo install critcmp
+    
+    - name: Download baseline benchmark data
+      uses: actions/download-artifact@v4
+      continue-on-error: true
+      with:
+        name: benchmark-baseline
+        path: memorypack-benchmarks/rust-benchmarks/target/criterion/
+    
+    - name: Run Rust benchmarks (baseline)
       run: |
-        cd .NETBenchmark/RustBenchmark
-        cargo bench --no-fail-fast | tee rust_benchmark_results.txt
+        cd memorypack-benchmarks/rust-benchmarks
+        cargo bench --no-fail-fast -- --save-baseline current | tee rust_benchmark_results.txt
+    
+    - name: Compare with baseline
+      run: |
+        cd memorypack-benchmarks/rust-benchmarks
+        echo "Benchmark Comparison:" | tee -a rust_benchmark_results.txt
+        if critcmp --list 2>/dev/null | grep -q "baseline"; then
+          echo "Comparing current run against baseline:" | tee -a rust_benchmark_results.txt
+          critcmp baseline current | tee -a rust_benchmark_results.txt
+          echo "" | tee -a rust_benchmark_results.txt
+          echo "Detailed comparison (differences >= 5%):" | tee -a rust_benchmark_results.txt
+          critcmp baseline current -t 5 | tee -a rust_benchmark_results.txt
+        else
+          echo "No baseline found. This will be the first baseline." | tee -a rust_benchmark_results.txt
+        fi
+      continue-on-error: true
+    
+    - name: Export current as baseline
+      run: |
+        cd memorypack-benchmarks/rust-benchmarks
+        critcmp --export current > current_baseline.json
+      continue-on-error: true
     
     - name: Restore .NET dependencies
       run: |
-        cd .NETBenchmark/MemoryPackBenchmark
+        cd memorypack-benchmarks/dotnet-benchmarks
         dotnet restore
     
     - name: Run .NET benchmarks
       run: |
-        cd .NETBenchmark/MemoryPackBenchmark
+        cd memorypack-benchmarks/dotnet-benchmarks
         dotnet run -c Release
     
     - name: Upload benchmark results
@@ -44,7 +75,15 @@ jobs:
       with:
         name: benchmark-results
         path: |
-          .NETBenchmark/RustBenchmark/rust_benchmark_results.txt
-          .NETBenchmark/RustBenchmark/target/criterion/
-          .NETBenchmark/MemoryPackBenchmark/BenchmarkDotNet.Artifacts/
+          memorypack-benchmarks/rust-benchmarks/rust_benchmark_results.txt
+          memorypack-benchmarks/rust-benchmarks/current_baseline.json
+          memorypack-benchmarks/rust-benchmarks/target/criterion/
+          memorypack-benchmarks/dotnet-benchmarks/BenchmarkDotNet.Artifacts/
+    
+    - name: Save baseline for future comparisons
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: benchmark-baseline
+        path: memorypack-benchmarks/rust-benchmarks/target/criterion/
 

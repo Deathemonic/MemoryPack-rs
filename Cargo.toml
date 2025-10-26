@@ -1,5 +1,5 @@
 [workspace]
-members = ["memorypack", ".NETBenchmark/RustBenchmark", "memorypack-derive"]
+members = ["memorypack", "memorypack-benchmarks/rust-benchmarks", "memorypack-derive"]
 resolver = "2"
 
 [workspace.dependencies]

@@ -32,13 +32,13 @@ jobs:
     
     - name: Generate expanded macro output
       run: |
-        cd .NETBenchmark/RustBenchmark
+        cd memorypack-benchmarks/rust-benchmarks
         mkdir -p profiling_output
         cargo expand --example memorypack_profile > profiling_output/memorypack_profile_expanded.rs 2>&1 || true
     
     - name: Run dhat heap profiling
       run: |
-        cd .NETBenchmark/RustBenchmark
+        cd memorypack-benchmarks/rust-benchmarks
         cargo run --example memorypack_profile --release --features dhat-heap
         if [ -f dhat-heap.json ]; then
           mv dhat-heap.json profiling_output/
@@ -47,7 +47,7 @@ jobs:
     
     - name: Generate flamegraph
       run: |
-        cd .NETBenchmark/RustBenchmark
+        cd memorypack-benchmarks/rust-benchmarks
         sudo -E env "PATH=$HOME/.cargo/bin:$PATH" CARGO_PROFILE_RELEASE_DEBUG=true cargo flamegraph --example memorypack_profile -o profiling_output/flamegraph.svg
       continue-on-error: true
     
@@ -57,4 +57,4 @@ jobs:
       with:
         name: profiling-results
         path: |
-          .NETBenchmark/RustBenchmark/profiling_output/
+          memorypack-benchmarks/rust-benchmarks/profiling_output/
