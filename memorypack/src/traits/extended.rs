@@ -33,7 +33,9 @@ impl MemoryPackSerialize for rust_decimal::Decimal {
 impl MemoryPackDeserialize for rust_decimal::Decimal {
     #[inline(always)]
     fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
-        Ok(rust_decimal::Decimal::deserialize(reader.read_fixed_bytes::<16>()?))
+        Ok(rust_decimal::Decimal::deserialize(
+            reader.read_fixed_bytes::<16>()?,
+        ))
     }
 }
 
@@ -72,11 +74,11 @@ impl MemoryPackSerialize for num_bigint::BigInt {
     #[inline]
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
         let (sign, mut bytes) = self.to_bytes_le();
-        
+
         if sign == num_bigint::Sign::Minus {
             twos_complement_invert(&mut bytes);
         }
-        
+
         writer.write_i32(bytes.len() as i32)?;
         writer.buffer.extend_from_slice(&bytes);
         Ok(())
@@ -93,15 +95,21 @@ impl MemoryPackDeserialize for num_bigint::BigInt {
                 "Negative length in BigInteger".to_string(),
             ));
         }
-        
+
         let mut bytes = reader.read_bytes_vec(len as usize)?;
         let is_negative = bytes.last().map_or(false, |&b| b & 0x80 != 0);
-        
+
         if is_negative {
             twos_complement_invert(&mut bytes);
-            Ok(num_bigint::BigInt::from_bytes_le(num_bigint::Sign::Minus, &bytes))
+            Ok(num_bigint::BigInt::from_bytes_le(
+                num_bigint::Sign::Minus,
+                &bytes,
+            ))
         } else {
-            Ok(num_bigint::BigInt::from_bytes_le(num_bigint::Sign::Plus, &bytes))
+            Ok(num_bigint::BigInt::from_bytes_le(
+                num_bigint::Sign::Plus,
+                &bytes,
+            ))
         }
     }
 }
@@ -127,7 +135,9 @@ impl MemoryPackDeserialize for num_bigint::BigUint {
                 "Negative length in BigUint".to_string(),
             ));
         }
-        
-        Ok(num_bigint::BigUint::from_bytes_le(&reader.read_bytes_vec(len as usize)?))
+
+        Ok(num_bigint::BigUint::from_bytes_le(
+            &reader.read_bytes_vec(len as usize)?,
+        ))
     }
 }

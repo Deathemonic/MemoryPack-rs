@@ -1,16 +1,26 @@
-mod primitives;
-mod strings;
 mod collections;
-mod options;
-mod smart_ptrs;
-mod tuples;
 mod multidim;
+mod options;
+mod primitives;
+mod smart_ptrs;
+mod strings;
+mod tuples;
 
-#[cfg(any(feature = "uuid", feature = "rust_decimal", feature = "half", feature = "num-bigint"))]
+#[cfg(any(
+    feature = "uuid",
+    feature = "rust_decimal",
+    feature = "half",
+    feature = "num-bigint"
+))]
 mod extended;
 
+#[cfg(feature = "chrono")]
+mod datetime;
+
 #[allow(unused_imports)]
-pub use {primitives::*, strings::*, collections::*, options::*, smart_ptrs::*, tuples::*, multidim::*};
+pub use {
+    collections::*, multidim::*, options::*, primitives::*, smart_ptrs::*, strings::*, tuples::*,
+};
 
 use crate::error::MemoryPackError;
 use crate::reader::MemoryPackReader;

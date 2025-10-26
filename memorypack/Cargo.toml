@@ -17,6 +17,7 @@ rust_decimal = { version = "1.39", optional = true, features = ["serde"] }
 rust_decimal_macros = { version = "1.39", optional = true }
 half = { version = "2.7", optional = true, features = ["serde"] }
 num-bigint = { version = "0.4", optional = true, features = ["serde"] }
+chrono = { version = "0.4", optional = true, features = ["serde"] }
 
 [dev-dependencies]
 serde = { version = "1.0", features = ["derive"] }
@@ -28,4 +29,4 @@ rust_decimal_macros = "1.39"
 default = ["derive", "serde"]
 derive = ["memorypack-derive"]
 nightly = []
-extended_types = ["uuid", "rust_decimal", "rust_decimal_macros", "half", "num-bigint"]
+extended_types = ["uuid", "rust_decimal", "rust_decimal_macros", "half", "num-bigint", "chrono"]
