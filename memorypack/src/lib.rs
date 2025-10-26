@@ -21,6 +21,8 @@ pub use writer::MemoryPackWriter;
 #[cfg(not(feature = "nightly"))]
 pub use traits::{NullableString, NullableVec};
 
+pub use traits::MultiDimArray;
+
 #[cfg(feature = "derive")]
 pub use memorypack_derive::MemoryPackable;
 

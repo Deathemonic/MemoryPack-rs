@@ -21,3 +21,5 @@ profiling-results/
 *.pdb
 
 *.py
+
+read_bytes.rs

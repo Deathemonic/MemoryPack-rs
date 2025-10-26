@@ -231,14 +231,15 @@ impl<T: MemoryPackDeserialize> MemoryPackDeserialize for Vec<T> {
 
 
 #[inline]
-fn serialize_option_generic<T: MemoryPackSerialize>(opt: &Option<T>, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
+fn serialize_option_generic<T: MemoryPackSerialize + Default>(opt: &Option<T>, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
     match opt {
         Some(value) => {
-            writer.write_u8(1)?;
+            writer.write_i32(1)?;
             value.serialize(writer)?;
         }
         None => {
-            writer.write_u8(0)?;
+            writer.write_i32(0)?;
+            T::default().serialize(writer)?;
         }
     }
     Ok(())
@@ -246,11 +247,12 @@ fn serialize_option_generic<T: MemoryPackSerialize>(opt: &Option<T>, writer: &mu
 
 #[inline]
 fn deserialize_option_generic<T: MemoryPackDeserialize>(reader: &mut MemoryPackReader) -> Result<Option<T>, MemoryPackError> {
-    let has_value = reader.read_u8()?;
+    let has_value = reader.read_i32()?;
+    let value = T::deserialize(reader)?;
     if has_value == 0 {
         Ok(None)
     } else {
-        Ok(Some(T::deserialize(reader)?))
+        Ok(Some(value))
     }
 }
 
@@ -308,7 +310,7 @@ fn deserialize_nullable_vec<T: MemoryPackDeserialize>(reader: &mut MemoryPackRea
 mod option_impls {
     use super::*;
 
-    impl<T: MemoryPackSerialize> MemoryPackSerialize for Option<T> {
+    impl<T: MemoryPackSerialize + Default> MemoryPackSerialize for Option<T> {
         #[inline]
         default fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
             serialize_option_generic(self, writer)
@@ -355,7 +357,7 @@ mod option_impls {
 mod option_impls {
     use super::*;
 
-    impl<T: MemoryPackSerialize> MemoryPackSerialize for Option<T> {
+    impl<T: MemoryPackSerialize + Default> MemoryPackSerialize for Option<T> {
         #[inline]
         fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
             serialize_option_generic(self, writer)
@@ -425,6 +427,89 @@ mod option_impls {
 
 #[cfg(not(feature = "nightly"))]
 pub use option_impls::{NullableString, NullableVec};
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MultiDimArray<T> {
+    pub dimensions: Vec<usize>,
+    pub data: Vec<T>,
+}
+
+impl<T> MultiDimArray<T> {
+    pub fn new(dimensions: Vec<usize>, data: Vec<T>) -> Self {
+        let total: usize = dimensions.iter().product();
+        assert_eq!(total, data.len(), "Data length must match product of dimensions");
+        Self { dimensions, data }
+    }
+    
+    pub fn rank(&self) -> usize {
+        self.dimensions.len()
+    }
+}
+
+impl<T: MemoryPackSerialize> MemoryPackSerialize for MultiDimArray<T> {
+    fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
+        writer.write_u8((self.rank() + 1) as u8)?;
+        
+        for &dim in &self.dimensions {
+            writer.write_i32(dim as i32)?;
+        }
+        
+        let total: usize = self.dimensions.iter().product();
+        writer.write_i32(total as i32)?;
+        
+        for item in &self.data {
+            item.serialize(writer)?;
+        }
+        
+        Ok(())
+    }
+}
+
+impl<T: MemoryPackDeserialize> MemoryPackDeserialize for MultiDimArray<T> {
+    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+        let rank_plus_1 = reader.read_u8()?;
+        let rank = (rank_plus_1 as usize).saturating_sub(1);
+        
+        if rank == 0 {
+            return Err(MemoryPackError::DeserializationError("Invalid array rank".into()));
+        }
+        
+        let mut dimensions = Vec::with_capacity(rank);
+        for _ in 0..rank {
+            let dim = reader.read_i32()?;
+            if dim < 0 {
+                return Err(MemoryPackError::InvalidLength(dim));
+            }
+            dimensions.push(dim as usize);
+        }
+        
+        let total = reader.read_i32()?;
+        if total < 0 {
+            return Err(MemoryPackError::InvalidLength(total));
+        }
+        
+        let mut data = Vec::with_capacity(total as usize);
+        for _ in 0..total {
+            data.push(T::deserialize(reader)?);
+        }
+        
+        Ok(MultiDimArray { dimensions, data })
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<T: serde::Serialize> serde::Serialize for MultiDimArray<T> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut state = serializer.serialize_struct("MultiDimArray", 2)?;
+        state.serialize_field("dimensions", &self.dimensions)?;
+        state.serialize_field("data", &self.data)?;
+        state.end()
+    }
+}
 
 impl<T: MemoryPackSerialize> MemoryPackSerialize for Box<T> {
     #[inline]
