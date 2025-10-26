@@ -435,18 +435,26 @@ pub struct MultiDimArray<T> {
 }
 
 impl<T> MultiDimArray<T> {
+    #[inline]
     pub fn new(dimensions: Vec<usize>, data: Vec<T>) -> Self {
         let total: usize = dimensions.iter().product();
         assert_eq!(total, data.len(), "Data length must match product of dimensions");
         Self { dimensions, data }
     }
     
+    #[inline]
     pub fn rank(&self) -> usize {
         self.dimensions.len()
+    }
+    
+    #[inline]
+    fn total_elements(&self) -> usize {
+        self.data.len()
     }
 }
 
 impl<T: MemoryPackSerialize> MemoryPackSerialize for MultiDimArray<T> {
+    #[inline]
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
         writer.write_u8((self.rank() + 1) as u8)?;
         
@@ -454,8 +462,7 @@ impl<T: MemoryPackSerialize> MemoryPackSerialize for MultiDimArray<T> {
             writer.write_i32(dim as i32)?;
         }
         
-        let total: usize = self.dimensions.iter().product();
-        writer.write_i32(total as i32)?;
+        writer.write_i32(self.total_elements() as i32)?;
         
         for item in &self.data {
             item.serialize(writer)?;
@@ -466,6 +473,7 @@ impl<T: MemoryPackSerialize> MemoryPackSerialize for MultiDimArray<T> {
 }
 
 impl<T: MemoryPackDeserialize> MemoryPackDeserialize for MultiDimArray<T> {
+    #[inline]
     fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
         let rank_plus_1 = reader.read_u8()?;
         let rank = (rank_plus_1 as usize).saturating_sub(1);
@@ -477,9 +485,11 @@ impl<T: MemoryPackDeserialize> MemoryPackDeserialize for MultiDimArray<T> {
         let mut dimensions = Vec::with_capacity(rank);
         for _ in 0..rank {
             let dim = reader.read_i32()?;
+
             if dim < 0 {
                 return Err(MemoryPackError::InvalidLength(dim));
             }
+            
             dimensions.push(dim as usize);
         }
         
@@ -488,8 +498,10 @@ impl<T: MemoryPackDeserialize> MemoryPackDeserialize for MultiDimArray<T> {
             return Err(MemoryPackError::InvalidLength(total));
         }
         
-        let mut data = Vec::with_capacity(total as usize);
-        for _ in 0..total {
+        let total_usize = total as usize;
+        let mut data = Vec::with_capacity(total_usize);
+        
+        for _ in 0..total_usize {
             data.push(T::deserialize(reader)?);
         }
         
