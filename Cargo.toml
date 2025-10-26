@@ -1,5 +1,5 @@
 [workspace]
-members = ["memorypack", "memorypack-benchmarks/rust-benchmarks", "memorypack-derive"]
+members = ["memorypack", "memorypack-derive", "memorypack-benchmarks/rust-benchmarks"]
 resolver = "2"
 
 [workspace.dependencies]
