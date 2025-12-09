@@ -3,26 +3,8 @@ use crate::state::MemoryPackWriterOptionalState;
 use crate::varint;
 
 #[inline]
-fn count_utf16_code_units(bytes: &[u8]) -> usize {
-    let mut count = 0;
-    let mut i = 0;
-    while i < bytes.len() {
-        let b = bytes[i];
-        if b < 0x80 {
-            count += 1;
-            i += 1;
-        } else if b < 0xE0 {
-            count += 1;
-            i += 2;
-        } else if b < 0xF0 {
-            count += 1;
-            i += 3;
-        } else {
-            count += 2;
-            i += 4;
-        }
-    }
-    count
+fn count_utf16_code_units(s: &str) -> usize {
+    s.chars().map(|c| c.len_utf16()).sum()
 }
 
 pub struct MemoryPackWriter {
@@ -69,7 +51,7 @@ impl MemoryPackWriter {
         }
         let bytes = value.as_bytes();
 
-        let utf16_length = count_utf16_code_units(bytes) as i32;
+        let utf16_length = count_utf16_code_units(value) as i32;
         self.write_i32(!(bytes.len() as i32))?;
         self.write_i32(utf16_length)?;
         self.buffer.extend_from_slice(bytes);

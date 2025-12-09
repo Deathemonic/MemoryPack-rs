@@ -10,7 +10,7 @@ impl MemoryPackSerializer {
     /// Serialize a value to a byte vector
     #[inline]
     pub fn serialize<T: MemoryPackSerialize>(value: &T) -> Result<Vec<u8>, MemoryPackError> {
-        let mut writer = MemoryPackWriter::new();
+        let mut writer = MemoryPackWriter::with_capacity(64);
         value.serialize(&mut writer)?;
         Ok(writer.into_bytes())
     }
