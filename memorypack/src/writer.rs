@@ -2,7 +2,28 @@ use crate::error::MemoryPackError;
 use crate::state::MemoryPackWriterOptionalState;
 use crate::varint;
 
-use byteorder::{LittleEndian, WriteBytesExt};
+#[inline]
+fn count_utf16_code_units(bytes: &[u8]) -> usize {
+    let mut count = 0;
+    let mut i = 0;
+    while i < bytes.len() {
+        let b = bytes[i];
+        if b < 0x80 {
+            count += 1;
+            i += 1;
+        } else if b < 0xE0 {
+            count += 1;
+            i += 2;
+        } else if b < 0xF0 {
+            count += 1;
+            i += 3;
+        } else {
+            count += 2;
+            i += 4;
+        }
+    }
+    count
+}
 
 pub struct MemoryPackWriter {
     pub buffer: Vec<u8>,
@@ -48,7 +69,7 @@ impl MemoryPackWriter {
         }
         let bytes = value.as_bytes();
 
-        let utf16_length = value.chars().count() as i32;
+        let utf16_length = count_utf16_code_units(bytes) as i32;
         self.write_i32(!(bytes.len() as i32))?;
         self.write_i32(utf16_length)?;
         self.buffer.extend_from_slice(bytes);
@@ -65,85 +86,85 @@ impl MemoryPackWriter {
 
     #[inline(always)]
     pub fn write_bool(&mut self, value: bool) -> Result<(), MemoryPackError> {
-        self.buffer.write_u8(if value { 1 } else { 0 })?;
+        self.buffer.push(value as u8);
         Ok(())
     }
 
     #[inline(always)]
     pub fn write_i8(&mut self, value: i8) -> Result<(), MemoryPackError> {
-        self.buffer.write_i8(value)?;
+        self.buffer.push(value as u8);
         Ok(())
     }
 
     #[inline(always)]
     pub fn write_u8(&mut self, value: u8) -> Result<(), MemoryPackError> {
-        self.buffer.write_u8(value)?;
+        self.buffer.push(value);
         Ok(())
     }
 
     #[inline(always)]
     pub fn write_i16(&mut self, value: i16) -> Result<(), MemoryPackError> {
-        self.buffer.write_i16::<LittleEndian>(value)?;
+        self.buffer.extend_from_slice(&value.to_le_bytes());
         Ok(())
     }
 
     #[inline(always)]
     pub fn write_u16(&mut self, value: u16) -> Result<(), MemoryPackError> {
-        self.buffer.write_u16::<LittleEndian>(value)?;
+        self.buffer.extend_from_slice(&value.to_le_bytes());
         Ok(())
     }
 
     #[inline(always)]
     pub fn write_i32(&mut self, value: i32) -> Result<(), MemoryPackError> {
-        self.buffer.write_i32::<LittleEndian>(value)?;
+        self.buffer.extend_from_slice(&value.to_le_bytes());
         Ok(())
     }
 
     #[inline(always)]
     pub fn write_u32(&mut self, value: u32) -> Result<(), MemoryPackError> {
-        self.buffer.write_u32::<LittleEndian>(value)?;
+        self.buffer.extend_from_slice(&value.to_le_bytes());
         Ok(())
     }
 
     #[inline(always)]
     pub fn write_i64(&mut self, value: i64) -> Result<(), MemoryPackError> {
-        self.buffer.write_i64::<LittleEndian>(value)?;
+        self.buffer.extend_from_slice(&value.to_le_bytes());
         Ok(())
     }
 
     #[inline(always)]
     pub fn write_u64(&mut self, value: u64) -> Result<(), MemoryPackError> {
-        self.buffer.write_u64::<LittleEndian>(value)?;
+        self.buffer.extend_from_slice(&value.to_le_bytes());
         Ok(())
     }
 
     #[inline(always)]
     pub fn write_f32(&mut self, value: f32) -> Result<(), MemoryPackError> {
-        self.buffer.write_f32::<LittleEndian>(value)?;
+        self.buffer.extend_from_slice(&value.to_le_bytes());
         Ok(())
     }
 
     #[inline(always)]
     pub fn write_f64(&mut self, value: f64) -> Result<(), MemoryPackError> {
-        self.buffer.write_f64::<LittleEndian>(value)?;
+        self.buffer.extend_from_slice(&value.to_le_bytes());
         Ok(())
     }
 
     #[inline(always)]
     pub fn write_i128(&mut self, value: i128) -> Result<(), MemoryPackError> {
-        self.buffer.write_i128::<LittleEndian>(value)?;
+        self.buffer.extend_from_slice(&value.to_le_bytes());
         Ok(())
     }
 
     #[inline(always)]
     pub fn write_u128(&mut self, value: u128) -> Result<(), MemoryPackError> {
-        self.buffer.write_u128::<LittleEndian>(value)?;
+        self.buffer.extend_from_slice(&value.to_le_bytes());
         Ok(())
     }
 
     #[inline(always)]
     pub fn write_char(&mut self, value: char) -> Result<(), MemoryPackError> {
-        self.buffer.write_u32::<LittleEndian>(value as u32)?;
+        self.buffer.extend_from_slice(&(value as u32).to_le_bytes());
         Ok(())
     }
 

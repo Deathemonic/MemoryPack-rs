@@ -3,7 +3,6 @@ members = ["memorypack", "memorypack-derive", "memorypack-benchmarks/rust-benchm
 resolver = "2"
 
 [workspace.dependencies]
-byteorder = "1.5"
 thiserror = "2.0"
 
 [profile.release]

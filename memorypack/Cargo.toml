@@ -1,6 +1,6 @@
 [package]
 name = "memorypack"
-version = "1.0.0"
+version = "1.1.0"
 edition = "2024"
 license = "MIT"
 description = "A rust implementation of Cysharp/MemoryPack"
@@ -11,12 +11,12 @@ keywords = ["serialize", "deserialize", "binary", "memorypack"]
 categories = ["encoding", "parsing"]
 
 [dependencies]
-byteorder = { workspace = true }
 thiserror = { workspace = true }
 memorypack-derive = { version = "1.0.0", path = "../memorypack-derive", optional = true }
 serde = { version = "1.0", features = ["derive"], optional = true }
 hashbrown = { version = "0.16", features = ["serde"] }
 simdutf8 = "0.1.5"
+zerocopy = { version = "0.8", features = ["derive", "simd"] }
 uuid = { version = "1.18", optional = true, features = ["serde"] }
 rust_decimal = { version = "1.39", optional = true, features = ["serde"] }
 rust_decimal_macros = { version = "1.39", optional = true }
