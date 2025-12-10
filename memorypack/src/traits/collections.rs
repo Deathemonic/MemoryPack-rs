@@ -3,8 +3,9 @@ use crate::reader::MemoryPackReader;
 use crate::traits::{MemoryPackDeserialize, MemoryPackSerialize};
 use crate::writer::MemoryPackWriter;
 
-use hashbrown::HashMap;
-use std::collections::{BTreeMap, BTreeSet, HashSet, LinkedList, VecDeque};
+use hashbrown::HashMap as HashbrownHashMap;
+use hashbrown::HashSet as HashbrownHashSet;
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, LinkedList, VecDeque};
 
 #[inline(always)]
 fn validate_size(size: i32) -> Result<Option<usize>, MemoryPackError> {
@@ -107,6 +108,34 @@ impl<T: MemoryPackDeserialize> MemoryPackDeserialize for LinkedList<T> {
     }
 }
 
+impl<T: MemoryPackSerialize + Eq + std::hash::Hash> MemoryPackSerialize for HashbrownHashSet<T> {
+    #[inline(always)]
+    fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
+        write_collection_header(writer, self.len())?;
+        for item in self.iter() {
+            item.serialize(writer)?;
+        }
+        Ok(())
+    }
+}
+
+impl<T: MemoryPackDeserialize + Eq + std::hash::Hash> MemoryPackDeserialize for HashbrownHashSet<T> {
+    #[inline(always)]
+    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+        let size = reader.read_i32()?;
+        match validate_size(size)? {
+            None => Ok(HashbrownHashSet::new()),
+            Some(capacity) => {
+                let mut result = HashbrownHashSet::with_capacity(capacity);
+                for _ in 0..capacity {
+                    result.insert(T::deserialize(reader)?);
+                }
+                Ok(result)
+            }
+        }
+    }
+}
+
 impl<T: MemoryPackSerialize + Eq + std::hash::Hash> MemoryPackSerialize for HashSet<T> {
     #[inline(always)]
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
@@ -164,6 +193,39 @@ impl<T: MemoryPackDeserialize + Ord> MemoryPackDeserialize for BTreeSet<T> {
 }
 
 macro_rules! impl_hashmap {
+    ($key_type:ty) => {
+        impl<V: MemoryPackDeserialize + Default> MemoryPackDeserialize for HashbrownHashMap<$key_type, V> {
+            #[inline(always)]
+            fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+                let count = reader.read_i32()?;
+                match validate_size(count)? {
+                    None => Ok(HashbrownHashMap::new()),
+                    Some(capacity) => {
+                        let mut map = HashbrownHashMap::with_capacity(capacity);
+                        for _ in 0..capacity {
+                            map.insert(<$key_type>::deserialize(reader)?, V::deserialize(reader)?);
+                        }
+                        Ok(map)
+                    }
+                }
+            }
+        }
+
+        impl<V: MemoryPackSerialize> MemoryPackSerialize for HashbrownHashMap<$key_type, V> {
+            #[inline(always)]
+            fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
+                write_collection_header(writer, self.len())?;
+                for (key, value) in self.iter() {
+                    key.serialize(writer)?;
+                    value.serialize(writer)?;
+                }
+                Ok(())
+            }
+        }
+    };
+}
+
+macro_rules! impl_std_hashmap {
     ($key_type:ty) => {
         impl<V: MemoryPackDeserialize + Default> MemoryPackDeserialize for HashMap<$key_type, V> {
             #[inline(always)]
@@ -241,6 +303,19 @@ impl_hashmap!(u64);
 impl_hashmap!(i128);
 impl_hashmap!(u128);
 impl_hashmap!(char);
+
+impl_std_hashmap!(String);
+impl_std_hashmap!(i8);
+impl_std_hashmap!(u8);
+impl_std_hashmap!(i16);
+impl_std_hashmap!(u16);
+impl_std_hashmap!(i32);
+impl_std_hashmap!(u32);
+impl_std_hashmap!(i64);
+impl_std_hashmap!(u64);
+impl_std_hashmap!(i128);
+impl_std_hashmap!(u128);
+impl_std_hashmap!(char);
 
 impl_btreemap!(String);
 impl_btreemap!(i8);
