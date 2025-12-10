@@ -17,7 +17,7 @@ impl MemoryPackSerialize for chrono::TimeDelta {
     #[inline(always)]
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
         let ticks = self.num_nanoseconds().ok_or_else(|| {
-            MemoryPackError::SerializationError("Duration out of range".to_string())
+            MemoryPackError::SerializationError("Duration out of range".into())
         })? / TICKS_PER_NANOSECOND;
         writer.write_i64(ticks)
     }
@@ -37,7 +37,7 @@ impl MemoryPackSerialize for chrono::DateTime<chrono::Utc> {
     #[inline(always)]
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
         let unix_nanos = self.timestamp_nanos_opt().ok_or_else(|| {
-            MemoryPackError::SerializationError("DateTime out of range".to_string())
+            MemoryPackError::SerializationError("DateTime out of range".into())
         })?;
         let ticks = (unix_nanos / TICKS_PER_NANOSECOND) + DOTNET_EPOCH_TICKS;
         writer.write_i64(ticks | UTC_KIND_FLAG)
@@ -79,7 +79,7 @@ impl MemoryPackSerialize for chrono::DateTime<chrono::FixedOffset> {
         let offset_minutes = (self.offset().local_minus_utc() / 60) as i16;
         let utc = self.with_timezone(&chrono::Utc);
         let unix_nanos = utc.timestamp_nanos_opt().ok_or_else(|| {
-            MemoryPackError::SerializationError("DateTime out of range".to_string())
+            MemoryPackError::SerializationError("DateTime out of range".into())
         })?;
         let ticks = (unix_nanos / TICKS_PER_NANOSECOND) + DOTNET_EPOCH_TICKS;
 
@@ -104,7 +104,7 @@ impl MemoryPackDeserialize for chrono::DateTime<chrono::FixedOffset> {
 
         let utc = chrono::DateTime::from_timestamp_nanos(unix_nanos);
         let offset = chrono::FixedOffset::east_opt(offset_seconds)
-            .ok_or_else(|| MemoryPackError::DeserializationError("Invalid offset".to_string()))?;
+            .ok_or_else(|| MemoryPackError::DeserializationError("Invalid offset".into()))?;
 
         Ok(utc.with_timezone(&offset))
     }
@@ -130,7 +130,7 @@ impl MemoryPackDeserialize for chrono::NaiveTime {
         let nanos = (total_nanos % 1_000_000_000) as u32;
 
         chrono::NaiveTime::from_num_seconds_from_midnight_opt(secs, nanos)
-            .ok_or_else(|| MemoryPackError::DeserializationError("Invalid time ticks".to_string()))
+            .ok_or_else(|| MemoryPackError::DeserializationError("Invalid time ticks".into()))
     }
 }
 
@@ -152,6 +152,6 @@ impl MemoryPackDeserialize for chrono::NaiveDate {
         let days = reader.read_i32()?;
         chrono::NaiveDate::from_ymd_opt(1, 1, 1)
             .and_then(|base| base.checked_add_days(chrono::Days::new(days as u64)))
-            .ok_or_else(|| MemoryPackError::DeserializationError("Invalid date".to_string()))
+            .ok_or_else(|| MemoryPackError::DeserializationError("Invalid date".into()))
     }
 }

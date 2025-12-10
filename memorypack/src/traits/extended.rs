@@ -105,7 +105,7 @@ impl MemoryPackDeserialize for num_bigint::BigInt {
         let len = reader.read_i32()?;
         if len < 0 {
             return Err(MemoryPackError::DeserializationError(
-                "Negative length in BigInteger".to_string(),
+                "Negative length in BigInteger".into(),
             ));
         }
 
@@ -145,7 +145,7 @@ impl MemoryPackDeserialize for num_bigint::BigUint {
         let len = reader.read_i32()?;
         if len < 0 {
             return Err(MemoryPackError::DeserializationError(
-                "Negative length in BigUint".to_string(),
+                "Negative length in BigUint".into(),
             ));
         }
 
@@ -159,7 +159,7 @@ impl MemoryPackDeserialize for num_bigint::BigUint {
 impl MemoryPackSerialize for url::Url {
     #[inline(always)]
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
-        self.as_str().to_string().serialize(writer)
+        self.as_str().serialize(writer)
     }
 }
 
