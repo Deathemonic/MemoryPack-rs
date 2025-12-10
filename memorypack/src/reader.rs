@@ -146,13 +146,16 @@ impl<'a> MemoryPackReader<'a> {
                 if i + 2 > byte_count {
                     return Err(MemoryPackError::InvalidUtf8);
                 }
+
                 let low = u16::from_le_bytes([slice[i], slice[i + 1]]);
+
                 i += 2;
                 if low < 0xDC00 || low > 0xDFFF {
                     return Err(MemoryPackError::InvalidUtf8);
                 }
-                let code_point =
-                    0x10000 + ((code_unit as u32 - 0xD800) << 10) + (low as u32 - 0xDC00);
+
+                let code_point = 0x10000 + ((code_unit as u32 - 0xD800) << 10) + (low as u32 - 0xDC00);
+                
                 if let Some(c) = char::from_u32(code_point) {
                     result.push(c);
                 } else {
@@ -237,10 +240,17 @@ impl<'a> MemoryPackReader<'a> {
 
     #[inline(always)]
     pub fn read_char(&mut self) -> Result<char, MemoryPackError> {
-        let code_point = self.read_u32()?;
-        char::from_u32(code_point).ok_or_else(|| {
-            MemoryPackError::DeserializationError("Invalid Unicode code point".into())
-        })
+        let code_unit = self.read_u16()?;
+        
+        if code_unit < 0xD800 || code_unit > 0xDFFF {
+            return char::from_u32(code_unit as u32).ok_or_else(|| {
+                MemoryPackError::DeserializationError("Invalid Unicode code point".into())
+            });
+        }
+        
+        Err(MemoryPackError::DeserializationError(
+            "Surrogate code unit cannot be converted to Rust char".into(),
+        ))
     }
 
     #[inline]

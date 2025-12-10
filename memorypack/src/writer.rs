@@ -146,7 +146,14 @@ impl MemoryPackWriter {
 
     #[inline(always)]
     pub fn write_char(&mut self, value: char) -> Result<(), MemoryPackError> {
-        self.buffer.extend_from_slice(&(value as u32).to_le_bytes());
+        let code = value as u32;
+        if code <= 0xFFFF {
+            self.buffer.extend_from_slice(&(code as u16).to_le_bytes());
+        } else {
+            let adjusted = code - 0x10000;
+            let high_surrogate = ((adjusted >> 10) as u16) + 0xD800;
+            self.buffer.extend_from_slice(&high_surrogate.to_le_bytes());
+        }
         Ok(())
     }
 
