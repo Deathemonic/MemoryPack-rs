@@ -25,6 +25,7 @@ num-bigint = { version = "0.4", optional = true, features = ["serde"] }
 chrono = { version = "0.4", optional = true, features = ["serde"] }
 glam = { version = "0.29", optional = true, features = ["serde", "fast-math"] }
 num-complex = { version = "0.4", optional = true, features = ["serde"] }
+url = { version = "2.5", optional = true, features = ["serde"] }
 
 [dev-dependencies]
 serde = { version = "1.0", features = ["derive"] }
@@ -36,4 +37,4 @@ rust_decimal_macros = "1.39"
 default = ["derive", "serde"]
 derive = ["memorypack-derive"]
 nightly = []
-extended_types = ["uuid", "rust_decimal", "rust_decimal_macros", "half", "num-bigint", "chrono", "glam", "num-complex"]
+extended_types = ["uuid", "rust_decimal", "rust_decimal_macros", "half", "num-bigint", "chrono", "glam", "num-complex", "url"]

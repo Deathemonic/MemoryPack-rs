@@ -154,3 +154,20 @@ impl MemoryPackDeserialize for num_bigint::BigUint {
         ))
     }
 }
+
+#[cfg(feature = "url")]
+impl MemoryPackSerialize for url::Url {
+    #[inline(always)]
+    fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
+        self.as_str().to_string().serialize(writer)
+    }
+}
+
+#[cfg(feature = "url")]
+impl MemoryPackDeserialize for url::Url {
+    #[inline(always)]
+    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+        let s = String::deserialize(reader)?;
+        url::Url::parse(&s).map_err(|e| MemoryPackError::DeserializationError(e.to_string()))
+    }
+}
