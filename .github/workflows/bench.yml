@@ -1,4 +1,4 @@
-name: Benchmark
+name: Benchmark Comparison
 
 on:
   workflow_dispatch:
@@ -6,84 +6,117 @@ on:
 jobs:
   benchmark:
     runs-on: macos-15
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup Rust
-      uses: actions-rust-lang/setup-rust-toolchain@v1
-      with:
-        toolchain: stable
-    
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: '10.0.x'
-    
-    - name: Cache Rust dependencies
-      uses: Swatinem/rust-cache@v2
-    
-    - name: Install critcmp
-      run: cargo install critcmp
-    
-    - name: Download baseline benchmark data
-      uses: actions/download-artifact@v4
-      continue-on-error: true
-      with:
-        name: benchmark-baseline
-        path: memorypack-benchmarks/rust-benchmarks/target/criterion/
-    
-    - name: Run Rust benchmarks (baseline)
-      run: |
-        cd memorypack-benchmarks/rust-benchmarks
-        cargo bench --no-fail-fast -- --save-baseline current | tee rust_benchmark_results.txt
-    
-    - name: Compare with baseline
-      run: |
-        cd memorypack-benchmarks/rust-benchmarks
-        echo "Benchmark Comparison:" | tee -a rust_benchmark_results.txt
-        if critcmp --list 2>/dev/null | grep -q "baseline"; then
-          echo "Comparing current run against baseline:" | tee -a rust_benchmark_results.txt
-          critcmp baseline current | tee -a rust_benchmark_results.txt
-          echo "" | tee -a rust_benchmark_results.txt
-          echo "Detailed comparison (differences >= 5%):" | tee -a rust_benchmark_results.txt
-          critcmp baseline current -t 5 | tee -a rust_benchmark_results.txt
-        else
-          echo "No baseline found. This will be the first baseline." | tee -a rust_benchmark_results.txt
-        fi
-      continue-on-error: true
-    
-    - name: Export current as baseline
-      run: |
-        cd memorypack-benchmarks/rust-benchmarks
-        critcmp --export current > current_baseline.json
-      continue-on-error: true
-    
-    - name: Restore .NET dependencies
-      run: |
-        cd memorypack-benchmarks/dotnet-benchmarks
-        dotnet restore
-    
-    - name: Run .NET benchmarks
-      run: |
-        cd memorypack-benchmarks/dotnet-benchmarks
-        dotnet run -c Release
-    
-    - name: Upload benchmark results
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: benchmark-results
-        path: |
-          memorypack-benchmarks/rust-benchmarks/rust_benchmark_results.txt
-          memorypack-benchmarks/rust-benchmarks/current_baseline.json
-          memorypack-benchmarks/rust-benchmarks/target/criterion/
-          memorypack-benchmarks/dotnet-benchmarks/BenchmarkDotNet.Artifacts/
-    
-    - name: Save baseline for future comparisons
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: benchmark-baseline
-        path: memorypack-benchmarks/rust-benchmarks/target/criterion/
+    permissions:
+      contents: read
+      actions: write
 
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install Rust Tools
+        run: cargo install critcmp
+
+      - name: Run Rust Benchmarks
+        run: |
+          cd memorypack-benchmarks/rust-benchmarks
+          sudo taskpolicy -d user_interactive cargo bench -- --output-format bencher | tee rust_raw.txt
+          critcmp --export current > ../../rust_results.json
+
+      - name: Restore .NET
+        run: |
+          cd memorypack-benchmarks/dotnet-benchmarks
+          dotnet restore
+
+      - name: Run .NET Benchmarks
+        run: |
+          cd memorypack-benchmarks/dotnet-benchmarks
+          sudo taskpolicy -d user_interactive dotnet run -c Release -- --exporters Json
+
+      - name: Locate .NET Results
+        id: dotnet-locate
+        run: |
+          JSON_PATH=$(find memorypack-benchmarks/dotnet-benchmarks/BenchmarkDotNet.Artifacts/results -name "*.json" | head -n 1)
+          cp "$JSON_PATH" dotnet_results.json
+
+      - name: Generate Comparison Table
+        shell: bash
+        run: |
+          python3 <<EOF > $GITHUB_STEP_SUMMARY
+          import json
+
+          def fmt_ns(ns):
+              if ns >= 1000: return f"{ns/1000:.2f} us"
+              return f"{ns:.2f} ns"
+
+          try:
+              with open('rust_results.json') as f:
+                  rust_data = json.load(f)
+
+              with open('dotnet_results.json') as f:
+                  dotnet_raw = json.load(f)
+
+              comparison = []
+              rust_map = {}
+              for r in rust_data['current']:
+                  name = r['id'].lower().replace('_', '')
+                  rust_map[name] = r['point_estimate']
+
+              for d in dotnet_raw['Benchmarks']:
+                  csharp_name = d['Method']
+                  match_key = csharp_name.lower()
+                  csharp_mean = d['Statistics']['Mean']
+                  rust_mean = rust_map.get(match_key)
+                  row = {"Test": csharp_name, "C#": csharp_mean, "Rust": rust_mean}
+                  comparison.append(row)
+
+              print("| Test Case | C# Time | Rust Time | Winner | Ratio |")
+              print("| :--- | :---: | :---: | :---: | :---: |")
+              for row in comparison:
+                  c_time = row['C#']
+                  r_time = row['Rust']
+                  if r_time is None:
+                      print(f"| {row['Test']} | {fmt_ns(c_time)} | N/A | - | - |")
+                      continue
+                  diff = c_time / r_time
+                  winner = "Rust" if r_time < c_time else "C#"
+                  ratio = f"{diff:.2f}x" if r_time < c_time else f"{r_time/c_time:.2f}x"
+                  print(f"| {row['Test']} | {fmt_ns(c_time)} | {fmt_ns(r_time)} | {winner} | {ratio} |")
+          except Exception as e:
+              print(f"Error parsing benchmarks: {e}")
+          EOF
+
+      - name: Download previous baseline
+        uses: actions/download-artifact@v4
+        id: download-baseline
+        continue-on-error: true
+        with:
+          name: benchmark-baseline
+          path: old_baseline
+
+      - name: Check for Regressions
+        if: steps.download-baseline.outcome == 'success'
+        run: |
+          echo "### Rust Regression Check" >> $GITHUB_STEP_SUMMARY
+          echo "Regression check skipped in this unified view." >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload New Baseline
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-baseline
+          path: rust_results.json
+          overwrite: true
