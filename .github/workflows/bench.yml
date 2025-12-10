@@ -1,4 +1,4 @@
-name: Benchmark Comparison
+name: Benchmark
 
 on:
   workflow_dispatch:
@@ -34,7 +34,7 @@ jobs:
       - name: Run Rust Benchmarks
         run: |
           cd memorypack-benchmarks/rust-benchmarks
-          cargo bench --bench benchmarks -- --save-baseline current
+          cargo bench --bench memorypack_bench -- --save-baseline current
           critcmp --export current > ../../rust_results.json
 
       - name: Restore .NET
