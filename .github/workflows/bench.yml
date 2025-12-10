@@ -34,7 +34,7 @@ jobs:
       - name: Run Rust Benchmarks
         run: |
           cd memorypack-benchmarks/rust-benchmarks
-          sudo taskpolicy -d user_interactive cargo bench -- --output-format bencher | tee rust_raw.txt
+          cargo bench --bench benchmarks -- --save-baseline current
           critcmp --export current > ../../rust_results.json
 
       - name: Restore .NET
@@ -45,7 +45,7 @@ jobs:
       - name: Run .NET Benchmarks
         run: |
           cd memorypack-benchmarks/dotnet-benchmarks
-          sudo taskpolicy -d user_interactive dotnet run -c Release -- --exporters Json
+          dotnet run -c Release -- --exporters Json
 
       - name: Locate .NET Results
         id: dotnet-locate
