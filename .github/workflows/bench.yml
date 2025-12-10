@@ -50,7 +50,17 @@ jobs:
       - name: Locate .NET Results
         id: dotnet-locate
         run: |
-          JSON_PATH=$(find memorypack-benchmarks/dotnet-benchmarks/BenchmarkDotNet.Artifacts/results -name "*.json" | head -n 1)
+          echo "Searching for BenchmarkDotNet results..."
+          find memorypack-benchmarks/dotnet-benchmarks -name "*.json" -type f
+          JSON_PATH=$(find memorypack-benchmarks/dotnet-benchmarks/BenchmarkDotNet.Artifacts -name "*-report.json" -type f | head -n 1)
+          if [ -z "$JSON_PATH" ]; then
+            JSON_PATH=$(find memorypack-benchmarks/dotnet-benchmarks/BenchmarkDotNet.Artifacts -name "*.json" -type f | head -n 1)
+          fi
+          if [ -z "$JSON_PATH" ]; then
+            echo "No JSON results found"
+            exit 1
+          fi
+          echo "Found: $JSON_PATH"
           cp "$JSON_PATH" dotnet_results.json
 
       - name: Generate Comparison Table
