@@ -2,11 +2,6 @@ use crate::error::MemoryPackError;
 use crate::state::MemoryPackWriterOptionalState;
 use crate::varint;
 
-#[inline]
-fn count_utf16_code_units(s: &str) -> usize {
-    s.chars().map(|c| c.len_utf16()).sum()
-}
-
 pub struct MemoryPackWriter {
     pub buffer: Vec<u8>,
     pub optional_state: Option<MemoryPackWriterOptionalState>,
@@ -50,10 +45,9 @@ impl MemoryPackWriter {
             return self.write_i32(0);
         }
         let bytes = value.as_bytes();
-
-        let utf16_length = count_utf16_code_units(value) as i32;
+        let utf16_length: usize = value.chars().map(|c| c.len_utf16()).sum();
         self.write_i32(!(bytes.len() as i32))?;
-        self.write_i32(utf16_length)?;
+        self.write_i32(utf16_length as i32)?;
         self.buffer.extend_from_slice(bytes);
         Ok(())
     }
