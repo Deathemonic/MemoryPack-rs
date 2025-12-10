@@ -1,4 +1,5 @@
 ﻿using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Exporters.Json;
 using BenchmarkDotNet.Running;
 using MemoryPack;
 
@@ -35,6 +36,7 @@ public partial class VersionTolerantData
 }
 
 [MemoryDiagnoser]
+[JsonExporterAttribute.Full]
 public class MemoryPackBenchmarks
 {
     private SimpleData simpleData = null!;

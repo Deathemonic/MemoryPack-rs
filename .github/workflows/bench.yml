@@ -45,16 +45,16 @@ jobs:
       - name: Run .NET Benchmarks
         run: |
           cd memorypack-benchmarks/dotnet-benchmarks
-          dotnet run -c Release -- --exporters Json
+          dotnet run -c Release
 
       - name: Locate .NET Results
         id: dotnet-locate
         run: |
           echo "Searching for BenchmarkDotNet results..."
-          find memorypack-benchmarks/dotnet-benchmarks -name "*.json" -type f
-          JSON_PATH=$(find memorypack-benchmarks/dotnet-benchmarks/BenchmarkDotNet.Artifacts -name "*-report.json" -type f | head -n 1)
+          find memorypack-benchmarks/dotnet-benchmarks/BenchmarkDotNet.Artifacts -type f -name "*.json" 2>/dev/null || true
+          JSON_PATH=$(find memorypack-benchmarks/dotnet-benchmarks/BenchmarkDotNet.Artifacts/results -name "*-report-full.json" -type f 2>/dev/null | head -n 1)
           if [ -z "$JSON_PATH" ]; then
-            JSON_PATH=$(find memorypack-benchmarks/dotnet-benchmarks/BenchmarkDotNet.Artifacts -name "*.json" -type f | head -n 1)
+            JSON_PATH=$(find memorypack-benchmarks/dotnet-benchmarks/BenchmarkDotNet.Artifacts/results -name "*.json" -type f 2>/dev/null | head -n 1)
           fi
           if [ -z "$JSON_PATH" ]; then
             echo "No JSON results found"

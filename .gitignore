@@ -33,6 +33,7 @@ bin/
 # Data
 *.bytes
 *.json
+*.log
 
 # ASM
 *.asm
