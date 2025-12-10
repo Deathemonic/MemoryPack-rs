@@ -24,8 +24,14 @@ impl MemoryPackDeserialize for uuid::Uuid {
 impl MemoryPackSerialize for rust_decimal::Decimal {
     #[inline(always)]
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
-        writer.buffer.extend_from_slice(&self.serialize());
-        Ok(())
+        let unpacked = self.unpack();
+        
+        let flags: u32 = ((unpacked.negative as u32) << 31) | ((unpacked.scale as u32) << 16);
+        let lo64: u64 = (unpacked.lo as u64) | ((unpacked.mid as u64) << 32);
+        
+        writer.write_u32(flags)?;
+        writer.write_u32(unpacked.hi)?;
+        writer.write_u64(lo64)
     }
 }
 
@@ -33,9 +39,16 @@ impl MemoryPackSerialize for rust_decimal::Decimal {
 impl MemoryPackDeserialize for rust_decimal::Decimal {
     #[inline(always)]
     fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
-        Ok(rust_decimal::Decimal::deserialize(
-            reader.read_fixed_bytes::<16>()?,
-        ))
+        let flags = reader.read_u32()?;
+        let hi = reader.read_u32()?;
+        let lo64 = reader.read_u64()?;
+        
+        let negative = (flags & 0x8000_0000) != 0;
+        let scale = ((flags >> 16) & 0xFF) as u32;
+        let lo = lo64 as u32;
+        let mid = (lo64 >> 32) as u32;
+        
+        Ok(rust_decimal::Decimal::from_parts(lo, mid, hi, negative, scale))
     }
 }
 
