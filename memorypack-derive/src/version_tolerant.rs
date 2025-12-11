@@ -26,62 +26,46 @@ pub fn generate_version_tolerant_serialize(data: &Data) -> proc_macro2::TokenStr
             let max_order = ordered.last().map(|f| f.order).unwrap_or(0);
             let member_count = max_order + 1;
 
-            if member_count <= 3 {
-                let serialize_fields_array = (0..member_count).map(|order| {
+            let serialize_fields: Vec<_> = (0..member_count)
+                .map(|order| {
                     if let Some(of) = ordered.iter().find(|f| f.order == order) {
                         let name = of.ident;
                         quote! {
-                            let start_pos = temp_buf.len();
-                            memorypack::MemoryPackSerialize::serialize(&self.#name, &mut temp_buf)?;
-                            field_lengths[#order] = (temp_buf.len() - start_pos) as i64;
+                            let start = writer.buffer.len();
+                            memorypack::MemoryPackSerialize::serialize(&self.#name, writer)?;
+                            field_lengths[#order] = writer.buffer.len() - start;
                         }
                     } else {
-                        quote! { field_lengths[#order] = 0i64; }
+                        quote! { field_lengths[#order] = 0; }
                     }
-                });
+                })
+                .collect();
 
-                quote! {
-                    writer.write_u8(#member_count as u8)?;
+            let backpatch_assignments: Vec<_> = (0..member_count)
+                .map(|i| {
+                    quote! { writer.buffer[lengths_pos + #i] = field_lengths[#i] as u8; }
+                })
+                .collect();
 
-                    let mut temp_buf = memorypack::MemoryPackWriter::with_capacity(64);
-                    let mut field_lengths = [0i64; #member_count];
+            quote! {
+                writer.write_u8(#member_count as u8)?;
 
-                    #(#serialize_fields_array)*
+                let lengths_pos = writer.buffer.len();
+                writer.buffer.extend_from_slice(&[0u8; #member_count]);
 
-                    for &length in &field_lengths {
-                        memorypack::varint::write_varint(writer, length)?;
+                let mut field_lengths = [0usize; #member_count];
+                #(#serialize_fields)*
+
+                if field_lengths.iter().all(|&len| len < 128) {
+                    #(#backpatch_assignments)*
+                } else {
+                    let data_start = lengths_pos + #member_count;
+                    let data = writer.buffer[data_start..].to_vec();
+                    writer.buffer.truncate(lengths_pos);
+                    for &len in &field_lengths {
+                        memorypack::varint::write_varint(writer, len as i64)?;
                     }
-
-                    writer.buffer.extend_from_slice(&temp_buf.buffer);
-                }
-            } else {
-                let serialize_to_temp = (0..member_count).map(|order| {
-                    if let Some(of) = ordered.iter().find(|f| f.order == order) {
-                        let name = of.ident;
-                        quote! {
-                            let start_pos = temp_buf.len();
-                            memorypack::MemoryPackSerialize::serialize(&self.#name, &mut temp_buf)?;
-                            let field_len = temp_buf.len() - start_pos;
-                            field_lengths.push(field_len as i64);
-                        }
-                    } else {
-                        quote! { field_lengths.push(0i64); }
-                    }
-                });
-
-                quote! {
-                    writer.write_u8(#member_count as u8)?;
-
-                    let mut temp_buf = memorypack::MemoryPackWriter::with_capacity(128);
-                    let mut field_lengths = Vec::with_capacity(#member_count);
-
-                    #(#serialize_to_temp)*
-
-                    for &length in &field_lengths {
-                        memorypack::varint::write_varint(writer, length)?;
-                    }
-
-                    writer.buffer.extend_from_slice(&temp_buf.buffer);
+                    writer.buffer.extend_from_slice(&data);
                 }
             }
         }
@@ -89,28 +73,44 @@ pub fn generate_version_tolerant_serialize(data: &Data) -> proc_macro2::TokenStr
             let field_count = fields.unnamed.len();
             let field_indices: Vec<_> = (0..field_count).map(syn::Index::from).collect();
 
-            let serialize_to_temp = field_indices.iter().map(|idx| {
-                quote! {
-                    let start_pos = temp_buf.len();
-                    memorypack::MemoryPackSerialize::serialize(&self.#idx, &mut temp_buf)?;
-                    let field_len = temp_buf.len() - start_pos;
-                    field_lengths.push(field_len as i64);
-                }
-            });
+            let serialize_fields: Vec<_> = field_indices
+                .iter()
+                .enumerate()
+                .map(|(i, idx)| {
+                    quote! {
+                        let start = writer.buffer.len();
+                        memorypack::MemoryPackSerialize::serialize(&self.#idx, writer)?;
+                        field_lengths[#i] = writer.buffer.len() - start;
+                    }
+                })
+                .collect();
+
+            let backpatch_assignments: Vec<_> = (0..field_count)
+                .map(|i| {
+                    quote! { writer.buffer[lengths_pos + #i] = field_lengths[#i] as u8; }
+                })
+                .collect();
 
             quote! {
                 writer.write_u8(#field_count as u8)?;
 
-                let mut temp_buf = memorypack::MemoryPackWriter::with_capacity(64);
-                let mut field_lengths = Vec::with_capacity(#field_count);
+                let lengths_pos = writer.buffer.len();
+                writer.buffer.extend_from_slice(&[0u8; #field_count]);
 
-                #(#serialize_to_temp)*
+                let mut field_lengths = [0usize; #field_count];
+                #(#serialize_fields)*
 
-                for &length in &field_lengths {
-                    memorypack::varint::write_varint(writer, length)?;
+                if field_lengths.iter().all(|&len| len < 128) {
+                    #(#backpatch_assignments)*
+                } else {
+                    let data_start = lengths_pos + #field_count;
+                    let data = writer.buffer[data_start..].to_vec();
+                    writer.buffer.truncate(lengths_pos);
+                    for &len in &field_lengths {
+                        memorypack::varint::write_varint(writer, len as i64)?;
+                    }
+                    writer.buffer.extend_from_slice(&data);
                 }
-
-                writer.buffer.extend_from_slice(&temp_buf.buffer);
             }
         }
         Fields::Unit => quote! { writer.write_u8(0)?; },

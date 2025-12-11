@@ -63,15 +63,25 @@ jobs:
           echo "Found: $JSON_PATH"
           cp "$JSON_PATH" dotnet_results.json
 
+      - name: Debug Rust JSON Structure
+        run: |
+          echo "### Rust JSON Structure" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          cat rust_results.json >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
       - name: Generate Comparison Table
         shell: bash
         run: |
-          python3 <<EOF > $GITHUB_STEP_SUMMARY
+          python3 <<EOF >> $GITHUB_STEP_SUMMARY
           import json
 
           def fmt_ns(ns):
               if ns >= 1000: return f"{ns/1000:.2f} us"
               return f"{ns:.2f} ns"
+
+          def normalize_name(name):
+              return name.lower().replace('_', '')
 
           try:
               with open('rust_results.json') as f:
@@ -80,29 +90,34 @@ jobs:
               with open('dotnet_results.json') as f:
                   dotnet_raw = json.load(f)
 
-              comparison = []
               rust_map = {}
 
+              # critcmp export format: { "baseline_name": { "group_name": [ {id, point_estimate, ...} ] } }
               baseline_data = rust_data.get('current', rust_data)
-              if isinstance(baseline_data, dict):
-                  for group_name, benchmarks in baseline_data.items():
-                      if isinstance(benchmarks, list):
-                          for r in benchmarks:
-                              name = r['id'].lower().replace('_', '')
-                              rust_map[name] = r['point_estimate']
-              elif isinstance(baseline_data, list):
-                  for r in baseline_data:
-                      name = r['id'].lower().replace('_', '')
-                      rust_map[name] = r['point_estimate']
+              
+              def extract_benchmarks(data, prefix=''):
+                  if isinstance(data, dict):
+                      for key, value in data.items():
+                          extract_benchmarks(value, key)
+                  elif isinstance(data, list):
+                      for item in data:
+                          if isinstance(item, dict) and 'id' in item:
+                              name = normalize_name(item['id'])
+                              rust_map[name] = item['point_estimate']
 
+              extract_benchmarks(baseline_data)
+
+              comparison = []
               for d in dotnet_raw['Benchmarks']:
                   csharp_name = d['Method']
-                  match_key = csharp_name.lower()
+                  match_key = normalize_name(csharp_name)
                   csharp_mean = d['Statistics']['Mean']
                   rust_mean = rust_map.get(match_key)
-                  row = {"Test": csharp_name, "C#": csharp_mean, "Rust": rust_mean}
-                  comparison.append(row)
+                  comparison.append({"Test": csharp_name, "C#": csharp_mean, "Rust": rust_mean})
 
+              print("")
+              print("## Benchmark Summary")
+              print("")
               print("| Test Case | C# Time | Rust Time | Winner | Ratio |")
               print("| :--- | :---: | :---: | :---: | :---: |")
               for row in comparison:
@@ -118,24 +133,34 @@ jobs:
           except Exception as e:
               import traceback
               print(f"Error parsing benchmarks: {e}")
-              print(f"```")
+              print("```")
               traceback.print_exc()
-              print(f"```")
+              print("```")
           EOF
 
       - name: Download previous baseline
-        uses: actions/download-artifact@v4
+        uses: dawidd6/action-download-artifact@v11
         id: download-baseline
         continue-on-error: true
         with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          workflow: bench.yml
+          workflow_conclusion: success
           name: benchmark-baseline
           path: old_baseline
+          search_artifacts: true
+          if_no_artifact_found: warn
 
       - name: Check for Regressions
         if: steps.download-baseline.outcome == 'success'
         run: |
-          echo "### Rust Regression Check" >> $GITHUB_STEP_SUMMARY
-          echo "Regression check skipped in this unified view." >> $GITHUB_STEP_SUMMARY
+          if [ -f old_baseline/rust_results.json ]; then
+            echo "### Rust Regression Check" >> $GITHUB_STEP_SUMMARY
+            echo "Previous baseline found. Comparison available in future updates." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### Rust Regression Check" >> $GITHUB_STEP_SUMMARY
+            echo "No previous baseline file found." >> $GITHUB_STEP_SUMMARY
+          fi
 
       - name: Upload New Baseline
         uses: actions/upload-artifact@v4

@@ -44,7 +44,5 @@ results/
 # Tests
 .NETGenerateMemoryPack/
 .NETMemoryPack/
-
-# Custom
 memorypack/examples/
-read_bytes.rs
+memorypack-benchmarks/profile/
