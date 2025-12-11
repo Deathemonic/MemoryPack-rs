@@ -54,14 +54,7 @@ public partial class BarClass : IUnionSample
     public string? OPQ { get; set; }
 }
 
-[MemoryPackable(GenerateType.CircularReference)]
-public partial class NodeWithCircular
-{
-    [MemoryPackOrder(0)]
-    public int Id { get; set; }
-    [MemoryPackOrder(1)]
-    public NodeWithCircular? Next { get; set; }
-}
+
 
 [MemoryDiagnoser]
 [JsonExporterAttribute.Full]
@@ -72,13 +65,11 @@ public class MemoryPackBenchmarks
     private VersionTolerantData versionTolerantData = null!;
     private Color enumData;
     private IUnionSample unionData = null!;
-    private NodeWithCircular circularData = null!;
     private byte[] simpleBytes = null!;
     private byte[] complexBytes = null!;
     private byte[] versionTolerantBytes = null!;
     private byte[] enumBytes = null!;
     private byte[] unionBytes = null!;
-    private byte[] circularBytes = null!;
 
     [GlobalSetup]
     public void Setup()
@@ -111,22 +102,11 @@ public class MemoryPackBenchmarks
 
         unionData = new FooClass { XYZ = 999 };
 
-        circularData = new NodeWithCircular
-        {
-            Id = 1,
-            Next = new NodeWithCircular
-            {
-                Id = 2,
-                Next = new NodeWithCircular { Id = 3, Next = null }
-            }
-        };
-
         simpleBytes = MemoryPackSerializer.Serialize(simpleData);
         complexBytes = MemoryPackSerializer.Serialize(complexData);
         versionTolerantBytes = MemoryPackSerializer.Serialize(versionTolerantData);
         enumBytes = MemoryPackSerializer.Serialize(enumData);
         unionBytes = MemoryPackSerializer.Serialize(unionData);
-        circularBytes = MemoryPackSerializer.Serialize(circularData);
     }
 
     [Benchmark]
@@ -189,15 +169,4 @@ public class MemoryPackBenchmarks
         return MemoryPackSerializer.Deserialize<IUnionSample>(unionBytes)!;
     }
 
-    [Benchmark]
-    public byte[] SerializeCircular()
-    {
-        return MemoryPackSerializer.Serialize(circularData);
-    }
-
-    [Benchmark]
-    public NodeWithCircular DeserializeCircular()
-    {
-        return MemoryPackSerializer.Deserialize<NodeWithCircular>(circularBytes)!;
-    }
 }

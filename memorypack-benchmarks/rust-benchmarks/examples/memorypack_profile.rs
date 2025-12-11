@@ -66,14 +66,7 @@ enum UnionSample {
     Bar(BarClass),
 }
 
-#[derive(MemoryPackable, Clone)]
-#[memorypack(circular)]
-struct NodeWithCircular {
-    #[memorypack(order = 0)]
-    id: i32,
-    #[memorypack(order = 1)]
-    next: Option<Box<NodeWithCircular>>,
-}
+
 
 fn create_simple_data() -> SimpleData {
     SimpleData {
@@ -172,19 +165,5 @@ fn main() {
         let _data: UnionSample = MemoryPackSerializer::deserialize(&union_bytes).unwrap();
     }
     
-    let circular_data = NodeWithCircular {
-        id: 1,
-        next: Some(Box::new(NodeWithCircular {
-            id: 2,
-            next: Some(Box::new(NodeWithCircular { id: 3, next: None })),
-        })),
-    };
-    for _ in 0..100_000 {
-        let _bytes = MemoryPackSerializer::serialize(&circular_data).unwrap();
-    }
-    let circular_bytes = MemoryPackSerializer::serialize(&circular_data).unwrap();
-    for _ in 0..100_000 {
-        let _data: NodeWithCircular = MemoryPackSerializer::deserialize(&circular_bytes).unwrap();
-    }
 }
 

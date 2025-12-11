@@ -80,14 +80,7 @@ enum UnionSample {
     Bar(BarClass),
 }
 
-#[derive(MemoryPackable, Clone)]
-#[memorypack(circular)]
-struct NodeWithCircular {
-    #[memorypack(order = 0)]
-    id: i32,
-    #[memorypack(order = 1)]
-    next: Option<Box<NodeWithCircular>>,
-}
+
 
 fn create_simple_data() -> SimpleData {
     SimpleData {
@@ -127,18 +120,7 @@ fn create_union_data() -> UnionSample {
     UnionSample::Foo(FooClass { xyz: 999 })
 }
 
-fn create_circular_data() -> NodeWithCircular {
-    NodeWithCircular {
-        id: 1,
-        next: Some(Box::new(NodeWithCircular {
-            id: 2,
-            next: Some(Box::new(NodeWithCircular {
-                id: 3,
-                next: None,
-            })),
-        })),
-    }
-}
+
 
 fn reset_counters() {
     ALLOCATED.store(0, Ordering::SeqCst);
@@ -278,22 +260,7 @@ fn benchmark_deserialize_union(c: &mut Criterion) {
     });
 }
 
-fn benchmark_serialize_circular(c: &mut Criterion) {
-    let data = create_circular_data();
-    
-    c.bench_function("serialize_circular", |b| {
-        b.iter(|| MemoryPackSerializer::serialize(black_box(&data)).unwrap())
-    });
-}
 
-fn benchmark_deserialize_circular(c: &mut Criterion) {
-    let data = create_circular_data();
-    let bytes = MemoryPackSerializer::serialize(&data).unwrap();
-    
-    c.bench_function("deserialize_circular", |b| {
-        b.iter(|| MemoryPackSerializer::deserialize::<NodeWithCircular>(black_box(&bytes)).unwrap())
-    });
-}
 
 criterion_group!(
     benches,
@@ -306,8 +273,6 @@ criterion_group!(
     benchmark_serialize_enum,
     benchmark_deserialize_enum,
     benchmark_serialize_union,
-    benchmark_deserialize_union,
-    benchmark_serialize_circular,
-    benchmark_deserialize_circular
+    benchmark_deserialize_union
 );
 criterion_main!(benches);
