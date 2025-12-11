@@ -82,9 +82,18 @@ jobs:
 
               comparison = []
               rust_map = {}
-              for r in rust_data['current']:
-                  name = r['id'].lower().replace('_', '')
-                  rust_map[name] = r['point_estimate']
+
+              baseline_data = rust_data.get('current', rust_data)
+              if isinstance(baseline_data, dict):
+                  for group_name, benchmarks in baseline_data.items():
+                      if isinstance(benchmarks, list):
+                          for r in benchmarks:
+                              name = r['id'].lower().replace('_', '')
+                              rust_map[name] = r['point_estimate']
+              elif isinstance(baseline_data, list):
+                  for r in baseline_data:
+                      name = r['id'].lower().replace('_', '')
+                      rust_map[name] = r['point_estimate']
 
               for d in dotnet_raw['Benchmarks']:
                   csharp_name = d['Method']
@@ -107,7 +116,11 @@ jobs:
                   ratio = f"{diff:.2f}x" if r_time < c_time else f"{r_time/c_time:.2f}x"
                   print(f"| {row['Test']} | {fmt_ns(c_time)} | {fmt_ns(r_time)} | {winner} | {ratio} |")
           except Exception as e:
+              import traceback
               print(f"Error parsing benchmarks: {e}")
+              print(f"```")
+              traceback.print_exc()
+              print(f"```")
           EOF
 
       - name: Download previous baseline
