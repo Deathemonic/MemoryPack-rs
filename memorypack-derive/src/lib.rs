@@ -94,16 +94,6 @@ pub fn derive_memorypack(input: TokenStream) -> TokenStream {
                     #deserialize_impl
                 }
             }
-
-            impl<'a> memorypack::MemoryPackDeserialize for #name<'a> {
-                #[inline]
-                fn deserialize(reader: &mut memorypack::MemoryPackReader) -> Result<Self, memorypack::MemoryPackError> {
-                    let reader_with_lifetime: &mut memorypack::MemoryPackReader<'a> = unsafe {
-                        std::mem::transmute(reader)
-                    };
-                    <Self as memorypack::MemoryPackDeserializeZeroCopy<'a>>::deserialize(reader_with_lifetime)
-                }
-            }
         }
     } else {
         quote! {}

@@ -117,7 +117,7 @@ fn main() {
     };
     let zc_bytes = MemoryPackSerializer::serialize(&zc_owned).unwrap();
     for _ in 0..100_000 {
-        let _data: ZeroCopyData = MemoryPackSerializer::deserialize(&zc_bytes).unwrap();
+        let _data: ZeroCopyData = MemoryPackSerializer::deserialize_zero_copy(&zc_bytes).unwrap();
     }
 }
 

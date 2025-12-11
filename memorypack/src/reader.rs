@@ -120,9 +120,10 @@ impl<'a> MemoryPackReader<'a> {
         if self.remaining() < N {
             return Err(MemoryPackError::UnexpectedEndOfBuffer);
         }
-        let arr = std::array::from_fn(|i| self.data[self.pos + i]);
+        let (arr, _) = <[u8; N]>::ref_from_prefix(&self.data[self.pos..])
+            .map_err(|_| MemoryPackError::UnexpectedEndOfBuffer)?;
         self.pos += N;
-        Ok(arr)
+        Ok(*arr)
     }
 
     #[inline]
