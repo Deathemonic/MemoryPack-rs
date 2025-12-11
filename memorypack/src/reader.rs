@@ -2,7 +2,7 @@ use crate::error::MemoryPackError;
 use crate::state::MemoryPackReaderOptionalState;
 
 use simdutf8::basic;
-use zerocopy::{FromBytes, LittleEndian, U16, U32, U64, I16, I32, I64, U128, I128, F32, F64};
+use zerocopy::{FromBytes, Immutable, KnownLayout, LittleEndian, F32, F64, I128, I16, I32, I64, U128, U16, U32, U64};
 
 pub struct MemoryPackReader<'a> {
     data: &'a [u8],
@@ -43,12 +43,12 @@ impl<'a> MemoryPackReader<'a> {
     }
 
     #[inline(always)]
-    fn read_type<T: FromBytes>(&mut self) -> Result<T, MemoryPackError> {
+    fn ref_type<T: FromBytes + KnownLayout + Immutable>(&mut self) -> Result<&'a T, MemoryPackError> {
         let size = size_of::<T>();
         if self.remaining() < size {
             return Err(MemoryPackError::UnexpectedEndOfBuffer);
         }
-        let (val, _) = T::read_from_prefix(&self.data[self.pos..])
+        let (val, _) = T::ref_from_prefix(&self.data[self.pos..])
             .map_err(|_| MemoryPackError::UnexpectedEndOfBuffer)?;
         self.pos += size;
         Ok(val)
@@ -190,52 +190,52 @@ impl<'a> MemoryPackReader<'a> {
 
     #[inline(always)]
     pub fn read_i16(&mut self) -> Result<i16, MemoryPackError> {
-        Ok(self.read_type::<I16<LittleEndian>>()?.get())
+        Ok(self.ref_type::<I16<LittleEndian>>()?.get())
     }
 
     #[inline(always)]
     pub fn read_u16(&mut self) -> Result<u16, MemoryPackError> {
-        Ok(self.read_type::<U16<LittleEndian>>()?.get())
+        Ok(self.ref_type::<U16<LittleEndian>>()?.get())
     }
 
     #[inline(always)]
     pub fn read_i32(&mut self) -> Result<i32, MemoryPackError> {
-        Ok(self.read_type::<I32<LittleEndian>>()?.get())
+        Ok(self.ref_type::<I32<LittleEndian>>()?.get())
     }
 
     #[inline(always)]
     pub fn read_u32(&mut self) -> Result<u32, MemoryPackError> {
-        Ok(self.read_type::<U32<LittleEndian>>()?.get())
+        Ok(self.ref_type::<U32<LittleEndian>>()?.get())
     }
 
     #[inline(always)]
     pub fn read_i64(&mut self) -> Result<i64, MemoryPackError> {
-        Ok(self.read_type::<I64<LittleEndian>>()?.get())
+        Ok(self.ref_type::<I64<LittleEndian>>()?.get())
     }
 
     #[inline(always)]
     pub fn read_u64(&mut self) -> Result<u64, MemoryPackError> {
-        Ok(self.read_type::<U64<LittleEndian>>()?.get())
+        Ok(self.ref_type::<U64<LittleEndian>>()?.get())
     }
 
     #[inline(always)]
     pub fn read_f32(&mut self) -> Result<f32, MemoryPackError> {
-        Ok(self.read_type::<F32<LittleEndian>>()?.get())
+        Ok(self.ref_type::<F32<LittleEndian>>()?.get())
     }
 
     #[inline(always)]
     pub fn read_f64(&mut self) -> Result<f64, MemoryPackError> {
-        Ok(self.read_type::<F64<LittleEndian>>()?.get())
+        Ok(self.ref_type::<F64<LittleEndian>>()?.get())
     }
 
     #[inline(always)]
     pub fn read_i128(&mut self) -> Result<i128, MemoryPackError> {
-        Ok(self.read_type::<I128<LittleEndian>>()?.get())
+        Ok(self.ref_type::<I128<LittleEndian>>()?.get())
     }
 
     #[inline(always)]
     pub fn read_u128(&mut self) -> Result<u128, MemoryPackError> {
-        Ok(self.read_type::<U128<LittleEndian>>()?.get())
+        Ok(self.ref_type::<U128<LittleEndian>>()?.get())
     }
 
     #[inline(always)]
