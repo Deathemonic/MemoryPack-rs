@@ -41,6 +41,40 @@ struct ZeroCopyData<'a> {
     description: &'a str,
 }
 
+#[derive(MemoryPackable, Clone, Copy)]
+#[repr(i32)]
+enum Color {
+    Red = 0,
+    Green = 1,
+    Blue = 2,
+}
+
+#[derive(MemoryPackable, Clone)]
+struct FooClass {
+    xyz: i32,
+}
+
+#[derive(MemoryPackable, Clone)]
+struct BarClass {
+    opq: String,
+}
+
+#[derive(MemoryPackable, Clone)]
+#[memorypack(union)]
+enum UnionSample {
+    Foo(FooClass),
+    Bar(BarClass),
+}
+
+#[derive(MemoryPackable, Clone)]
+#[memorypack(circular)]
+struct NodeWithCircular {
+    #[memorypack(order = 0)]
+    id: i32,
+    #[memorypack(order = 1)]
+    next: Option<Box<NodeWithCircular>>,
+}
+
 fn create_simple_data() -> SimpleData {
     SimpleData {
         id: 42,
@@ -118,6 +152,39 @@ fn main() {
     let zc_bytes = MemoryPackSerializer::serialize(&zc_owned).unwrap();
     for _ in 0..100_000 {
         let _data: ZeroCopyData = MemoryPackSerializer::deserialize_zero_copy(&zc_bytes).unwrap();
+    }
+    
+    let enum_data = Color::Green;
+    for _ in 0..100_000 {
+        let _bytes = MemoryPackSerializer::serialize(&enum_data).unwrap();
+    }
+    let enum_bytes = MemoryPackSerializer::serialize(&enum_data).unwrap();
+    for _ in 0..100_000 {
+        let _data: Color = MemoryPackSerializer::deserialize(&enum_bytes).unwrap();
+    }
+    
+    let union_data = UnionSample::Foo(FooClass { xyz: 999 });
+    for _ in 0..100_000 {
+        let _bytes = MemoryPackSerializer::serialize(&union_data).unwrap();
+    }
+    let union_bytes = MemoryPackSerializer::serialize(&union_data).unwrap();
+    for _ in 0..100_000 {
+        let _data: UnionSample = MemoryPackSerializer::deserialize(&union_bytes).unwrap();
+    }
+    
+    let circular_data = NodeWithCircular {
+        id: 1,
+        next: Some(Box::new(NodeWithCircular {
+            id: 2,
+            next: Some(Box::new(NodeWithCircular { id: 3, next: None })),
+        })),
+    };
+    for _ in 0..100_000 {
+        let _bytes = MemoryPackSerializer::serialize(&circular_data).unwrap();
+    }
+    let circular_bytes = MemoryPackSerializer::serialize(&circular_data).unwrap();
+    for _ in 0..100_000 {
+        let _data: NodeWithCircular = MemoryPackSerializer::deserialize(&circular_bytes).unwrap();
     }
 }
 

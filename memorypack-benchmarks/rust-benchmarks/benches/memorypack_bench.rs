@@ -55,6 +55,40 @@ struct VersionTolerantData {
     property3: f64,
 }
 
+#[derive(MemoryPackable, Clone, Copy)]
+#[repr(i32)]
+enum Color {
+    Red = 0,
+    Green = 1,
+    Blue = 2,
+}
+
+#[derive(MemoryPackable, Clone)]
+struct FooClass {
+    xyz: i32,
+}
+
+#[derive(MemoryPackable, Clone)]
+struct BarClass {
+    opq: String,
+}
+
+#[derive(MemoryPackable, Clone)]
+#[memorypack(union)]
+enum UnionSample {
+    Foo(FooClass),
+    Bar(BarClass),
+}
+
+#[derive(MemoryPackable, Clone)]
+#[memorypack(circular)]
+struct NodeWithCircular {
+    #[memorypack(order = 0)]
+    id: i32,
+    #[memorypack(order = 1)]
+    next: Option<Box<NodeWithCircular>>,
+}
+
 fn create_simple_data() -> SimpleData {
     SimpleData {
         id: 42,
@@ -86,6 +120,23 @@ fn create_version_tolerant_data() -> VersionTolerantData {
         property1: 1000,
         property2: "Version Tolerant".to_string(),
         property3: 99.99,
+    }
+}
+
+fn create_union_data() -> UnionSample {
+    UnionSample::Foo(FooClass { xyz: 999 })
+}
+
+fn create_circular_data() -> NodeWithCircular {
+    NodeWithCircular {
+        id: 1,
+        next: Some(Box::new(NodeWithCircular {
+            id: 2,
+            next: Some(Box::new(NodeWithCircular {
+                id: 3,
+                next: None,
+            })),
+        })),
     }
 }
 
@@ -193,6 +244,57 @@ fn benchmark_deserialize_version_tolerant(c: &mut Criterion) {
     });
 }
 
+fn benchmark_serialize_enum(c: &mut Criterion) {
+    let data = Color::Green;
+    
+    c.bench_function("serialize_enum", |b| {
+        b.iter(|| MemoryPackSerializer::serialize(black_box(&data)).unwrap())
+    });
+}
+
+fn benchmark_deserialize_enum(c: &mut Criterion) {
+    let data = Color::Green;
+    let bytes = MemoryPackSerializer::serialize(&data).unwrap();
+    
+    c.bench_function("deserialize_enum", |b| {
+        b.iter(|| MemoryPackSerializer::deserialize::<Color>(black_box(&bytes)).unwrap())
+    });
+}
+
+fn benchmark_serialize_union(c: &mut Criterion) {
+    let data = create_union_data();
+    
+    c.bench_function("serialize_union", |b| {
+        b.iter(|| MemoryPackSerializer::serialize(black_box(&data)).unwrap())
+    });
+}
+
+fn benchmark_deserialize_union(c: &mut Criterion) {
+    let data = create_union_data();
+    let bytes = MemoryPackSerializer::serialize(&data).unwrap();
+    
+    c.bench_function("deserialize_union", |b| {
+        b.iter(|| MemoryPackSerializer::deserialize::<UnionSample>(black_box(&bytes)).unwrap())
+    });
+}
+
+fn benchmark_serialize_circular(c: &mut Criterion) {
+    let data = create_circular_data();
+    
+    c.bench_function("serialize_circular", |b| {
+        b.iter(|| MemoryPackSerializer::serialize(black_box(&data)).unwrap())
+    });
+}
+
+fn benchmark_deserialize_circular(c: &mut Criterion) {
+    let data = create_circular_data();
+    let bytes = MemoryPackSerializer::serialize(&data).unwrap();
+    
+    c.bench_function("deserialize_circular", |b| {
+        b.iter(|| MemoryPackSerializer::deserialize::<NodeWithCircular>(black_box(&bytes)).unwrap())
+    });
+}
+
 criterion_group!(
     benches,
     benchmark_serialize_simple,
@@ -200,6 +302,12 @@ criterion_group!(
     benchmark_serialize_complex,
     benchmark_deserialize_complex,
     benchmark_serialize_version_tolerant,
-    benchmark_deserialize_version_tolerant
+    benchmark_deserialize_version_tolerant,
+    benchmark_serialize_enum,
+    benchmark_deserialize_enum,
+    benchmark_serialize_union,
+    benchmark_deserialize_union,
+    benchmark_serialize_circular,
+    benchmark_deserialize_circular
 );
 criterion_main!(benches);
