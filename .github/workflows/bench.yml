@@ -63,13 +63,6 @@ jobs:
           echo "Found: $JSON_PATH"
           cp "$JSON_PATH" dotnet_results.json
 
-      - name: Debug Rust JSON Structure
-        run: |
-          echo "### Rust JSON Structure" >> $GITHUB_STEP_SUMMARY
-          echo '```json' >> $GITHUB_STEP_SUMMARY
-          cat rust_results.json >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-
       - name: Generate Comparison Table
         shell: bash
         run: |
@@ -92,20 +85,15 @@ jobs:
 
               rust_map = {}
 
-              # critcmp export format: { "baseline_name": { "group_name": [ {id, point_estimate, ...} ] } }
-              baseline_data = rust_data.get('current', rust_data)
-              
-              def extract_benchmarks(data, prefix=''):
-                  if isinstance(data, dict):
-                      for key, value in data.items():
-                          extract_benchmarks(value, key)
-                  elif isinstance(data, list):
-                      for item in data:
-                          if isinstance(item, dict) and 'id' in item:
-                              name = normalize_name(item['id'])
-                              rust_map[name] = item['point_estimate']
-
-              extract_benchmarks(baseline_data)
+              # critcmp export format: { "name": "current", "benchmarks": { "bench_name": { "criterion_estimates_v1": { "mean": { "point_estimate": ... } } } } }
+              benchmarks = rust_data.get('benchmarks', {})
+              for bench_name, bench_data in benchmarks.items():
+                  estimates = bench_data.get('criterion_estimates_v1', {})
+                  mean_data = estimates.get('mean', {})
+                  point_estimate = mean_data.get('point_estimate')
+                  if point_estimate is not None:
+                      normalized = normalize_name(bench_name)
+                      rust_map[normalized] = point_estimate
 
               comparison = []
               for d in dotnet_raw['Benchmarks']:
@@ -155,10 +143,8 @@ jobs:
         if: steps.download-baseline.outcome == 'success'
         run: |
           if [ -f old_baseline/rust_results.json ]; then
-            echo "### Rust Regression Check" >> $GITHUB_STEP_SUMMARY
             echo "Previous baseline found. Comparison available in future updates." >> $GITHUB_STEP_SUMMARY
           else
-            echo "### Rust Regression Check" >> $GITHUB_STEP_SUMMARY
             echo "No previous baseline file found." >> $GITHUB_STEP_SUMMARY
           fi
 
