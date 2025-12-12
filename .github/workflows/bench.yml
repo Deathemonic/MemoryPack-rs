@@ -114,6 +114,9 @@ jobs:
                   if r_time is None:
                       print(f"| {row['Test']} | {fmt_ns(c_time)} | N/A | - | - |")
                       continue
+                  if r_time == 0 or c_time == 0:
+                      print(f"| {row['Test']} | {fmt_ns(c_time)} | {fmt_ns(r_time)} | - | - |")
+                      continue
                   diff = c_time / r_time
                   winner = "Rust" if r_time < c_time else "C#"
                   ratio = f"{diff:.2f}x" if r_time < c_time else f"{r_time/c_time:.2f}x"
