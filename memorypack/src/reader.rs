@@ -77,10 +77,10 @@ impl<'a> MemoryPackReader<'a> {
     fn read_utf8_string(&mut self, byte_count: usize) -> Result<String, MemoryPackError> {
         let _char_length = self.read_i32()?;
         let slice = self.read_slice(byte_count)?;
-
-        basic::from_utf8(slice).map_err(|_| MemoryPackError::InvalidUtf8)?;
-
-        Ok(unsafe { String::from_utf8_unchecked(slice.to_vec()) })
+        
+        Ok(basic::from_utf8(slice)
+            .map_err(|_| MemoryPackError::InvalidUtf8)?
+            .to_string())
     }
 
     #[inline]
