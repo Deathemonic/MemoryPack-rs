@@ -1,12 +1,12 @@
 [package]
 name = "memorypack"
-version = "1.1.0"
+version = "1.1.1"
 edition = "2024"
 license = "MIT"
 description = "A rust implementation of Cysharp/MemoryPack"
 homepage = "https://github.com/Deathemonic/MemoryPack-rs"
 repository = "https://github.com/Deathemonic/MemoryPack-rs"
-readme = "../README.md" 
+readme = "../README.md"
 keywords = ["serialize", "deserialize", "binary", "memorypack"]
 categories = ["encoding", "parsing"]
 
@@ -16,7 +16,6 @@ memorypack-derive = { version = "1.0.0", path = "../memorypack-derive", optional
 serde = { version = "1.0", features = ["derive"], optional = true }
 hashbrown = { version = "0.16", features = ["serde"] }
 simdutf8 = "0.1.5"
-zerocopy = { version = "0.8", features = ["derive", "simd"] }
 uuid = { version = "1.18", optional = true, features = ["serde"] }
 rust_decimal = { version = "1.39", optional = true, features = ["serde"] }
 rust_decimal_macros = { version = "1.39", optional = true }
@@ -26,6 +25,7 @@ chrono = { version = "0.4", optional = true, features = ["serde"] }
 glam = { version = "0.29", optional = true, features = ["serde", "fast-math"] }
 num-complex = { version = "0.4", optional = true, features = ["serde"] }
 url = { version = "2.5", optional = true, features = ["serde"] }
+byteorder = { version = "1.5.0", features = ["i128"] }
 
 [dev-dependencies]
 serde = { version = "1.0", features = ["derive"] }

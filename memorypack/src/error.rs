@@ -23,6 +23,9 @@ pub enum MemoryPackError {
     #[error("Buffer too small")]
     BufferTooSmall,
 
+    #[error("Invalid Unicode code point")]
+    InvalidCodePoint,
+
     #[error("Unexpected end of data")]
     UnexpectedEnd,
 
