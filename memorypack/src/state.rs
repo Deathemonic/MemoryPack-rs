@@ -1,6 +1,6 @@
 use crate::error::MemoryPackError;
-use hashbrown::HashMap;
 use std::any::Any;
+use std::collections::HashMap;
 
 pub struct MemoryPackWriterOptionalState {
     next_id: u32,
@@ -58,7 +58,7 @@ impl MemoryPackReaderOptionalState {
     pub fn get_object_reference<T: 'static + Clone>(&self, id: u32) -> Result<T, MemoryPackError> {
         self.ref_to_object
             .get(&id)
-            .and_then(|boxed| boxed.downcast_ref::<T>())
+            .and_then(|boxed: &Box<dyn Any>| boxed.downcast_ref::<T>())
             .cloned()
             .ok_or_else(|| {
                 MemoryPackError::DeserializationError(format!(

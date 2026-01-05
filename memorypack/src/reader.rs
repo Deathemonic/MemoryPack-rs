@@ -71,17 +71,11 @@ impl<'a> MemoryPackReader<'a> {
     #[inline]
     fn read_utf8_str(&mut self, byte_count: usize) -> Result<&'a str, MemoryPackError> {
         let _char_length = self.read_i32()?;
-        let pos = self.cursor.position() as usize;
-        let buffer = self.cursor.get_ref();
-
-        if pos + byte_count > buffer.len() {
-            return Err(MemoryPackError::UnexpectedEndOfBuffer);
-        }
-
-        let str_slice = basic::from_utf8(&buffer[pos..pos + byte_count])
+        let slice = self.read_bytes(byte_count)?;
+        
+        let str_slice = basic::from_utf8(slice)
             .map_err(|_| MemoryPackError::InvalidUtf8)?;
-
-        self.cursor.set_position((pos + byte_count) as u64);
+        
         Ok(str_slice)
     }
 
