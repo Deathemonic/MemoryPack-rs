@@ -116,13 +116,13 @@ impl<'a> MemoryPackReader<'a> {
             let code_unit = u16::from_le_bytes([slice[i], slice[i + 1]]);
             i += 2;
 
-            if code_unit < 0xD800 || code_unit > 0xDFFF {
+            if !(0xD800..=0xDFFF).contains(&code_unit) {
                 if let Some(c) = char::from_u32(code_unit as u32) {
                     result.push(c);
                 } else {
                     return Err(MemoryPackError::InvalidUtf8);
                 }
-            } else if code_unit >= 0xD800 && code_unit <= 0xDBFF {
+            } else if (0xD800..=0xDBFF).contains(&code_unit) {
                 if i + 2 > byte_count {
                     return Err(MemoryPackError::InvalidUtf8);
                 }
@@ -130,7 +130,7 @@ impl<'a> MemoryPackReader<'a> {
                 let low = u16::from_le_bytes([slice[i], slice[i + 1]]);
 
                 i += 2;
-                if low < 0xDC00 || low > 0xDFFF {
+                if !(0xDC00..=0xDFFF).contains(&low) {
                     return Err(MemoryPackError::InvalidUtf8);
                 }
 
@@ -217,8 +217,8 @@ impl<'a> MemoryPackReader<'a> {
     pub fn read_char(&mut self) -> Result<char, MemoryPackError> {
         let code_unit = self.read_u16()?;
 
-        if code_unit < 0xD800 || code_unit > 0xDFFF {
-            return char::from_u32(code_unit as u32).ok_or_else(|| {
+        if !(0xD800..=0xDFFF).contains(&code_unit) {
+            return char::from_u32(code_unit as u32).ok_or({
                 MemoryPackError::InvalidCodePoint
             });
         }
