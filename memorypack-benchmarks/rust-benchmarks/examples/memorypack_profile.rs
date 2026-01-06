@@ -1,5 +1,5 @@
 use memorypack::prelude::*;
-use hashbrown::HashMap;
+use ahash::AHashMap as HashMap;
 
 #[cfg(feature = "dhat-heap")]
 #[global_allocator]

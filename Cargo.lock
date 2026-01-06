@@ -771,9 +771,9 @@ dependencies = [
 name = "memorypack-benchmark"
 version = "0.0.1"
 dependencies = [
+ "ahash 0.8.12",
  "criterion",
  "dhat",
- "hashbrown 0.16.0",
  "memorypack",
 ]
 

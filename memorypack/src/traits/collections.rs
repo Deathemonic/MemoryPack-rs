@@ -2,7 +2,6 @@ use crate::error::MemoryPackError;
 use crate::reader::MemoryPackReader;
 use crate::traits::{MemoryPackDeserialize, MemoryPackSerialize};
 use crate::writer::MemoryPackWriter;
-
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, LinkedList, VecDeque};
 
 #[cfg(feature = "hashbrown")]
@@ -11,7 +10,7 @@ use hashbrown::HashMap as HashbrownHashMap;
 use hashbrown::HashSet as HashbrownHashSet;
 
 #[cfg(feature = "ahash")]
-use ahash::RandomState;
+use ahash::{AHashMap, AHashSet};
 
 #[inline(always)]
 fn validate_size(size: i32) -> Result<Option<usize>, MemoryPackError> {
@@ -355,14 +354,14 @@ impl_hashbrown_hashmap!(char);
 #[cfg(feature = "ahash")]
 macro_rules! impl_ahash_hashmap {
     ($key_type:ty) => {
-        impl<V: MemoryPackDeserialize + Default> MemoryPackDeserialize for HashMap<$key_type, V, RandomState> {
+        impl<V: MemoryPackDeserialize + Default> MemoryPackDeserialize for AHashMap<$key_type, V> {
             #[inline(always)]
             fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
                 let count = reader.read_i32()?;
                 match validate_size(count)? {
-                    None => Ok(HashMap::with_hasher(RandomState::default())),
+                    None => Ok(AHashMap::new()),
                     Some(capacity) => {
-                        let mut map = HashMap::with_capacity_and_hasher(capacity, RandomState::default());
+                        let mut map = AHashMap::with_capacity(capacity);
                         for _ in 0..capacity {
                             map.insert(<$key_type>::deserialize(reader)?, V::deserialize(reader)?);
                         }
@@ -372,7 +371,7 @@ macro_rules! impl_ahash_hashmap {
             }
         }
 
-        impl<V: MemoryPackSerialize> MemoryPackSerialize for HashMap<$key_type, V, RandomState> {
+        impl<V: MemoryPackSerialize> MemoryPackSerialize for AHashMap<$key_type, V> {
             #[inline(always)]
             fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
                 write_collection_header(writer, self.len())?;
@@ -412,7 +411,7 @@ impl_ahash_hashmap!(u128);
 impl_ahash_hashmap!(char);
 
 #[cfg(feature = "ahash")]
-impl<T: MemoryPackSerialize + Eq + std::hash::Hash> MemoryPackSerialize for HashSet<T, RandomState> {
+impl<T: MemoryPackSerialize + Eq + std::hash::Hash> MemoryPackSerialize for AHashSet<T> {
     #[inline(always)]
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
         write_collection_header(writer, self.len())?;
@@ -424,14 +423,14 @@ impl<T: MemoryPackSerialize + Eq + std::hash::Hash> MemoryPackSerialize for Hash
 }
 
 #[cfg(feature = "ahash")]
-impl<T: MemoryPackDeserialize + Eq + std::hash::Hash> MemoryPackDeserialize for HashSet<T, RandomState> {
+impl<T: MemoryPackDeserialize + Eq + std::hash::Hash> MemoryPackDeserialize for AHashSet<T> {
     #[inline(always)]
     fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
         let size = reader.read_i32()?;
         match validate_size(size)? {
-            None => Ok(HashSet::with_hasher(RandomState::default())),
+            None => Ok(AHashSet::new()),
             Some(capacity) => {
-                let mut result = HashSet::with_capacity_and_hasher(capacity, RandomState::default());
+                let mut result = AHashSet::with_capacity(capacity);
                 for _ in 0..capacity {
                     result.insert(T::deserialize(reader)?);
                 }
