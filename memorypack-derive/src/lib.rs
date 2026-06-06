@@ -13,14 +13,19 @@ mod version_tolerant;
 use attributes::AttributeFlags;
 use circular::{generate_circular_deserialize, generate_circular_serialize};
 use enums::{
-    generate_enum_deserialize_safe, generate_enum_deserialize_unsafe, generate_enum_serialize,
-    generate_flags_impls, generate_transparent_deserialize, generate_transparent_serialize,
+    generate_enum_deserialize_safe,
+    generate_enum_deserialize_unsafe,
+    generate_enum_serialize,
+    generate_flags_impls,
+    generate_transparent_deserialize,
+    generate_transparent_serialize
 };
 use helpers::{has_explicit_discriminants, is_single_field_i32};
 use regular::{generate_deserialize, generate_serialize};
 use unions::{generate_union_deserialize, generate_union_serialize};
 use version_tolerant::{
-    generate_version_tolerant_deserialize, generate_version_tolerant_serialize,
+    generate_version_tolerant_deserialize,
+    generate_version_tolerant_serialize
 };
 
 #[proc_macro_derive(MemoryPackable, attributes(memorypack, tag))]
@@ -32,26 +37,23 @@ pub fn derive_memorypack(input: TokenStream) -> TokenStream {
     let attrs = AttributeFlags::parse(&input.attrs);
 
     let (serialize_impl, deserialize_impl) = match &input.data {
-        Data::Struct(data_struct) if attrs.is_transparent && is_single_field_i32(data_struct) => (
-            generate_transparent_serialize(),
-            generate_transparent_deserialize(),
-        ),
+        Data::Struct(data_struct) if attrs.is_transparent && is_single_field_i32(data_struct) => {
+            (generate_transparent_serialize(), generate_transparent_deserialize())
+        }
         Data::Struct(_) if attrs.is_circular => (
             generate_circular_serialize(&input.data, true),
-            generate_circular_deserialize(&input.data, true),
+            generate_circular_deserialize(&input.data, true)
         ),
         Data::Struct(_) if attrs.is_version_tolerant => (
             generate_version_tolerant_serialize(&input.data),
-            generate_version_tolerant_deserialize(&input.data),
+            generate_version_tolerant_deserialize(&input.data)
         ),
-        Data::Struct(_) => (
-            generate_serialize(&input.data),
-            generate_deserialize(&input.data, attrs.is_zero_copy),
-        ),
-        Data::Enum(data_enum) if attrs.is_union => (
-            generate_union_serialize(data_enum),
-            generate_union_deserialize(name, data_enum),
-        ),
+        Data::Struct(_) => {
+            (generate_serialize(&input.data), generate_deserialize(&input.data, attrs.is_zero_copy))
+        }
+        Data::Enum(data_enum) if attrs.is_union => {
+            (generate_union_serialize(data_enum), generate_union_deserialize(name, data_enum))
+        }
         Data::Enum(data_enum) => {
             let has_explicit = has_explicit_discriminants(data_enum);
 
@@ -73,7 +75,7 @@ pub fn derive_memorypack(input: TokenStream) -> TokenStream {
         Data::Union(_) => {
             return syn::Error::new_spanned(
                 &input,
-                "MemoryPackable cannot be derived for Rust unions",
+                "MemoryPackable cannot be derived for Rust unions"
             )
             .to_compile_error()
             .into();

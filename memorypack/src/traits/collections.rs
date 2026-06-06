@@ -1,30 +1,30 @@
-use crate::error::MemoryPackError;
-use crate::reader::MemoryPackReader;
-use crate::traits::{MemoryPackDeserialize, MemoryPackSerialize};
-use crate::writer::MemoryPackWriter;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, LinkedList, VecDeque};
 
+#[cfg(feature = "ahash")]
+use ahash::{AHashMap, AHashSet};
 #[cfg(feature = "hashbrown")]
 use hashbrown::HashMap as HashbrownHashMap;
 #[cfg(feature = "hashbrown")]
 use hashbrown::HashSet as HashbrownHashSet;
 
-#[cfg(feature = "ahash")]
-use ahash::{AHashMap, AHashSet};
+use crate::error::MemoryPackError;
+use crate::reader::MemoryPackReader;
+use crate::traits::{MemoryPackDeserialize, MemoryPackSerialize};
+use crate::writer::MemoryPackWriter;
 
 #[inline(always)]
 fn validate_size(size: i32) -> Result<Option<usize>, MemoryPackError> {
     match size {
         -1 | 0 => Ok(None),
         s if s < 0 => Err(MemoryPackError::InvalidLength(s)),
-        s => Ok(Some(s as usize)),
+        s => Ok(Some(s as usize))
     }
 }
 
 #[inline(always)]
 fn write_collection_header(
     writer: &mut MemoryPackWriter,
-    len: usize,
+    len: usize
 ) -> Result<(), MemoryPackError> {
     writer.write_i32(len as i32)
 }
@@ -274,7 +274,9 @@ impl<T: MemoryPackSerialize + Eq + std::hash::Hash> MemoryPackSerialize for Hash
 }
 
 #[cfg(feature = "hashbrown")]
-impl<T: MemoryPackDeserialize + Eq + std::hash::Hash> MemoryPackDeserialize for HashbrownHashSet<T> {
+impl<T: MemoryPackDeserialize + Eq + std::hash::Hash> MemoryPackDeserialize
+    for HashbrownHashSet<T>
+{
     #[inline(always)]
     fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
         let size = reader.read_i32()?;
@@ -294,7 +296,9 @@ impl<T: MemoryPackDeserialize + Eq + std::hash::Hash> MemoryPackDeserialize for 
 #[cfg(feature = "hashbrown")]
 macro_rules! impl_hashbrown_hashmap {
     ($key_type:ty) => {
-        impl<V: MemoryPackDeserialize + Default> MemoryPackDeserialize for HashbrownHashMap<$key_type, V> {
+        impl<V: MemoryPackDeserialize + Default> MemoryPackDeserialize
+            for HashbrownHashMap<$key_type, V>
+        {
             #[inline(always)]
             fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
                 let count = reader.read_i32()?;
@@ -349,7 +353,6 @@ impl_hashbrown_hashmap!(i128);
 impl_hashbrown_hashmap!(u128);
 #[cfg(feature = "hashbrown")]
 impl_hashbrown_hashmap!(char);
-
 
 #[cfg(feature = "ahash")]
 macro_rules! impl_ahash_hashmap {

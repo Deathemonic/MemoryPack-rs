@@ -6,12 +6,7 @@ mod smart_ptrs;
 mod strings;
 mod tuples;
 
-#[cfg(any(
-    feature = "uuid",
-    feature = "rust_decimal",
-    feature = "half",
-    feature = "num-bigint"
-))]
+#[cfg(any(feature = "uuid", feature = "rust_decimal", feature = "half", feature = "num-bigint"))]
 mod extended;
 
 #[cfg(feature = "chrono")]
@@ -22,7 +17,13 @@ mod math;
 
 #[allow(unused_imports)]
 pub use {
-    collections::*, multidim::*, options::*, primitives::*, smart_ptrs::*, strings::*, tuples::*,
+    collections::*,
+    multidim::*,
+    options::*,
+    primitives::*,
+    smart_ptrs::*,
+    strings::*,
+    tuples::*
 };
 
 use crate::error::MemoryPackError;

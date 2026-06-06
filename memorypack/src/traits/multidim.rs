@@ -6,30 +6,22 @@ use crate::writer::MemoryPackWriter;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MultiDimArray<T> {
     pub dimensions: Vec<usize>,
-    pub data: Vec<T>,
+    pub data: Vec<T>
 }
 
 impl<T> MultiDimArray<T> {
     #[inline]
     pub fn new(dimensions: Vec<usize>, data: Vec<T>) -> Self {
         let total: usize = dimensions.iter().product();
-        assert_eq!(
-            total,
-            data.len(),
-            "Data length must match product of dimensions"
-        );
+        assert_eq!(total, data.len(), "Data length must match product of dimensions");
         Self { dimensions, data }
     }
 
     #[inline]
-    pub fn rank(&self) -> usize {
-        self.dimensions.len()
-    }
+    pub fn rank(&self) -> usize { self.dimensions.len() }
 
     #[inline]
-    fn total_elements(&self) -> usize {
-        self.data.len()
-    }
+    fn total_elements(&self) -> usize { self.data.len() }
 }
 
 impl<T: MemoryPackSerialize> MemoryPackSerialize for MultiDimArray<T> {
@@ -58,9 +50,7 @@ impl<T: MemoryPackDeserialize> MemoryPackDeserialize for MultiDimArray<T> {
         let rank = (rank_plus_1 as usize).saturating_sub(1);
 
         if rank == 0 {
-            return Err(MemoryPackError::DeserializationError(
-                "Invalid array rank".into(),
-            ));
+            return Err(MemoryPackError::DeserializationError("Invalid array rank".into()));
         }
 
         let mut dimensions = Vec::with_capacity(rank);
@@ -92,7 +82,7 @@ impl<T: MemoryPackDeserialize> MemoryPackDeserialize for MultiDimArray<T> {
 impl<T: serde::Serialize> serde::Serialize for MultiDimArray<T> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
-        S: serde::Serializer,
+        S: serde::Serializer
     {
         use serde::ser::SerializeStruct;
         let mut state = serializer.serialize_struct("MultiDimArray", 2)?;

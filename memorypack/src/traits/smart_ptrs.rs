@@ -1,10 +1,10 @@
+use std::rc::Rc;
+use std::sync::Arc;
+
 use crate::error::MemoryPackError;
 use crate::reader::MemoryPackReader;
 use crate::traits::{MemoryPackDeserialize, MemoryPackSerialize};
 use crate::writer::MemoryPackWriter;
-
-use std::rc::Rc;
-use std::sync::Arc;
 
 impl<T: MemoryPackSerialize> MemoryPackSerialize for Box<T> {
     #[inline]

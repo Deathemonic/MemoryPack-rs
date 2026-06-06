@@ -19,7 +19,7 @@ impl MemoryPackSerializer {
     #[inline]
     pub fn serialize_to<T: MemoryPackSerialize>(
         value: &T,
-        writer: &mut MemoryPackWriter,
+        writer: &mut MemoryPackWriter
     ) -> Result<(), MemoryPackError> {
         value.serialize(writer)
     }
@@ -34,7 +34,7 @@ impl MemoryPackSerializer {
     /// Deserialize a value from an existing reader
     #[inline]
     pub fn deserialize_from<T: MemoryPackDeserialize>(
-        reader: &mut MemoryPackReader,
+        reader: &mut MemoryPackReader
     ) -> Result<T, MemoryPackError> {
         T::deserialize(reader)
     }
@@ -43,7 +43,7 @@ impl MemoryPackSerializer {
     #[inline]
     pub fn deserialize_zero_copy<'a, T>(data: &'a [u8]) -> Result<T, MemoryPackError>
     where
-        T: crate::traits::MemoryPackDeserializeZeroCopy<'a>,
+        T: crate::traits::MemoryPackDeserializeZeroCopy<'a>
     {
         let mut reader = MemoryPackReader::new(data);
         T::deserialize(&mut reader)

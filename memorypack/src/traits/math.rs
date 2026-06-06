@@ -36,10 +36,7 @@ impl MemoryPackSerialize for glam::Vec2 {
 impl MemoryPackDeserialize for glam::Vec2 {
     #[inline(always)]
     fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
-        Ok(glam::Vec2::from_array([
-            reader.read_f32()?,
-            reader.read_f32()?,
-        ]))
+        Ok(glam::Vec2::from_array([reader.read_f32()?, reader.read_f32()?]))
     }
 }
 
@@ -58,11 +55,7 @@ impl MemoryPackSerialize for glam::Vec3 {
 impl MemoryPackDeserialize for glam::Vec3 {
     #[inline(always)]
     fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
-        Ok(glam::Vec3::from_array([
-            reader.read_f32()?,
-            reader.read_f32()?,
-            reader.read_f32()?,
-        ]))
+        Ok(glam::Vec3::from_array([reader.read_f32()?, reader.read_f32()?, reader.read_f32()?]))
     }
 }
 
@@ -86,7 +79,7 @@ impl MemoryPackDeserialize for glam::Vec4 {
             reader.read_f32()?,
             reader.read_f32()?,
             reader.read_f32()?,
-            reader.read_f32()?,
+            reader.read_f32()?
         ]))
     }
 }
@@ -111,7 +104,7 @@ impl MemoryPackDeserialize for glam::Quat {
             reader.read_f32()?,
             reader.read_f32()?,
             reader.read_f32()?,
-            reader.read_f32()?,
+            reader.read_f32()?
         ]))
     }
 }
@@ -143,7 +136,7 @@ impl MemoryPackDeserialize for glam::Mat3A {
         Ok(glam::Mat3A::from_cols(
             glam::Vec3A::new(m11, m12, 0.0),
             glam::Vec3A::new(m21, m22, 0.0),
-            glam::Vec3A::new(m31, m32, 1.0),
+            glam::Vec3A::new(m31, m32, 1.0)
         ))
     }
 }

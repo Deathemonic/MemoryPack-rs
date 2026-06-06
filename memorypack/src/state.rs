@@ -1,17 +1,18 @@
-use crate::error::MemoryPackError;
 use std::any::Any;
 use std::collections::HashMap;
 
+use crate::error::MemoryPackError;
+
 pub struct MemoryPackWriterOptionalState {
     next_id: u32,
-    object_to_ref: HashMap<usize, u32>,
+    object_to_ref: HashMap<usize, u32>
 }
 
 impl MemoryPackWriterOptionalState {
     pub fn new() -> Self {
         Self {
             next_id: 0,
-            object_to_ref: HashMap::new(),
+            object_to_ref: HashMap::new()
         }
     }
 
@@ -35,25 +36,21 @@ impl MemoryPackWriterOptionalState {
 }
 
 impl Default for MemoryPackWriterOptionalState {
-    fn default() -> Self {
-        Self::new()
-    }
+    fn default() -> Self { Self::new() }
 }
 
 pub struct MemoryPackReaderOptionalState {
-    ref_to_object: HashMap<u32, Box<dyn Any>>,
+    ref_to_object: HashMap<u32, Box<dyn Any>>
 }
 
 impl MemoryPackReaderOptionalState {
     pub fn new() -> Self {
         Self {
-            ref_to_object: HashMap::new(),
+            ref_to_object: HashMap::new()
         }
     }
 
-    pub fn reset(&mut self) {
-        self.ref_to_object.clear();
-    }
+    pub fn reset(&mut self) { self.ref_to_object.clear(); }
 
     pub fn get_object_reference<T: 'static + Clone>(&self, id: u32) -> Result<T, MemoryPackError> {
         self.ref_to_object
@@ -71,7 +68,7 @@ impl MemoryPackReaderOptionalState {
     pub fn add_object_reference<T: 'static>(
         &mut self,
         id: u32,
-        value: T,
+        value: T
     ) -> Result<(), MemoryPackError> {
         if self.ref_to_object.contains_key(&id) {
             return Err(MemoryPackError::DeserializationError(format!(
@@ -86,7 +83,7 @@ impl MemoryPackReaderOptionalState {
     pub fn update_object_reference<T: 'static>(
         &mut self,
         id: u32,
-        value: T,
+        value: T
     ) -> Result<(), MemoryPackError> {
         if let Some(entry) = self.ref_to_object.get_mut(&id) {
             *entry = Box::new(value);
@@ -101,7 +98,5 @@ impl MemoryPackReaderOptionalState {
 }
 
 impl Default for MemoryPackReaderOptionalState {
-    fn default() -> Self {
-        Self::new()
-    }
+    fn default() -> Self { Self::new() }
 }

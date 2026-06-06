@@ -34,7 +34,7 @@ pub fn generate_union_serialize(data_enum: &syn::DataEnum) -> proc_macro2::Token
 
 pub fn generate_union_deserialize(
     name: &syn::Ident,
-    data_enum: &syn::DataEnum,
+    data_enum: &syn::DataEnum
 ) -> proc_macro2::TokenStream {
     let variants = data_enum.variants.iter().enumerate().map(|(tag, variant)| {
         let variant_name = &variant.ident;

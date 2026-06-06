@@ -28,11 +28,7 @@ pub fn should_skip_field(field: &Field) -> bool {
                     tokens.contains("skip") || tokens.contains("ignore")
                 })
                 .unwrap_or(false)
-    }) || field
-        .ident
-        .as_ref()
-        .map(|ident| ident.to_string().starts_with('_'))
-        .unwrap_or(false)
+    }) || field.ident.as_ref().map(|ident| ident.to_string().starts_with('_')).unwrap_or(false)
 }
 
 pub fn get_field_order(field: &Field) -> Option<usize> {
@@ -118,7 +114,7 @@ pub fn is_option_box(ty: &syn::Type) -> bool {
 pub struct OrderedField<'a> {
     pub order: usize,
     pub field: &'a Field,
-    pub ident: &'a Option<syn::Ident>,
+    pub ident: &'a Option<syn::Ident>
 }
 
 pub fn prepare_ordered_fields<'a>(fields: &'a [&'a Field]) -> Vec<OrderedField<'a>> {
@@ -128,7 +124,7 @@ pub fn prepare_ordered_fields<'a>(fields: &'a [&'a Field]) -> Vec<OrderedField<'
         .map(|(idx, f)| OrderedField {
             order: get_field_order(f).unwrap_or(idx),
             field: f,
-            ident: &f.ident,
+            ident: &f.ident
         })
         .collect();
     ordered.sort_by_key(|f| f.order);
@@ -137,7 +133,7 @@ pub fn prepare_ordered_fields<'a>(fields: &'a [&'a Field]) -> Vec<OrderedField<'
 
 pub fn generate_field_deserialize(
     field: &Field,
-    is_zero_copy_struct: bool,
+    is_zero_copy_struct: bool
 ) -> proc_macro2::TokenStream {
     use quote::quote;
 

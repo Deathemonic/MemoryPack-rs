@@ -6,7 +6,7 @@ use crate::writer::MemoryPackWriter;
 #[inline]
 pub(super) fn serialize_option_generic<T: MemoryPackSerialize + Default>(
     opt: &Option<T>,
-    writer: &mut MemoryPackWriter,
+    writer: &mut MemoryPackWriter
 ) -> Result<(), MemoryPackError> {
     match opt {
         Some(value) => {
@@ -23,31 +23,27 @@ pub(super) fn serialize_option_generic<T: MemoryPackSerialize + Default>(
 
 #[inline]
 pub(super) fn deserialize_option_generic<T: MemoryPackDeserialize>(
-    reader: &mut MemoryPackReader,
+    reader: &mut MemoryPackReader
 ) -> Result<Option<T>, MemoryPackError> {
     let has_value = reader.read_i32()?;
     let value = T::deserialize(reader)?;
-    if has_value == 0 {
-        Ok(None)
-    } else {
-        Ok(Some(value))
-    }
+    if has_value == 0 { Ok(None) } else { Ok(Some(value)) }
 }
 
 #[inline]
 pub(super) fn serialize_nullable_string(
     opt: &Option<String>,
-    writer: &mut MemoryPackWriter,
+    writer: &mut MemoryPackWriter
 ) -> Result<(), MemoryPackError> {
     match opt {
         Some(value) => writer.write_string(value),
-        None => writer.write_i32(-1),
+        None => writer.write_i32(-1)
     }
 }
 
 #[inline]
 pub(super) fn deserialize_nullable_string(
-    reader: &mut MemoryPackReader,
+    reader: &mut MemoryPackReader
 ) -> Result<Option<String>, MemoryPackError> {
     let len = reader.read_i32()?;
     if len == -1 {
@@ -61,7 +57,7 @@ pub(super) fn deserialize_nullable_string(
 #[inline]
 pub(super) fn serialize_nullable_vec<T: MemoryPackSerialize>(
     opt: &Option<Vec<T>>,
-    writer: &mut MemoryPackWriter,
+    writer: &mut MemoryPackWriter
 ) -> Result<(), MemoryPackError> {
     match opt {
         Some(vec) => {
@@ -71,13 +67,13 @@ pub(super) fn serialize_nullable_vec<T: MemoryPackSerialize>(
             }
             Ok(())
         }
-        None => writer.write_i32(-1),
+        None => writer.write_i32(-1)
     }
 }
 
 #[inline]
 pub(super) fn deserialize_nullable_vec<T: MemoryPackDeserialize>(
-    reader: &mut MemoryPackReader,
+    reader: &mut MemoryPackReader
 ) -> Result<Option<Vec<T>>, MemoryPackError> {
     let size = reader.read_i32()?;
     if size == -1 {
@@ -180,7 +176,7 @@ mod option_impls {
     impl serde::Serialize for NullableString {
         fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
         where
-            S: serde::Serializer,
+            S: serde::Serializer
         {
             serde::Serialize::serialize(&self.0, serializer)
         }
@@ -207,7 +203,7 @@ mod option_impls {
     impl<T: serde::Serialize> serde::Serialize for NullableVec<T> {
         fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
         where
-            S: serde::Serializer,
+            S: serde::Serializer
         {
             serde::Serialize::serialize(&self.0, serializer)
         }

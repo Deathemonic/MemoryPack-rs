@@ -33,5 +33,5 @@ pub enum MemoryPackError {
     UnexpectedEndOfBuffer,
 
     #[error("UTF-16 strings are not supported for zero-copy deserialization")]
-    Utf16NotSupportedForZeroCopy,
+    Utf16NotSupportedForZeroCopy
 }

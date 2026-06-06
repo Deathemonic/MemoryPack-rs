@@ -1,27 +1,28 @@
-use crate::error::MemoryPackError;
-use crate::state::MemoryPackReaderOptionalState;
+use std::io::{Cursor, Read, Seek, SeekFrom};
 
 use byteorder::{LittleEndian, ReadBytesExt};
 use simdutf8::basic;
-use std::io::{Cursor, Read, Seek, SeekFrom};
+
+use crate::error::MemoryPackError;
+use crate::state::MemoryPackReaderOptionalState;
 
 pub struct MemoryPackReader<'a> {
     pub(crate) cursor: Cursor<&'a [u8]>,
-    pub optional_state: Option<MemoryPackReaderOptionalState>,
+    pub optional_state: Option<MemoryPackReaderOptionalState>
 }
 
 impl<'a> MemoryPackReader<'a> {
     pub fn new(data: &'a [u8]) -> Self {
         Self {
             cursor: Cursor::new(data),
-            optional_state: None,
+            optional_state: None
         }
     }
 
     pub fn new_with_state(data: &'a [u8]) -> Self {
         Self {
             cursor: Cursor::new(data),
-            optional_state: Some(MemoryPackReaderOptionalState::new()),
+            optional_state: Some(MemoryPackReaderOptionalState::new())
         }
     }
 
@@ -48,9 +49,7 @@ impl<'a> MemoryPackReader<'a> {
         let _char_length = self.read_i32()?;
         let slice = self.read_bytes(byte_count)?;
 
-        Ok(basic::from_utf8(slice)
-            .map_err(|_| MemoryPackError::InvalidUtf8)?
-            .to_string())
+        Ok(basic::from_utf8(slice).map_err(|_| MemoryPackError::InvalidUtf8)?.to_string())
     }
 
     #[inline]
@@ -72,10 +71,9 @@ impl<'a> MemoryPackReader<'a> {
     fn read_utf8_str(&mut self, byte_count: usize) -> Result<&'a str, MemoryPackError> {
         let _char_length = self.read_i32()?;
         let slice = self.read_bytes(byte_count)?;
-        
-        let str_slice = basic::from_utf8(slice)
-            .map_err(|_| MemoryPackError::InvalidUtf8)?;
-        
+
+        let str_slice = basic::from_utf8(slice).map_err(|_| MemoryPackError::InvalidUtf8)?;
+
         Ok(str_slice)
     }
 
@@ -134,7 +132,8 @@ impl<'a> MemoryPackReader<'a> {
                     return Err(MemoryPackError::InvalidUtf8);
                 }
 
-                let code_point = 0x10000 + ((code_unit as u32 - 0xD800) << 10) + (low as u32 - 0xDC00);
+                let code_point =
+                    0x10000 + ((code_unit as u32 - 0xD800) << 10) + (low as u32 - 0xDC00);
 
                 if let Some(c) = char::from_u32(code_point) {
                     result.push(c);
@@ -149,19 +148,13 @@ impl<'a> MemoryPackReader<'a> {
     }
 
     #[inline(always)]
-    pub fn read_bool(&mut self) -> Result<bool, MemoryPackError> {
-        Ok(self.cursor.read_u8()? == 1)
-    }
+    pub fn read_bool(&mut self) -> Result<bool, MemoryPackError> { Ok(self.cursor.read_u8()? == 1) }
 
     #[inline(always)]
-    pub fn read_i8(&mut self) -> Result<i8, MemoryPackError> {
-        Ok(self.cursor.read_i8()?)
-    }
+    pub fn read_i8(&mut self) -> Result<i8, MemoryPackError> { Ok(self.cursor.read_i8()?) }
 
     #[inline(always)]
-    pub fn read_u8(&mut self) -> Result<u8, MemoryPackError> {
-        Ok(self.cursor.read_u8()?)
-    }
+    pub fn read_u8(&mut self) -> Result<u8, MemoryPackError> { Ok(self.cursor.read_u8()?) }
 
     #[inline(always)]
     pub fn read_i16(&mut self) -> Result<i16, MemoryPackError> {
@@ -218,13 +211,11 @@ impl<'a> MemoryPackReader<'a> {
         let code_unit = self.read_u16()?;
 
         if !(0xD800..=0xDFFF).contains(&code_unit) {
-            return char::from_u32(code_unit as u32).ok_or({
-                MemoryPackError::InvalidCodePoint
-            });
+            return char::from_u32(code_unit as u32).ok_or({ MemoryPackError::InvalidCodePoint });
         }
 
         Err(MemoryPackError::DeserializationError(
-            "Surrogate code unit cannot be converted to Rust char".into(),
+            "Surrogate code unit cannot be converted to Rust char".into()
         ))
     }
 
@@ -241,7 +232,5 @@ impl<'a> MemoryPackReader<'a> {
     }
 
     #[inline]
-    pub fn position(&self) -> u64 {
-        self.cursor.position()
-    }
+    pub fn position(&self) -> u64 { self.cursor.position() }
 }

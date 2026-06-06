@@ -5,7 +5,7 @@ pub struct AttributeFlags {
     pub is_version_tolerant: bool,
     pub is_circular: bool,
     pub is_zero_copy: bool,
-    pub has_repr_i32: bool,
+    pub has_repr_i32: bool
 }
 
 impl AttributeFlags {
@@ -17,7 +17,7 @@ impl AttributeFlags {
             is_version_tolerant: false,
             is_circular: false,
             is_zero_copy: false,
-            has_repr_i32: false,
+            has_repr_i32: false
         };
 
         for attr in attrs {

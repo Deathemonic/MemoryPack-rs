@@ -60,6 +60,6 @@ pub fn read_varint(reader: &mut MemoryPackReader) -> Result<i64, MemoryPackError
         codes::INT32 => Ok(reader.read_i32()? as i64),
         codes::UINT64 => Ok(reader.read_u64()? as i64),
         codes::INT64 => reader.read_i64(),
-        _ => Ok(type_code as i64),
+        _ => Ok(type_code as i64)
     }
 }

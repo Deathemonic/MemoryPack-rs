@@ -1,7 +1,7 @@
-use crate::helpers::{is_option_box, prepare_ordered_fields, should_skip_field};
-
 use quote::quote;
 use syn::{Data, Fields};
+
+use crate::helpers::{is_option_box, prepare_ordered_fields, should_skip_field};
 
 pub fn generate_circular_serialize(data: &Data, needs_state: bool) -> proc_macro2::TokenStream {
     let Data::Struct(data_struct) = data else {
@@ -12,11 +12,7 @@ pub fn generate_circular_serialize(data: &Data, needs_state: bool) -> proc_macro
 
     match &data_struct.fields {
         Fields::Named(fields) => {
-            let non_skip: Vec<_> = fields
-                .named
-                .iter()
-                .filter(|f| !should_skip_field(f))
-                .collect();
+            let non_skip: Vec<_> = fields.named.iter().filter(|f| !should_skip_field(f)).collect();
             let ordered = prepare_ordered_fields(&non_skip);
             let max_order = ordered.last().map(|f| f.order).unwrap_or(0);
             let member_count = max_order + 1;
@@ -179,7 +175,7 @@ pub fn generate_circular_serialize(data: &Data, needs_state: bool) -> proc_macro
         }
         Fields::Unit => quote! {
             writer.write_u8(0)?;
-        },
+        }
     }
 }
 
@@ -193,11 +189,7 @@ pub fn generate_circular_deserialize(data: &Data, needs_state: bool) -> proc_mac
 
     match &data_struct.fields {
         Fields::Named(fields) => {
-            let non_skip: Vec<_> = fields
-                .named
-                .iter()
-                .filter(|f| !should_skip_field(f))
-                .collect();
+            let non_skip: Vec<_> = fields.named.iter().filter(|f| !should_skip_field(f)).collect();
 
             if non_skip.is_empty() {
                 return quote! {
@@ -358,6 +350,6 @@ pub fn generate_circular_deserialize(data: &Data, needs_state: bool) -> proc_mac
             let ref_id = memorypack::varint::read_varint(reader)? as u32;
             reader.optional_state.as_mut().unwrap().add_object_reference(ref_id, result.clone())?;
             Ok(result)
-        },
+        }
     }
 }

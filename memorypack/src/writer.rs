@@ -4,40 +4,36 @@ use crate::varint;
 
 pub struct MemoryPackWriter {
     pub buffer: Vec<u8>,
-    pub optional_state: Option<MemoryPackWriterOptionalState>,
+    pub optional_state: Option<MemoryPackWriterOptionalState>
 }
 
 impl MemoryPackWriter {
     pub fn new() -> Self {
         Self {
             buffer: Vec::new(),
-            optional_state: None,
+            optional_state: None
         }
     }
 
     pub fn new_with_state() -> Self {
         Self {
             buffer: Vec::new(),
-            optional_state: Some(MemoryPackWriterOptionalState::new()),
+            optional_state: Some(MemoryPackWriterOptionalState::new())
         }
     }
 
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             buffer: Vec::with_capacity(capacity),
-            optional_state: None,
+            optional_state: None
         }
     }
 
     #[inline]
-    pub fn len(&self) -> usize {
-        self.buffer.len()
-    }
+    pub fn len(&self) -> usize { self.buffer.len() }
 
     #[inline]
-    pub fn is_empty(&self) -> bool {
-        self.buffer.is_empty()
-    }
+    pub fn is_empty(&self) -> bool { self.buffer.is_empty() }
 
     #[inline]
     pub fn write_string(&mut self, value: &str) -> Result<(), MemoryPackError> {
@@ -56,7 +52,7 @@ impl MemoryPackWriter {
     pub fn write_string_option(&mut self, value: Option<&str>) -> Result<(), MemoryPackError> {
         match value {
             Some(s) => self.write_string(s),
-            None => self.write_i32(-1),
+            None => self.write_i32(-1)
         }
     }
 
@@ -152,20 +148,14 @@ impl MemoryPackWriter {
     }
 
     #[inline]
-    pub fn into_bytes(self) -> Vec<u8> {
-        self.buffer
-    }
+    pub fn into_bytes(self) -> Vec<u8> { self.buffer }
 
     #[inline]
-    pub fn as_bytes(&self) -> &[u8] {
-        &self.buffer
-    }
+    pub fn as_bytes(&self) -> &[u8] { &self.buffer }
 }
 
 impl Default for MemoryPackWriter {
-    fn default() -> Self {
-        Self::new()
-    }
+    fn default() -> Self { Self::new() }
 }
 
 impl MemoryPackWriter {
