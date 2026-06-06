@@ -41,7 +41,11 @@ impl MemoryPackWriter {
             return self.write_i32(0);
         }
         let bytes = value.as_bytes();
-        let utf16_length: usize = value.chars().map(|c| c.len_utf16()).sum();
+        let utf16_length: usize = if value.is_ascii() {
+            bytes.len()
+        } else {
+            value.chars().map(|c| c.len_utf16()).sum()
+        };
         self.write_i32(!(bytes.len() as i32))?;
         self.write_i32(utf16_length as i32)?;
         self.buffer.extend_from_slice(bytes);

@@ -1,27 +1,27 @@
-use std::io::{Cursor, Read, Seek, SeekFrom};
-
-use byteorder::{LittleEndian, ReadBytesExt};
 use simdutf8::basic;
 
 use crate::error::MemoryPackError;
 use crate::state::MemoryPackReaderOptionalState;
 
 pub struct MemoryPackReader<'a> {
-    pub(crate) cursor: Cursor<&'a [u8]>,
+    data: &'a [u8],
+    pos: usize,
     pub optional_state: Option<MemoryPackReaderOptionalState>
 }
 
 impl<'a> MemoryPackReader<'a> {
     pub fn new(data: &'a [u8]) -> Self {
         Self {
-            cursor: Cursor::new(data),
+            data,
+            pos: 0,
             optional_state: None
         }
     }
 
     pub fn new_with_state(data: &'a [u8]) -> Self {
         Self {
-            cursor: Cursor::new(data),
+            data,
+            pos: 0,
             optional_state: Some(MemoryPackReaderOptionalState::new())
         }
     }
@@ -79,15 +79,15 @@ impl<'a> MemoryPackReader<'a> {
 
     #[inline]
     pub fn read_bytes(&mut self, length: usize) -> Result<&'a [u8], MemoryPackError> {
-        let pos = self.cursor.position() as usize;
-        let buffer = self.cursor.get_ref();
+        let pos = self.pos;
 
-        if pos + length > buffer.len() {
+        let end = pos.checked_add(length).ok_or(MemoryPackError::UnexpectedEndOfBuffer)?;
+        if end > self.data.len() {
             return Err(MemoryPackError::UnexpectedEndOfBuffer);
         }
 
-        let slice = &buffer[pos..pos + length];
-        self.cursor.set_position((pos + length) as u64);
+        let slice = &self.data[pos..end];
+        self.pos = end;
         Ok(slice)
     }
 
@@ -99,7 +99,7 @@ impl<'a> MemoryPackReader<'a> {
     #[inline]
     pub fn read_fixed_bytes<const N: usize>(&mut self) -> Result<[u8; N], MemoryPackError> {
         let mut buffer = [0u8; N];
-        self.cursor.read_exact(&mut buffer)?;
+        buffer.copy_from_slice(self.read_bytes(N)?);
         Ok(buffer)
     }
 
@@ -148,62 +148,70 @@ impl<'a> MemoryPackReader<'a> {
     }
 
     #[inline(always)]
-    pub fn read_bool(&mut self) -> Result<bool, MemoryPackError> { Ok(self.cursor.read_u8()? == 1) }
+    pub fn read_bool(&mut self) -> Result<bool, MemoryPackError> { Ok(self.read_u8()? == 1) }
 
     #[inline(always)]
-    pub fn read_i8(&mut self) -> Result<i8, MemoryPackError> { Ok(self.cursor.read_i8()?) }
+    pub fn read_i8(&mut self) -> Result<i8, MemoryPackError> { Ok(self.read_u8()? as i8) }
 
     #[inline(always)]
-    pub fn read_u8(&mut self) -> Result<u8, MemoryPackError> { Ok(self.cursor.read_u8()?) }
+    pub fn read_u8(&mut self) -> Result<u8, MemoryPackError> {
+        if self.pos >= self.data.len() {
+            return Err(MemoryPackError::UnexpectedEndOfBuffer);
+        }
+
+        let value = self.data[self.pos];
+        self.pos += 1;
+        Ok(value)
+    }
 
     #[inline(always)]
     pub fn read_i16(&mut self) -> Result<i16, MemoryPackError> {
-        Ok(self.cursor.read_i16::<LittleEndian>()?)
+        Ok(i16::from_le_bytes(self.read_fixed_bytes()?))
     }
 
     #[inline(always)]
     pub fn read_u16(&mut self) -> Result<u16, MemoryPackError> {
-        Ok(self.cursor.read_u16::<LittleEndian>()?)
+        Ok(u16::from_le_bytes(self.read_fixed_bytes()?))
     }
 
     #[inline(always)]
     pub fn read_i32(&mut self) -> Result<i32, MemoryPackError> {
-        Ok(self.cursor.read_i32::<LittleEndian>()?)
+        Ok(i32::from_le_bytes(self.read_fixed_bytes()?))
     }
 
     #[inline(always)]
     pub fn read_u32(&mut self) -> Result<u32, MemoryPackError> {
-        Ok(self.cursor.read_u32::<LittleEndian>()?)
+        Ok(u32::from_le_bytes(self.read_fixed_bytes()?))
     }
 
     #[inline(always)]
     pub fn read_i64(&mut self) -> Result<i64, MemoryPackError> {
-        Ok(self.cursor.read_i64::<LittleEndian>()?)
+        Ok(i64::from_le_bytes(self.read_fixed_bytes()?))
     }
 
     #[inline(always)]
     pub fn read_u64(&mut self) -> Result<u64, MemoryPackError> {
-        Ok(self.cursor.read_u64::<LittleEndian>()?)
+        Ok(u64::from_le_bytes(self.read_fixed_bytes()?))
     }
 
     #[inline(always)]
     pub fn read_f32(&mut self) -> Result<f32, MemoryPackError> {
-        Ok(self.cursor.read_f32::<LittleEndian>()?)
+        Ok(f32::from_le_bytes(self.read_fixed_bytes()?))
     }
 
     #[inline(always)]
     pub fn read_f64(&mut self) -> Result<f64, MemoryPackError> {
-        Ok(self.cursor.read_f64::<LittleEndian>()?)
+        Ok(f64::from_le_bytes(self.read_fixed_bytes()?))
     }
 
     #[inline(always)]
     pub fn read_i128(&mut self) -> Result<i128, MemoryPackError> {
-        Ok(self.cursor.read_i128::<LittleEndian>()?)
+        Ok(i128::from_le_bytes(self.read_fixed_bytes()?))
     }
 
     #[inline(always)]
     pub fn read_u128(&mut self) -> Result<u128, MemoryPackError> {
-        Ok(self.cursor.read_u128::<LittleEndian>()?)
+        Ok(u128::from_le_bytes(self.read_fixed_bytes()?))
     }
 
     #[inline(always)]
@@ -211,7 +219,7 @@ impl<'a> MemoryPackReader<'a> {
         let code_unit = self.read_u16()?;
 
         if !(0xD800..=0xDFFF).contains(&code_unit) {
-            return char::from_u32(code_unit as u32).ok_or({ MemoryPackError::InvalidCodePoint });
+            return char::from_u32(code_unit as u32).ok_or(MemoryPackError::InvalidCodePoint);
         }
 
         Err(MemoryPackError::DeserializationError(
@@ -221,16 +229,25 @@ impl<'a> MemoryPackReader<'a> {
 
     #[inline]
     pub fn skip(&mut self, n: usize) -> Result<(), MemoryPackError> {
-        self.cursor.seek(SeekFrom::Current(n as i64))?;
+        let new_pos = self.pos.checked_add(n).ok_or(MemoryPackError::UnexpectedEndOfBuffer)?;
+        if new_pos > self.data.len() {
+            return Err(MemoryPackError::UnexpectedEndOfBuffer);
+        }
+
+        self.pos = new_pos;
         Ok(())
     }
 
     #[inline]
     pub fn rewind(&mut self, n: usize) -> Result<(), MemoryPackError> {
-        self.cursor.seek(SeekFrom::Current(-(n as i64)))?;
+        if n > self.pos {
+            return Err(MemoryPackError::UnexpectedEndOfBuffer);
+        }
+
+        self.pos -= n;
         Ok(())
     }
 
     #[inline]
-    pub fn position(&self) -> u64 { self.cursor.position() }
+    pub fn position(&self) -> u64 { self.pos as u64 }
 }
