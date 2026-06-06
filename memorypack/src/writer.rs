@@ -80,61 +80,61 @@ impl MemoryPackWriter {
 
     #[inline(always)]
     pub fn write_i16(&mut self, value: i16) -> Result<(), MemoryPackError> {
-        self.buffer.extend_from_slice(&value.to_le_bytes());
+        self.write_unaligned(value.to_le());
         Ok(())
     }
 
     #[inline(always)]
     pub fn write_u16(&mut self, value: u16) -> Result<(), MemoryPackError> {
-        self.buffer.extend_from_slice(&value.to_le_bytes());
+        self.write_unaligned(value.to_le());
         Ok(())
     }
 
     #[inline(always)]
     pub fn write_i32(&mut self, value: i32) -> Result<(), MemoryPackError> {
-        self.buffer.extend_from_slice(&value.to_le_bytes());
+        self.write_unaligned(value.to_le());
         Ok(())
     }
 
     #[inline(always)]
     pub fn write_u32(&mut self, value: u32) -> Result<(), MemoryPackError> {
-        self.buffer.extend_from_slice(&value.to_le_bytes());
+        self.write_unaligned(value.to_le());
         Ok(())
     }
 
     #[inline(always)]
     pub fn write_i64(&mut self, value: i64) -> Result<(), MemoryPackError> {
-        self.buffer.extend_from_slice(&value.to_le_bytes());
+        self.write_unaligned(value.to_le());
         Ok(())
     }
 
     #[inline(always)]
     pub fn write_u64(&mut self, value: u64) -> Result<(), MemoryPackError> {
-        self.buffer.extend_from_slice(&value.to_le_bytes());
+        self.write_unaligned(value.to_le());
         Ok(())
     }
 
     #[inline(always)]
     pub fn write_f32(&mut self, value: f32) -> Result<(), MemoryPackError> {
-        self.buffer.extend_from_slice(&value.to_le_bytes());
+        self.write_unaligned(value.to_bits().to_le());
         Ok(())
     }
 
     #[inline(always)]
     pub fn write_f64(&mut self, value: f64) -> Result<(), MemoryPackError> {
-        self.buffer.extend_from_slice(&value.to_le_bytes());
+        self.write_unaligned(value.to_bits().to_le());
         Ok(())
     }
 
     #[inline(always)]
     pub fn write_i128(&mut self, value: i128) -> Result<(), MemoryPackError> {
-        self.buffer.extend_from_slice(&value.to_le_bytes());
+        self.write_unaligned(value.to_le());
         Ok(())
     }
 
     #[inline(always)]
     pub fn write_u128(&mut self, value: u128) -> Result<(), MemoryPackError> {
-        self.buffer.extend_from_slice(&value.to_le_bytes());
+        self.write_unaligned(value.to_le());
         Ok(())
     }
 
@@ -163,6 +163,18 @@ impl Default for MemoryPackWriter {
 }
 
 impl MemoryPackWriter {
+    #[inline(always)]
+    fn write_unaligned<T: Copy>(&mut self, value: T) {
+        let len = self.buffer.len();
+        let size = std::mem::size_of::<T>();
+        self.buffer.reserve(size);
+
+        unsafe {
+            std::ptr::write_unaligned(self.buffer.as_mut_ptr().add(len) as *mut T, value);
+            self.buffer.set_len(len + size);
+        }
+    }
+
     pub fn write_object_reference_id(&mut self, reference_id: u32) -> Result<(), MemoryPackError> {
         self.write_u8(250)?;
         varint::write_varint(self, reference_id as i64)?;

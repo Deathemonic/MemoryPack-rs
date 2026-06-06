@@ -103,6 +103,20 @@ impl<'a> MemoryPackReader<'a> {
         Ok(buffer)
     }
 
+    #[inline(always)]
+    fn read_unaligned<T: Copy>(&mut self) -> Result<T, MemoryPackError> {
+        let size = std::mem::size_of::<T>();
+        let end = self.pos.checked_add(size).ok_or(MemoryPackError::UnexpectedEndOfBuffer)?;
+
+        if end > self.data.len() {
+            return Err(MemoryPackError::UnexpectedEndOfBuffer);
+        }
+
+        let value = unsafe { std::ptr::read_unaligned(self.data.as_ptr().add(self.pos) as *const T) };
+        self.pos = end;
+        Ok(value)
+    }
+
     #[inline]
     fn read_utf16_string(&mut self, char_count: usize) -> Result<String, MemoryPackError> {
         let byte_count = char_count * 2;
@@ -166,52 +180,52 @@ impl<'a> MemoryPackReader<'a> {
 
     #[inline(always)]
     pub fn read_i16(&mut self) -> Result<i16, MemoryPackError> {
-        Ok(i16::from_le_bytes(self.read_fixed_bytes()?))
+        Ok(i16::from_le(self.read_unaligned()?))
     }
 
     #[inline(always)]
     pub fn read_u16(&mut self) -> Result<u16, MemoryPackError> {
-        Ok(u16::from_le_bytes(self.read_fixed_bytes()?))
+        Ok(u16::from_le(self.read_unaligned()?))
     }
 
     #[inline(always)]
     pub fn read_i32(&mut self) -> Result<i32, MemoryPackError> {
-        Ok(i32::from_le_bytes(self.read_fixed_bytes()?))
+        Ok(i32::from_le(self.read_unaligned()?))
     }
 
     #[inline(always)]
     pub fn read_u32(&mut self) -> Result<u32, MemoryPackError> {
-        Ok(u32::from_le_bytes(self.read_fixed_bytes()?))
+        Ok(u32::from_le(self.read_unaligned()?))
     }
 
     #[inline(always)]
     pub fn read_i64(&mut self) -> Result<i64, MemoryPackError> {
-        Ok(i64::from_le_bytes(self.read_fixed_bytes()?))
+        Ok(i64::from_le(self.read_unaligned()?))
     }
 
     #[inline(always)]
     pub fn read_u64(&mut self) -> Result<u64, MemoryPackError> {
-        Ok(u64::from_le_bytes(self.read_fixed_bytes()?))
+        Ok(u64::from_le(self.read_unaligned()?))
     }
 
     #[inline(always)]
     pub fn read_f32(&mut self) -> Result<f32, MemoryPackError> {
-        Ok(f32::from_le_bytes(self.read_fixed_bytes()?))
+        Ok(f32::from_bits(self.read_u32()?))
     }
 
     #[inline(always)]
     pub fn read_f64(&mut self) -> Result<f64, MemoryPackError> {
-        Ok(f64::from_le_bytes(self.read_fixed_bytes()?))
+        Ok(f64::from_bits(self.read_u64()?))
     }
 
     #[inline(always)]
     pub fn read_i128(&mut self) -> Result<i128, MemoryPackError> {
-        Ok(i128::from_le_bytes(self.read_fixed_bytes()?))
+        Ok(i128::from_le(self.read_unaligned()?))
     }
 
     #[inline(always)]
     pub fn read_u128(&mut self) -> Result<u128, MemoryPackError> {
-        Ok(u128::from_le_bytes(self.read_fixed_bytes()?))
+        Ok(u128::from_le(self.read_unaligned()?))
     }
 
     #[inline(always)]
