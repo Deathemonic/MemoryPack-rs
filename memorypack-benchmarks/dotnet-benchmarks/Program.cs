@@ -24,6 +24,23 @@ public partial class ComplexData
     public SimpleData? Nested { get; set; }
 }
 
+[MemoryPackable]
+public partial class SimpleDataNoString
+{
+    public int Id { get; set; }
+    public double Value { get; set; }
+    public bool IsActive { get; set; }
+}
+
+[MemoryPackable]
+public partial class ComplexDataNoString
+{
+    public int Id { get; set; }
+    public List<int> Numbers { get; set; } = new();
+    public Dictionary<int, int> Properties { get; set; } = new();
+    public SimpleDataNoString? Nested { get; set; }
+}
+
 [MemoryPackable(GenerateType.VersionTolerant)]
 public partial class VersionTolerantData
 {
@@ -62,11 +79,15 @@ public class MemoryPackBenchmarks
 {
     private SimpleData simpleData = null!;
     private ComplexData complexData = null!;
+    private SimpleDataNoString simpleDataNoString = null!;
+    private ComplexDataNoString complexDataNoString = null!;
     private VersionTolerantData versionTolerantData = null!;
     private Color enumData;
     private IUnionSample unionData = null!;
     private byte[] simpleBytes = null!;
     private byte[] complexBytes = null!;
+    private byte[] simpleNoStringBytes = null!;
+    private byte[] complexNoStringBytes = null!;
     private byte[] versionTolerantBytes = null!;
     private byte[] enumBytes = null!;
     private byte[] unionBytes = null!;
@@ -91,6 +112,21 @@ public class MemoryPackBenchmarks
             Nested = new SimpleData { Id = 1, Name = "Nested", Value = 1.23, IsActive = false }
         };
 
+        simpleDataNoString = new SimpleDataNoString
+        {
+            Id = 42,
+            Value = 3.14159,
+            IsActive = true
+        };
+
+        complexDataNoString = new ComplexDataNoString
+        {
+            Id = 100,
+            Numbers = Enumerable.Range(1, 100).ToList(),
+            Properties = Enumerable.Range(1, 50).ToDictionary(i => i, i => i * 10),
+            Nested = new SimpleDataNoString { Id = 1, Value = 1.23, IsActive = false }
+        };
+
         versionTolerantData = new VersionTolerantData
         {
             Property1 = 1000,
@@ -104,6 +140,8 @@ public class MemoryPackBenchmarks
 
         simpleBytes = MemoryPackSerializer.Serialize(simpleData);
         complexBytes = MemoryPackSerializer.Serialize(complexData);
+        simpleNoStringBytes = MemoryPackSerializer.Serialize(simpleDataNoString);
+        complexNoStringBytes = MemoryPackSerializer.Serialize(complexDataNoString);
         versionTolerantBytes = MemoryPackSerializer.Serialize(versionTolerantData);
         enumBytes = MemoryPackSerializer.Serialize(enumData);
         unionBytes = MemoryPackSerializer.Serialize(unionData);
@@ -131,6 +169,30 @@ public class MemoryPackBenchmarks
     public ComplexData DeserializeComplex()
     {
         return MemoryPackSerializer.Deserialize<ComplexData>(complexBytes)!;
+    }
+
+    [Benchmark]
+    public byte[] SerializeSimpleNoString()
+    {
+        return MemoryPackSerializer.Serialize(simpleDataNoString);
+    }
+
+    [Benchmark]
+    public SimpleDataNoString DeserializeSimpleNoString()
+    {
+        return MemoryPackSerializer.Deserialize<SimpleDataNoString>(simpleNoStringBytes)!;
+    }
+
+    [Benchmark]
+    public byte[] SerializeComplexNoString()
+    {
+        return MemoryPackSerializer.Serialize(complexDataNoString);
+    }
+
+    [Benchmark]
+    public ComplexDataNoString DeserializeComplexNoString()
+    {
+        return MemoryPackSerializer.Deserialize<ComplexDataNoString>(complexNoStringBytes)!;
     }
 
     [Benchmark]
@@ -168,5 +230,4 @@ public class MemoryPackBenchmarks
     {
         return MemoryPackSerializer.Deserialize<IUnionSample>(unionBytes)!;
     }
-
 }

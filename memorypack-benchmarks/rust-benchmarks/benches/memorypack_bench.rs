@@ -45,6 +45,21 @@ struct ComplexData {
     nested: Option<SimpleData>
 }
 
+#[derive(MemoryPackable, Clone, Default)]
+struct SimpleDataNoString {
+    id: i32,
+    value: f64,
+    is_active: bool
+}
+
+#[derive(MemoryPackable, Clone)]
+struct ComplexDataNoString {
+    id: i32,
+    numbers: Vec<i32>,
+    properties: HashMap<i32, i32>,
+    nested: Option<SimpleDataNoString>
+}
+
 #[derive(MemoryPackable, Clone)]
 #[memorypack(version_tolerant)]
 struct VersionTolerantData {
@@ -102,6 +117,19 @@ fn create_complex_data() -> ComplexData {
             value: 1.23,
             is_active: false
         })
+    }
+}
+
+fn create_simple_data_no_string() -> SimpleDataNoString {
+    SimpleDataNoString { id: 42, value: 3.14159, is_active: true }
+}
+
+fn create_complex_data_no_string() -> ComplexDataNoString {
+    ComplexDataNoString {
+        id: 100,
+        numbers: (1..=100).collect(),
+        properties: (1..=50).map(|i| (i, i * 10)).collect(),
+        nested: Some(SimpleDataNoString { id: 1, value: 1.23, is_active: false })
     }
 }
 
@@ -191,6 +219,62 @@ fn benchmark_deserialize_complex(c: &mut Criterion) {
     });
 }
 
+fn benchmark_serialize_simple_no_string(c: &mut Criterion) {
+    let data = create_simple_data_no_string();
+
+    let bytes = measure_allocations("serialize_simple_no_string", || {
+        MemoryPackSerializer::serialize(&data).unwrap()
+    });
+    println!("serialize_simple_no_string output size: {} bytes\n", bytes.len());
+
+    c.bench_function("serialize_simple_no_string", |b| {
+        b.iter(|| MemoryPackSerializer::serialize(black_box(&data)).unwrap())
+    });
+}
+
+fn benchmark_deserialize_simple_no_string(c: &mut Criterion) {
+    let data = create_simple_data_no_string();
+    let bytes = MemoryPackSerializer::serialize(&data).unwrap();
+
+    measure_allocations("deserialize_simple_no_string", || {
+        MemoryPackSerializer::deserialize::<SimpleDataNoString>(&bytes).unwrap()
+    });
+    println!();
+
+    c.bench_function("deserialize_simple_no_string", |b| {
+        b.iter(|| MemoryPackSerializer::deserialize::<SimpleDataNoString>(black_box(&bytes)).unwrap())
+    });
+}
+
+fn benchmark_serialize_complex_no_string(c: &mut Criterion) {
+    let data = create_complex_data_no_string();
+
+    let bytes = measure_allocations("serialize_complex_no_string", || {
+        MemoryPackSerializer::serialize(&data).unwrap()
+    });
+    println!("serialize_complex_no_string output size: {} bytes\n", bytes.len());
+
+    c.bench_function("serialize_complex_no_string", |b| {
+        b.iter(|| MemoryPackSerializer::serialize(black_box(&data)).unwrap())
+    });
+}
+
+fn benchmark_deserialize_complex_no_string(c: &mut Criterion) {
+    let data = create_complex_data_no_string();
+    let bytes = MemoryPackSerializer::serialize(&data).unwrap();
+
+    measure_allocations("deserialize_complex_no_string", || {
+        MemoryPackSerializer::deserialize::<ComplexDataNoString>(&bytes).unwrap()
+    });
+    println!();
+
+    c.bench_function("deserialize_complex_no_string", |b| {
+        b.iter(|| {
+            MemoryPackSerializer::deserialize::<ComplexDataNoString>(black_box(&bytes)).unwrap()
+        })
+    });
+}
+
 fn benchmark_serialize_version_tolerant(c: &mut Criterion) {
     let data = create_version_tolerant_data();
 
@@ -260,6 +344,10 @@ criterion_group!(
     benchmark_deserialize_simple,
     benchmark_serialize_complex,
     benchmark_deserialize_complex,
+    benchmark_serialize_simple_no_string,
+    benchmark_deserialize_simple_no_string,
+    benchmark_serialize_complex_no_string,
+    benchmark_deserialize_complex_no_string,
     benchmark_serialize_version_tolerant,
     benchmark_deserialize_version_tolerant,
     benchmark_serialize_enum,
@@ -268,3 +356,4 @@ criterion_group!(
     benchmark_deserialize_union
 );
 criterion_main!(benches);
+
