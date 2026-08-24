@@ -10,12 +10,11 @@ publish = false
 dhat-heap = ["dhat"]
 
 [dependencies]
-ahash = "0.8"
 dhat = { version = "0.3", optional = true }
-memorypack = { path = "../../memorypack", features = ["ahash"] }
+memorypack = { path = "../../memorypack" }
 
 [dev-dependencies]
-criterion = { version = "0.5", features = ["html_reports"] }
+divan = { package = "codspeed-divan-compat", version = "*" }
 
 [[bench]]
 name = "memorypack_bench"

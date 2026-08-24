@@ -5,13 +5,13 @@ on:
 
 jobs:
   benchmark:
-    runs-on: macos-15
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       actions: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
@@ -19,12 +19,12 @@ jobs:
           toolchain: stable
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '10.0.x'
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.x'
 
@@ -33,28 +33,28 @@ jobs:
 
       - name: Run Rust Benchmarks
         run: |
-          cd memorypack-benchmarks/rust-benchmarks
-          cargo bench --bench memorypack_bench -- --save-baseline current
-          critcmp --export current > ../../rust_results.json
+          cd crates/memorypack-benchmarks/rust-benchmarks
+          cargo bench --bench memorypack_bench
+          critcmp --export current > ../../../rust_results.json
 
       - name: Restore .NET
         run: |
-          cd memorypack-benchmarks/dotnet-benchmarks
+          cd crates/memorypack-benchmarks/dotnet-benchmarks
           dotnet restore
 
       - name: Run .NET Benchmarks
         run: |
-          cd memorypack-benchmarks/dotnet-benchmarks
+          cd crates/memorypack-benchmarks/dotnet-benchmarks
           dotnet run -c Release
 
       - name: Locate .NET Results
         id: dotnet-locate
         run: |
           echo "Searching for BenchmarkDotNet results..."
-          find memorypack-benchmarks/dotnet-benchmarks/BenchmarkDotNet.Artifacts -type f -name "*.json" 2>/dev/null || true
-          JSON_PATH=$(find memorypack-benchmarks/dotnet-benchmarks/BenchmarkDotNet.Artifacts/results -name "*-report-full.json" -type f 2>/dev/null | head -n 1)
+          find crates/memorypack-benchmarks/dotnet-benchmarks/BenchmarkDotNet.Artifacts -type f -name "*.json" 2>/dev/null || true
+          JSON_PATH=$(find crates/memorypack-benchmarks/dotnet-benchmarks/BenchmarkDotNet.Artifacts/results -name "*-report-full.json" -type f 2>/dev/null | head -n 1)
           if [ -z "$JSON_PATH" ]; then
-            JSON_PATH=$(find memorypack-benchmarks/dotnet-benchmarks/BenchmarkDotNet.Artifacts/results -name "*.json" -type f 2>/dev/null | head -n 1)
+            JSON_PATH=$(find crates/memorypack-benchmarks/dotnet-benchmarks/BenchmarkDotNet.Artifacts/results -name "*.json" -type f 2>/dev/null | head -n 1)
           fi
           if [ -z "$JSON_PATH" ]; then
             echo "No JSON results found"
@@ -130,7 +130,7 @@ jobs:
           EOF
 
       - name: Download previous baseline
-        uses: dawidd6/action-download-artifact@v11
+        uses: dawidd6/action-download-artifact@v21
         id: download-baseline
         continue-on-error: true
         with:
@@ -152,7 +152,7 @@ jobs:
           fi
 
       - name: Upload New Baseline
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: benchmark-baseline
           path: rust_results.json
