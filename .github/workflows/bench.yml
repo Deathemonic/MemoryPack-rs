@@ -28,14 +28,10 @@ jobs:
         with:
           python-version: '3.x'
 
-      - name: Install Rust Tools
-        run: cargo install critcmp
-
       - name: Run Rust Benchmarks
         run: |
           cd crates/memorypack-benchmarks/rust-benchmarks
-          cargo bench --bench memorypack_bench
-          critcmp --export current > ../../../rust_results.json
+          cargo bench --bench memorypack_bench | tee ../../../rust_results.txt
 
       - name: Restore .NET
         run: |
@@ -66,61 +62,150 @@ jobs:
       - name: Generate Comparison Table
         shell: bash
         run: |
-          python3 <<EOF >> $GITHUB_STEP_SUMMARY
+          python3 <<'EOF' >> $GITHUB_STEP_SUMMARY
           import json
+          import re
 
           def fmt_ns(ns):
+              if ns is None: return "N/A"
               if ns >= 1000: return f"{ns/1000:.2f} us"
               return f"{ns:.2f} ns"
+
+          def fmt_bytes(b):
+              if b is None: return "N/A"
+              if b >= 1024: return f"{b/1024:.2f} KB"
+              return f"{b:.0f} B"
 
           def normalize_name(name):
               return name.lower().replace('_', '')
 
+          def parse_size_to_bytes(s):
+              s = s.strip()
+              m = re.match(r'^([\d.]+)\s*([A-Za-z]*)$', s)
+              if not m: return None
+              value = float(m.group(1))
+              unit = m.group(2).upper()
+              mult = {'': 1, 'B': 1, 'KB': 1024, 'MB': 1024**2, 'GB': 1024**3}.get(unit)
+              if mult is None: return None
+              return value * mult
+
+          def parse_time_to_ns(s):
+              s = s.strip()
+              m = re.match(r'^([\d.]+)\s*(ns|µs|us|ms|s)$', s)
+              if not m: return None
+              value = float(m.group(1))
+              unit = m.group(2)
+              mult = {'ns': 1, 'µs': 1000, 'us': 1000, 'ms': 1_000_000, 's': 1_000_000_000}[unit]
+              return value * mult
+
+          def split_cols(line):
+              return [c.strip() for c in line.split('│')]
+
+          def parse_divan_output(text):
+              # Parses divan's tree-table stdout into a dict keyed by bench name.
+              # Each entry holds timing (mean/median/fastest/slowest in ns) plus
+              # max_alloc / alloc / grow count+bytes when the alloc profiler is enabled.
+              results = {}
+              current_bench = None
+              pending_section = None
+              section_rows_seen = 0
+
+              for raw_line in text.splitlines():
+                  line = raw_line.rstrip('\n')
+                  if not line.strip() or line.startswith('Timer precision'):
+                      continue
+
+                  stripped = re.sub(r'^[│├╰─\s]+', '', line)
+                  if not stripped:
+                      continue
+
+                  if stripped.startswith('memorypack_bench') or re.match(r'^\S+\s+fastest', stripped):
+                      continue
+
+                  name_match = re.match(r'^([A-Za-z0-9_]+)\s{2,}(.*)$', stripped)
+                  has_time_unit = any(u in stripped for u in ('ns', 'µs', 'ms'))
+                  if name_match and has_time_unit and 'alloc' not in stripped.lower() and 'grow' not in stripped.lower():
+                      current_bench = name_match.group(1)
+                      cols = split_cols(name_match.group(2))
+                      results[current_bench] = {
+                          'fastest_ns': parse_time_to_ns(cols[0]) if len(cols) > 0 else None,
+                          'slowest_ns': parse_time_to_ns(cols[1]) if len(cols) > 1 else None,
+                          'median_ns': parse_time_to_ns(cols[2]) if len(cols) > 2 else None,
+                          'mean_ns': parse_time_to_ns(cols[3]) if len(cols) > 3 else None,
+                          'max_alloc_count': None, 'max_alloc_bytes': None,
+                          'alloc_count': None, 'alloc_bytes': None,
+                          'grow_count': None, 'grow_bytes': None,
+                      }
+                      pending_section = None
+                      section_rows_seen = 0
+                      continue
+
+                  sect_match = re.match(r'^(max alloc|alloc|grow):\s*(.*)$', stripped)
+                  if sect_match and current_bench:
+                      pending_section = sect_match.group(1)
+                      section_rows_seen = 0
+                      continue
+
+                  if pending_section and current_bench:
+                      cols = split_cols(stripped)
+                      first_col = cols[0] if cols else ''
+                      section_rows_seen += 1
+                      key_prefix = {'max alloc': 'max_alloc', 'alloc': 'alloc', 'grow': 'grow'}[pending_section]
+                      if section_rows_seen == 1:
+                          try:
+                              results[current_bench][f'{key_prefix}_count'] = int(float(first_col))
+                          except ValueError:
+                              pass
+                      elif section_rows_seen == 2:
+                          results[current_bench][f'{key_prefix}_bytes'] = parse_size_to_bytes(first_col)
+                          pending_section = None
+                      continue
+
+              return results
+
           try:
-              with open('rust_results.json') as f:
-                  rust_data = json.load(f)
+              with open('rust_results.txt') as f:
+                  rust_text = f.read()
 
               with open('dotnet_results.json') as f:
                   dotnet_raw = json.load(f)
 
-              rust_map = {}
-
-              # critcmp export format: { "name": "current", "benchmarks": { "bench_name": { "criterion_estimates_v1": { "mean": { "point_estimate": ... } } } } }
-              benchmarks = rust_data.get('benchmarks', {})
-              for bench_name, bench_data in benchmarks.items():
-                  estimates = bench_data.get('criterion_estimates_v1', {})
-                  mean_data = estimates.get('mean', {})
-                  point_estimate = mean_data.get('point_estimate')
-                  if point_estimate is not None:
-                      normalized = normalize_name(bench_name)
-                      rust_map[normalized] = point_estimate
+              rust_map = {normalize_name(k): v for k, v in parse_divan_output(rust_text).items()}
 
               comparison = []
               for d in dotnet_raw['Benchmarks']:
                   csharp_name = d['Method']
                   match_key = normalize_name(csharp_name)
                   csharp_mean = d['Statistics']['Mean']
-                  rust_mean = rust_map.get(match_key)
-                  comparison.append({"Test": csharp_name, "C#": csharp_mean, "Rust": rust_mean})
+                  csharp_alloc = d.get('Memory', {}).get('BytesAllocatedPerOperation')
+                  rust_entry = rust_map.get(match_key)
+                  comparison.append({
+                      "Test": csharp_name,
+                      "C#": csharp_mean,
+                      "C#Alloc": csharp_alloc,
+                      "Rust": rust_entry['mean_ns'] if rust_entry else None,
+                      "RustAlloc": rust_entry['alloc_bytes'] if rust_entry else None,
+                  })
 
               print("")
               print("## Benchmark Summary")
               print("")
-              print("| Test Case | C# Time | Rust Time | Winner | Ratio |")
-              print("| :--- | :---: | :---: | :---: | :---: |")
+              print("| Test Case | C# Time | C# Alloc | Rust Time | Rust Alloc | Winner | Ratio |")
+              print("| :--- | :---: | :---: | :---: | :---: | :---: | :---: |")
               for row in comparison:
                   c_time = row['C#']
                   r_time = row['Rust']
+                  c_alloc = fmt_bytes(row['C#Alloc'])
+                  r_alloc = fmt_bytes(row['RustAlloc'])
                   if r_time is None:
-                      print(f"| {row['Test']} | {fmt_ns(c_time)} | N/A | - | - |")
+                      print(f"| {row['Test']} | {fmt_ns(c_time)} | {c_alloc} | N/A | {r_alloc} | - | - |")
                       continue
                   if r_time == 0 or c_time == 0:
-                      print(f"| {row['Test']} | {fmt_ns(c_time)} | {fmt_ns(r_time)} | - | - |")
+                      print(f"| {row['Test']} | {fmt_ns(c_time)} | {c_alloc} | {fmt_ns(r_time)} | {r_alloc} | - | - |")
                       continue
-                  diff = c_time / r_time
                   winner = "Rust" if r_time < c_time else "C#"
-                  ratio = f"{diff:.2f}x" if r_time < c_time else f"{r_time/c_time:.2f}x"
-                  print(f"| {row['Test']} | {fmt_ns(c_time)} | {fmt_ns(r_time)} | {winner} | {ratio} |")
+                  ratio = f"{c_time/r_time:.2f}x" if r_time < c_time else f"{r_time/c_time:.2f}x"
+                  print(f"| {row['Test']} | {fmt_ns(c_time)} | {c_alloc} | {fmt_ns(r_time)} | {r_alloc} | {winner} | {ratio} |")
           except Exception as e:
               import traceback
               print(f"Error parsing benchmarks: {e}")
@@ -145,7 +230,7 @@ jobs:
       - name: Check for Regressions
         if: steps.download-baseline.outcome == 'success'
         run: |
-          if [ -f old_baseline/rust_results.json ]; then
+          if [ -f old_baseline/rust_results.txt ]; then
             echo "Previous baseline found. Comparison available in future updates." >> $GITHUB_STEP_SUMMARY
           else
             echo "No previous baseline file found." >> $GITHUB_STEP_SUMMARY
@@ -155,5 +240,5 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: benchmark-baseline
-          path: rust_results.json
+          path: rust_results.txt
           overwrite: true
