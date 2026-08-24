@@ -153,6 +153,14 @@ impl MemoryPackWriter {
 
     #[inline]
     pub fn as_bytes(&self) -> &[u8] { &self.buffer }
+
+    #[inline]
+    pub fn reset(&mut self) {
+        self.buffer.clear();
+        if let Some(state) = &mut self.optional_state {
+            state.reset();
+        }
+    }
 }
 
 impl Default for MemoryPackWriter {

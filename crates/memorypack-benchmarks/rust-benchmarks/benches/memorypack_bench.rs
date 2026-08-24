@@ -178,6 +178,17 @@ fn serialize_simple(bencher: Bencher) {
 }
 
 #[divan::bench]
+fn serialize_to_simple(bencher: Bencher) {
+    let data = create_simple_data();
+    let mut writer = MemoryPackWriter::with_capacity(data.serialized_size_hint());
+    bencher.bench_local(|| {
+        writer.reset();
+        MemoryPackSerializer::serialize_to(black_box(&data), &mut writer).unwrap();
+        black_box(writer.as_bytes());
+    });
+}
+
+#[divan::bench]
 fn deserialize_simple(bencher: Bencher) {
     let data = create_simple_data();
     let bytes = MemoryPackSerializer::serialize(&data).unwrap();
@@ -190,6 +201,17 @@ fn deserialize_simple(bencher: Bencher) {
 fn serialize_complex(bencher: Bencher) {
     let data = create_complex_data();
     bencher.bench_local(|| MemoryPackSerializer::serialize(black_box(&data)).unwrap());
+}
+
+#[divan::bench]
+fn serialize_to_complex(bencher: Bencher) {
+    let data = create_complex_data();
+    let mut writer = MemoryPackWriter::with_capacity(data.serialized_size_hint());
+    bencher.bench_local(|| {
+        writer.reset();
+        MemoryPackSerializer::serialize_to(black_box(&data), &mut writer).unwrap();
+        black_box(writer.as_bytes());
+    });
 }
 
 #[divan::bench]
@@ -220,6 +242,17 @@ fn deserialize_simple_no_string(bencher: Bencher) {
 fn serialize_complex_no_string(bencher: Bencher) {
     let data = create_complex_data_no_string();
     bencher.bench_local(|| MemoryPackSerializer::serialize(black_box(&data)).unwrap());
+}
+
+#[divan::bench]
+fn serialize_to_complex_no_string(bencher: Bencher) {
+    let data = create_complex_data_no_string();
+    let mut writer = MemoryPackWriter::with_capacity(data.serialized_size_hint());
+    bencher.bench_local(|| {
+        writer.reset();
+        MemoryPackSerializer::serialize_to(black_box(&data), &mut writer).unwrap();
+        black_box(writer.as_bytes());
+    });
 }
 
 #[divan::bench]
