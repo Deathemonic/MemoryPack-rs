@@ -22,6 +22,21 @@ struct ComplexData {
     nested: Option<SimpleData>
 }
 
+#[derive(MemoryPackable, Clone, Default)]
+struct SimpleDataNoString {
+    id: i32,
+    value: f64,
+    is_active: bool
+}
+
+#[derive(MemoryPackable, Clone)]
+struct ComplexDataNoString {
+    id: i32,
+    numbers: Vec<i32>,
+    properties: HashMap<i32, i32>,
+    nested: Option<SimpleDataNoString>
+}
+
 #[derive(MemoryPackable, Clone)]
 #[memorypack(version_tolerant)]
 struct VersionTolerantData {
@@ -90,6 +105,19 @@ fn create_complex_data() -> ComplexData {
     }
 }
 
+fn create_simple_data_no_string() -> SimpleDataNoString {
+    SimpleDataNoString { id: 42, value: 3.14159, is_active: true }
+}
+
+fn create_complex_data_no_string() -> ComplexDataNoString {
+    ComplexDataNoString {
+        id: 100,
+        numbers: (1..=100).collect(),
+        properties: (1..=50).map(|i| (i, i * 10)).collect(),
+        nested: Some(SimpleDataNoString { id: 1, value: 1.23, is_active: false })
+    }
+}
+
 fn create_version_tolerant_data() -> VersionTolerantData {
     VersionTolerantData {
         property1: 1000,
@@ -120,6 +148,28 @@ fn main() {
     let complex_bytes = MemoryPackSerializer::serialize(&complex_data).unwrap();
     for _ in 0..10_000 {
         let _data: ComplexData = MemoryPackSerializer::deserialize(&complex_bytes).unwrap();
+    }
+
+    let simple_data_no_string = create_simple_data_no_string();
+    for _ in 0..100_000 {
+        let _bytes = MemoryPackSerializer::serialize(&simple_data_no_string).unwrap();
+    }
+
+    let simple_no_string_bytes = MemoryPackSerializer::serialize(&simple_data_no_string).unwrap();
+    for _ in 0..100_000 {
+        let _data: SimpleDataNoString =
+            MemoryPackSerializer::deserialize(&simple_no_string_bytes).unwrap();
+    }
+
+    let complex_data_no_string = create_complex_data_no_string();
+    for _ in 0..10_000 {
+        let _bytes = MemoryPackSerializer::serialize(&complex_data_no_string).unwrap();
+    }
+
+    let complex_no_string_bytes = MemoryPackSerializer::serialize(&complex_data_no_string).unwrap();
+    for _ in 0..10_000 {
+        let _data: ComplexDataNoString =
+            MemoryPackSerializer::deserialize(&complex_no_string_bytes).unwrap();
     }
 
     let vt_data = create_version_tolerant_data();

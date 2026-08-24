@@ -19,6 +19,7 @@ jobs:
       run: |
         cargo install cargo-expand
         cargo install flamegraph
+        cargo install cargo-show-asm
         sudo apt-get update
         sudo apt-get install -y linux-tools-generic linux-tools-common
     
@@ -51,6 +52,19 @@ jobs:
         sudo -E env "PATH=$HOME/.cargo/bin:$PATH" CARGO_PROFILE_RELEASE_DEBUG=true cargo flamegraph --example memorypack_profile -o profiling_output/flamegraph.svg
       continue-on-error: true
     
+    - name: Generate assembly output
+      run: |
+        cd memorypack-benchmarks/rust-benchmarks
+        cargo asm --example get_asm --release "SimpleData::deserialize" > profiling_output/asm_simpledata_deserialize.s 2>&1 || true
+        cargo asm --example get_asm --release "SimpleData::serialize" > profiling_output/asm_simpledata_serialize.s 2>&1 || true
+        cargo asm --example get_asm --release "ComplexData::deserialize" > profiling_output/asm_complexdata_deserialize.s 2>&1 || true
+        cargo asm --example get_asm --release "ComplexData::serialize" > profiling_output/asm_complexdata_serialize.s 2>&1 || true
+        cargo asm --example get_asm --release "SimpleDataNoString::deserialize" > profiling_output/asm_simpledatanostring_deserialize.s 2>&1 || true
+        cargo asm --example get_asm --release "SimpleDataNoString::serialize" > profiling_output/asm_simpledatanostring_serialize.s 2>&1 || true
+        cargo asm --example get_asm --release "ComplexDataNoString::deserialize" > profiling_output/asm_complexdatanostring_deserialize.s 2>&1 || true
+        cargo asm --example get_asm --release "ComplexDataNoString::serialize" > profiling_output/asm_complexdatanostring_serialize.s 2>&1 || true
+      continue-on-error: true
+    
     - name: Upload profiling results
       uses: actions/upload-artifact@v4
       if: always()
@@ -58,3 +72,4 @@ jobs:
         name: profiling-results
         path: |
           memorypack-benchmarks/rust-benchmarks/profiling_output/
+          
