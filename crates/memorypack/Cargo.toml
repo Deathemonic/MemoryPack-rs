@@ -28,6 +28,9 @@ extended_types = [
     "num-complex",
     "url",
 ]
+hashbrown = ["dep:hashbrown"]
+ahash = ["dep:ahash"]
+fxhash = ["dep:rustc-hash"]
 
 [dependencies]
 memorypack-derive = { workspace = true, optional = true }
@@ -42,6 +45,7 @@ num-bigint = { version = "0.4", optional = true, features = ["serde"] }
 num-complex = { version = "0.4", optional = true, features = ["serde"] }
 rust_decimal = { version = "1.39", optional = true, features = ["serde"] }
 rust_decimal_macros = { version = "1.39", optional = true }
+rustc-hash = { version = "2.1", optional = true }
 serde = { version = "1.0", features = ["derive"], optional = true }
 simdutf8 = "0.1.5"
 thiserror = { workspace = true }
@@ -53,3 +57,6 @@ eyre = "0.6"
 rust_decimal_macros = "1.39"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+
+[lints]
+workspace = true

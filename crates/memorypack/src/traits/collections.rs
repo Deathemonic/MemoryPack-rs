@@ -6,6 +6,8 @@ use ahash::{AHashMap, AHashSet};
 use hashbrown::HashMap as HashbrownHashMap;
 #[cfg(feature = "hashbrown")]
 use hashbrown::HashSet as HashbrownHashSet;
+#[cfg(feature = "fxhash")]
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::error::MemoryPackError;
 use crate::reader::MemoryPackReader;
@@ -454,3 +456,103 @@ impl<T: MemoryPackDeserialize + Eq + std::hash::Hash> MemoryPackDeserialize for 
         }
     }
 }
+
+#[cfg(feature = "fxhash")]
+impl<T: MemoryPackSerialize + Eq + std::hash::Hash> MemoryPackSerialize for FxHashSet<T> {
+    #[inline(always)]
+    fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
+        write_collection_header(writer, self.len())?;
+        for item in self.iter() {
+            item.serialize(writer)?;
+        }
+        Ok(())
+    }
+}
+
+#[cfg(feature = "fxhash")]
+impl<T: MemoryPackDeserialize + Eq + std::hash::Hash> MemoryPackDeserialize for FxHashSet<T> {
+    #[inline(always)]
+    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+        let size = reader.read_i32()?;
+        match validate_size(size)? {
+            None => Ok(FxHashSet::default()),
+            Some(capacity) => {
+                let mut result = FxHashSet::with_capacity_and_hasher(capacity, Default::default());
+                for _ in 0..capacity {
+                    result.insert(T::deserialize(reader)?);
+                }
+                Ok(result)
+            }
+        }
+    }
+}
+
+#[cfg(feature = "fxhash")]
+macro_rules! impl_fxhash_hashmap {
+    ($key_type:ty) => {
+        impl<V: MemoryPackDeserialize + Default> MemoryPackDeserialize
+            for FxHashMap<$key_type, V>
+        {
+            #[inline(always)]
+            fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+                let count = reader.read_i32()?;
+                match validate_size(count)? {
+                    None => Ok(FxHashMap::default()),
+                    Some(capacity) => {
+                        let mut map =
+                            FxHashMap::with_capacity_and_hasher(capacity, Default::default());
+                        for _ in 0..capacity {
+                            map.insert(<$key_type>::deserialize(reader)?, V::deserialize(reader)?);
+                        }
+                        Ok(map)
+                    }
+                }
+            }
+        }
+
+        impl<V: MemoryPackSerialize> MemoryPackSerialize for FxHashMap<$key_type, V> {
+            #[inline(always)]
+            fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
+                write_collection_header(writer, self.len())?;
+                for (key, value) in self.iter() {
+                    key.serialize(writer)?;
+                    value.serialize(writer)?;
+                }
+                Ok(())
+            }
+
+            #[inline]
+            fn serialized_size_hint(&self) -> usize {
+                4 + self
+                    .iter()
+                    .map(|(key, value)| key.serialized_size_hint() + value.serialized_size_hint())
+                    .sum::<usize>()
+            }
+        }
+    };
+}
+
+#[cfg(feature = "fxhash")]
+impl_fxhash_hashmap!(String);
+#[cfg(feature = "fxhash")]
+impl_fxhash_hashmap!(i8);
+#[cfg(feature = "fxhash")]
+impl_fxhash_hashmap!(u8);
+#[cfg(feature = "fxhash")]
+impl_fxhash_hashmap!(i16);
+#[cfg(feature = "fxhash")]
+impl_fxhash_hashmap!(u16);
+#[cfg(feature = "fxhash")]
+impl_fxhash_hashmap!(i32);
+#[cfg(feature = "fxhash")]
+impl_fxhash_hashmap!(u32);
+#[cfg(feature = "fxhash")]
+impl_fxhash_hashmap!(i64);
+#[cfg(feature = "fxhash")]
+impl_fxhash_hashmap!(u64);
+#[cfg(feature = "fxhash")]
+impl_fxhash_hashmap!(i128);
+#[cfg(feature = "fxhash")]
+impl_fxhash_hashmap!(u128);
+#[cfg(feature = "fxhash")]
+impl_fxhash_hashmap!(char);
