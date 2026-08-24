@@ -50,7 +50,8 @@ impl<'a> MemoryPackReader<'a> {
         let _char_length = self.read_i32()?;
         let slice = self.read_bytes(byte_count)?;
 
-        Ok(basic::from_utf8(slice).map_err(|_| MemoryPackError::InvalidUtf8)?.to_string())
+        basic::from_utf8(slice).map_err(|_| MemoryPackError::InvalidUtf8)?;
+        Ok(unsafe { String::from_utf8_unchecked(slice.to_vec()) })
     }
 
     #[inline]
@@ -73,9 +74,7 @@ impl<'a> MemoryPackReader<'a> {
         let _char_length = self.read_i32()?;
         let slice = self.read_bytes(byte_count)?;
 
-        let str_slice = basic::from_utf8(slice).map_err(|_| MemoryPackError::InvalidUtf8)?;
-
-        Ok(str_slice)
+        basic::from_utf8(slice).map_err(|_| MemoryPackError::InvalidUtf8)
     }
 
     #[inline]
@@ -105,17 +104,15 @@ impl<'a> MemoryPackReader<'a> {
     }
 
     #[inline(always)]
-    fn read_unaligned<T: Copy>(&mut self) -> Result<T, MemoryPackError> {
+    const fn read_unaligned<T: Copy>(&mut self) -> Result<T, MemoryPackError> {
         let size = mem::size_of::<T>();
-        let end = self.pos.checked_add(size).ok_or(MemoryPackError::UnexpectedEndOfBuffer)?;
-
-        if end > self.data.len() {
+        let pos = self.pos;
+        if size > self.data.len().saturating_sub(pos) {
             return Err(MemoryPackError::UnexpectedEndOfBuffer);
         }
 
-        let value =
-            unsafe { ptr::read_unaligned(self.data.as_ptr().add(self.pos).cast::<T>()) };
-        self.pos = end;
+        let value = unsafe { ptr::read_unaligned(self.data.as_ptr().add(pos).cast::<T>()) };
+        self.pos = pos + size;
         Ok(value)
     }
 
