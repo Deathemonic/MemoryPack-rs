@@ -170,21 +170,33 @@ jobs:
               with open('dotnet_results.json') as f:
                   dotnet_raw = json.load(f)
 
-              rust_map = {normalize_name(k): v for k, v in parse_divan_output(rust_text).items()}
+              rust_results = parse_divan_output(rust_text)
+              rust_map = {normalize_name(k): {"name": k, **v} for k, v in rust_results.items()}
 
-              comparison = []
+              dotnet_map = {}
               for d in dotnet_raw['Benchmarks']:
                   csharp_name = d['Method']
-                  match_key = normalize_name(csharp_name)
-                  csharp_mean = d['Statistics']['Mean']
-                  csharp_alloc = d.get('Memory', {}).get('BytesAllocatedPerOperation')
-                  rust_entry = rust_map.get(match_key)
+                  dotnet_map[normalize_name(csharp_name)] = {
+                      "name": csharp_name,
+                      "mean": d['Statistics']['Mean'],
+                      "alloc": d.get('Memory', {}).get('BytesAllocatedPerOperation'),
+                  }
+
+              # Union of both sides, keyed by normalized name, so Rust-only benches
+              # (e.g. zero_copy, which has no C# equivalent) still get a row with C# = N/A.
+              all_keys = list(dict.fromkeys(list(dotnet_map.keys()) + list(rust_map.keys())))
+
+              comparison = []
+              for key in all_keys:
+                  dn = dotnet_map.get(key)
+                  rs = rust_map.get(key)
+                  test_name = dn['name'] if dn else (rs['name'] if rs else key)
                   comparison.append({
-                      "Test": csharp_name,
-                      "C#": csharp_mean,
-                      "C#Alloc": csharp_alloc,
-                      "Rust": rust_entry['mean_ns'] if rust_entry else None,
-                      "RustAlloc": rust_entry['alloc_bytes'] if rust_entry else None,
+                      "Test": test_name,
+                      "C#": dn['mean'] if dn else None,
+                      "C#Alloc": dn['alloc'] if dn else None,
+                      "Rust": rs['mean_ns'] if rs else None,
+                      "RustAlloc": rs['alloc_bytes'] if rs else None,
                   })
 
               print("")
@@ -197,10 +209,7 @@ jobs:
                   r_time = row['Rust']
                   c_alloc = fmt_bytes(row['C#Alloc'])
                   r_alloc = fmt_bytes(row['RustAlloc'])
-                  if r_time is None:
-                      print(f"| {row['Test']} | {fmt_ns(c_time)} | {c_alloc} | N/A | {r_alloc} | - | - |")
-                      continue
-                  if r_time == 0 or c_time == 0:
+                  if c_time is None or r_time is None or c_time == 0 or r_time == 0:
                       print(f"| {row['Test']} | {fmt_ns(c_time)} | {c_alloc} | {fmt_ns(r_time)} | {r_alloc} | - | - |")
                       continue
                   winner = "Rust" if r_time < c_time else "C#"
