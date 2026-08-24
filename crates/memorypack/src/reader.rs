@@ -112,7 +112,8 @@ impl<'a> MemoryPackReader<'a> {
             return Err(MemoryPackError::UnexpectedEndOfBuffer);
         }
 
-        let value = unsafe { std::ptr::read_unaligned(self.data.as_ptr().add(self.pos) as *const T) };
+        let value =
+            unsafe { std::ptr::read_unaligned(self.data.as_ptr().add(self.pos) as *const T) };
         self.pos = end;
         Ok(value)
     }

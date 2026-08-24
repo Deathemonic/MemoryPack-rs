@@ -1,8 +1,23 @@
 [workspace]
-members = ["memorypack", "memorypack-derive", "memorypack-benchmarks/rust-benchmarks"]
+members = [
+    "crates/memorypack",
+    "crates/memorypack-benchmarks/rust-benchmarks",
+    "crates/memorypack-derive",
+]
 resolver = "3"
 
+[workspace.package]
+version = "2.0.0"
+edition = "2024"
+license = "MIT"
+documentation = "https://docs.rs/memorypack"
+homepage = "https://github.com/Deathemonic/MemoryPack-rs"
+repository = "https://github.com/Deathemonic/MemoryPack-rs"
+authors = ["Zinth"]
+
 [workspace.dependencies]
+memorypack-derive = { path = "crates/memorypack-derive" }
+
 thiserror = "2.0"
 
 [profile.release]

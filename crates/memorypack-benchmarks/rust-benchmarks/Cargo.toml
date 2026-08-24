@@ -1,16 +1,18 @@
 [package]
 name = "memorypack-benchmark"
+
 version = "0.0.1"
-edition = "2024"
+edition.workspace = true
+
 publish = false
 
 [features]
 dhat-heap = ["dhat"]
 
 [dependencies]
-memorypack = { path = "../../memorypack", features = ["ahash"] }
-dhat = { version = "0.3", optional = true }
 ahash = "0.8"
+dhat = { version = "0.3", optional = true }
+memorypack = { path = "../../memorypack", features = ["ahash"] }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
