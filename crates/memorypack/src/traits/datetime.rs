@@ -8,9 +8,9 @@ use crate::writer::MemoryPackWriter;
 
 const TICKS_PER_SECOND: i64 = 10_000_000;
 const TICKS_PER_NANOSECOND: i64 = 100;
-const DOTNET_EPOCH_TICKS: i64 = 621355968000000000;
-const TICKS_MASK: i64 = 0x3FFFFFFFFFFFFFFF;
-const UTC_KIND_FLAG: i64 = 1i64 << 62;
+const DOTNET_EPOCH_TICKS: i64 = 621_355_968_000_000_000;
+const TICKS_MASK: i64 = 0x3FFF_FFFF_FFFF_FFFF;
+const UTC_KIND_FLAG: i64 = 1_i64 << 62;
 
 #[cfg(feature = "chrono")]
 impl MemoryPackSerialize for chrono::TimeDelta {
@@ -29,7 +29,7 @@ impl MemoryPackDeserialize for chrono::TimeDelta {
     #[inline(always)]
     fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
         let ticks = reader.read_i64()?;
-        Ok(chrono::TimeDelta::nanoseconds(ticks * TICKS_PER_NANOSECOND))
+        Ok(Self::nanoseconds(ticks * TICKS_PER_NANOSECOND))
     }
 }
 
@@ -52,7 +52,7 @@ impl MemoryPackDeserialize for chrono::DateTime<chrono::Utc> {
         let ticks_with_kind = reader.read_i64()?;
         let ticks = ticks_with_kind & TICKS_MASK;
         let unix_nanos = (ticks - DOTNET_EPOCH_TICKS).saturating_mul(TICKS_PER_NANOSECOND);
-        Ok(chrono::DateTime::from_timestamp_nanos(unix_nanos))
+        Ok(Self::from_timestamp_nanos(unix_nanos))
     }
 }
 
@@ -128,7 +128,7 @@ impl MemoryPackDeserialize for chrono::NaiveTime {
         let secs = (total_nanos / 1_000_000_000) as u32;
         let nanos = (total_nanos % 1_000_000_000) as u32;
 
-        chrono::NaiveTime::from_num_seconds_from_midnight_opt(secs, nanos)
+        Self::from_num_seconds_from_midnight_opt(secs, nanos)
             .ok_or_else(|| MemoryPackError::DeserializationError("Invalid time ticks".into()))
     }
 }
@@ -138,7 +138,7 @@ impl MemoryPackSerialize for chrono::NaiveDate {
     #[inline(always)]
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
         let days = self
-            .signed_duration_since(chrono::NaiveDate::from_ymd_opt(1, 1, 1).unwrap())
+            .signed_duration_since(Self::from_ymd_opt(1, 1, 1).expect("valid chrono epoch date"))
             .num_days() as i32;
         writer.write_i32(days)
     }
@@ -149,7 +149,7 @@ impl MemoryPackDeserialize for chrono::NaiveDate {
     #[inline(always)]
     fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
         let days = reader.read_i32()?;
-        chrono::NaiveDate::from_ymd_opt(1, 1, 1)
+        Self::from_ymd_opt(1, 1, 1)
             .and_then(|base| base.checked_add_days(chrono::Days::new(days as u64)))
             .ok_or_else(|| MemoryPackError::DeserializationError("Invalid date".into()))
     }

@@ -16,7 +16,7 @@ impl MemoryPackSerialize for uuid::Uuid {
 impl MemoryPackDeserialize for uuid::Uuid {
     #[inline(always)]
     fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
-        Ok(uuid::Uuid::from_bytes(reader.read_fixed_bytes::<16>()?))
+        Ok(Self::from_bytes(reader.read_fixed_bytes::<16>()?))
     }
 }
 
@@ -26,7 +26,7 @@ impl MemoryPackSerialize for rust_decimal::Decimal {
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
         let unpacked = self.unpack();
 
-        let flags: u32 = ((unpacked.negative as u32) << 31) | ((unpacked.scale as u32) << 16);
+        let flags: u32 = ((unpacked.negative as u32) << 31) | (unpacked.scale << 16);
         let lo64: u64 = (unpacked.lo as u64) | ((unpacked.mid as u64) << 32);
 
         writer.write_u32(flags)?;
@@ -44,11 +44,11 @@ impl MemoryPackDeserialize for rust_decimal::Decimal {
         let lo64 = reader.read_u64()?;
 
         let negative = (flags & 0x8000_0000) != 0;
-        let scale = ((flags >> 16) & 0xFF) as u32;
+        let scale = (flags >> 16) & 0xFF;
         let lo = lo64 as u32;
         let mid = (lo64 >> 32) as u32;
 
-        Ok(rust_decimal::Decimal::from_parts(lo, mid, hi, negative, scale))
+        Ok(Self::from_parts(lo, mid, hi, negative, scale))
     }
 }
 
@@ -64,7 +64,7 @@ impl MemoryPackSerialize for half::f16 {
 impl MemoryPackDeserialize for half::f16 {
     #[inline(always)]
     fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
-        Ok(half::f16::from_bits(reader.read_u16()?))
+        Ok(Self::from_bits(reader.read_u16()?))
     }
 }
 
@@ -110,13 +110,13 @@ impl MemoryPackDeserialize for num_bigint::BigInt {
         }
 
         let mut bytes = reader.read_bytes_vec(len as usize)?;
-        let is_negative = bytes.last().map_or(false, |&b| b & 0x80 != 0);
+        let is_negative = bytes.last().is_some_and(|&b| b & 0x80 != 0);
 
         if is_negative {
             twos_complement_invert(&mut bytes);
-            Ok(num_bigint::BigInt::from_bytes_le(num_bigint::Sign::Minus, &bytes))
+            Ok(Self::from_bytes_le(num_bigint::Sign::Minus, &bytes))
         } else {
-            Ok(num_bigint::BigInt::from_bytes_le(num_bigint::Sign::Plus, &bytes))
+            Ok(Self::from_bytes_le(num_bigint::Sign::Plus, &bytes))
         }
     }
 }
@@ -141,7 +141,7 @@ impl MemoryPackDeserialize for num_bigint::BigUint {
             return Err(MemoryPackError::DeserializationError("Negative length in BigUint".into()));
         }
 
-        Ok(num_bigint::BigUint::from_bytes_le(&reader.read_bytes_vec(len as usize)?))
+        Ok(Self::from_bytes_le(&reader.read_bytes_vec(len as usize)?))
     }
 }
 
@@ -158,6 +158,6 @@ impl MemoryPackDeserialize for url::Url {
     #[inline(always)]
     fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
         let s = String::deserialize(reader)?;
-        url::Url::parse(&s).map_err(|e| MemoryPackError::DeserializationError(e.to_string()))
+        Self::parse(&s).map_err(|e| MemoryPackError::DeserializationError(e.to_string()))
     }
 }

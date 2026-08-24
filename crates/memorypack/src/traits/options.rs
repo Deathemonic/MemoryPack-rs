@@ -5,18 +5,15 @@ use crate::writer::MemoryPackWriter;
 
 #[inline]
 pub(super) fn serialize_option_generic<T: MemoryPackSerialize + Default>(
-    opt: &Option<T>,
+    opt: Option<&T>,
     writer: &mut MemoryPackWriter
 ) -> Result<(), MemoryPackError> {
-    match opt {
-        Some(value) => {
-            writer.write_i32(1)?;
-            value.serialize(writer)?;
-        }
-        None => {
-            writer.write_i32(0)?;
-            T::default().serialize(writer)?;
-        }
+    if let Some(value) = opt {
+        writer.write_i32(1)?;
+        value.serialize(writer)?;
+    } else {
+        writer.write_i32(0)?;
+        T::default().serialize(writer)?;
     }
     Ok(())
 }
@@ -32,7 +29,7 @@ pub(super) fn deserialize_option_generic<T: MemoryPackDeserialize>(
 
 #[inline]
 pub(super) fn serialize_nullable_string(
-    opt: &Option<String>,
+    opt: Option<&String>,
     writer: &mut MemoryPackWriter
 ) -> Result<(), MemoryPackError> {
     match opt {
@@ -56,13 +53,13 @@ pub(super) fn deserialize_nullable_string(
 
 #[inline]
 pub(super) fn serialize_nullable_vec<T: MemoryPackSerialize>(
-    opt: &Option<Vec<T>>,
+    opt: Option<&Vec<T>>,
     writer: &mut MemoryPackWriter
 ) -> Result<(), MemoryPackError> {
     match opt {
         Some(vec) => {
             writer.write_i32(vec.len() as i32)?;
-            for item in vec.iter() {
+            for item in vec {
                 item.serialize(writer)?;
             }
             Ok(())
@@ -97,7 +94,7 @@ mod option_impls {
     impl<T: MemoryPackSerialize + Default> MemoryPackSerialize for Option<T> {
         #[inline]
         default fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
-            serialize_option_generic(self, writer)
+            serialize_option_generic(self.as_ref(), writer)
         }
 
         #[inline]
@@ -159,7 +156,7 @@ mod option_impls {
     impl<T: MemoryPackSerialize + Default> MemoryPackSerialize for Option<T> {
         #[inline]
         fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
-            serialize_option_generic(self, writer)
+            serialize_option_generic(self.as_ref(), writer)
         }
 
         #[inline]
@@ -181,14 +178,14 @@ mod option_impls {
     impl MemoryPackSerialize for NullableString {
         #[inline]
         fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
-            serialize_nullable_string(&self.0, writer)
+            serialize_nullable_string(self.0.as_ref(), writer)
         }
     }
 
     impl MemoryPackDeserialize for NullableString {
         #[inline]
         fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
-            Ok(NullableString(deserialize_nullable_string(reader)?))
+            Ok(Self(deserialize_nullable_string(reader)?))
         }
     }
 
@@ -208,14 +205,14 @@ mod option_impls {
     impl<T: MemoryPackSerialize> MemoryPackSerialize for NullableVec<T> {
         #[inline]
         fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
-            serialize_nullable_vec(&self.0, writer)
+            serialize_nullable_vec(self.0.as_ref(), writer)
         }
     }
 
     impl<T: MemoryPackDeserialize> MemoryPackDeserialize for NullableVec<T> {
         #[inline]
         fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
-            Ok(NullableVec(deserialize_nullable_vec(reader)?))
+            Ok(Self(deserialize_nullable_vec(reader)?))
         }
     }
 

@@ -1,12 +1,13 @@
 use thiserror::Error;
+use std::{io, string};
 
 #[derive(Debug, Error)]
 pub enum MemoryPackError {
     #[error(transparent)]
-    Io(#[from] std::io::Error),
+    Io(#[from] io::Error),
 
     #[error(transparent)]
-    Utf8Error(#[from] std::string::FromUtf8Error),
+    Utf8Error(#[from] string::FromUtf8Error),
 
     #[error("Invalid UTF-8 or UTF-16 string data")]
     InvalidUtf8,

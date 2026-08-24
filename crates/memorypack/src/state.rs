@@ -1,5 +1,6 @@
 use std::any::Any;
 use std::collections::HashMap;
+use std::ptr;
 
 use crate::error::MemoryPackError;
 
@@ -22,7 +23,7 @@ impl MemoryPackWriterOptionalState {
     }
 
     pub fn get_or_add_reference<T: ?Sized>(&mut self, value: &T) -> (bool, u32) {
-        let ptr = value as *const T as *const () as usize;
+        let ptr = ptr::from_ref::<T>(value).cast::<()>() as usize;
 
         if let Some(&id) = self.object_to_ref.get(&ptr) {
             (true, id)
@@ -59,8 +60,7 @@ impl MemoryPackReaderOptionalState {
             .cloned()
             .ok_or_else(|| {
                 MemoryPackError::DeserializationError(format!(
-                    "Object is not found in this reference id: {}",
-                    id
+                    "Object is not found in this reference id: {id}"
                 ))
             })
     }
@@ -72,8 +72,7 @@ impl MemoryPackReaderOptionalState {
     ) -> Result<(), MemoryPackError> {
         if self.ref_to_object.contains_key(&id) {
             return Err(MemoryPackError::DeserializationError(format!(
-                "Object is already added, id: {}",
-                id
+                "Object is already added, id: {id}"
             )));
         }
         self.ref_to_object.insert(id, Box::new(value));
@@ -85,15 +84,10 @@ impl MemoryPackReaderOptionalState {
         id: u32,
         value: T
     ) -> Result<(), MemoryPackError> {
-        if let Some(entry) = self.ref_to_object.get_mut(&id) {
-            *entry = Box::new(value);
-            Ok(())
-        } else {
-            Err(MemoryPackError::DeserializationError(format!(
-                "Object not found for update, id: {}",
-                id
-            )))
-        }
+        self.ref_to_object.get_mut(&id).map_or_else(
+            || Err(MemoryPackError::DeserializationError(format!("Object not found for update, id: {id}"))),
+            |entry| { *entry = Box::new(value); Ok(()) },
+        )
     }
 }
 

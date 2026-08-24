@@ -16,7 +16,7 @@ impl<T: MemoryPackSerialize> MemoryPackSerialize for Box<T> {
 impl<T: MemoryPackDeserialize> MemoryPackDeserialize for Box<T> {
     #[inline]
     fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
-        Ok(Box::new(T::deserialize(reader)?))
+        Ok(Self::new(T::deserialize(reader)?))
     }
 }
 
@@ -30,7 +30,7 @@ impl<T: MemoryPackSerialize> MemoryPackSerialize for Rc<T> {
 impl<T: MemoryPackDeserialize> MemoryPackDeserialize for Rc<T> {
     #[inline]
     fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
-        Ok(Rc::new(T::deserialize(reader)?))
+        Ok(Self::new(T::deserialize(reader)?))
     }
 }
 
@@ -44,6 +44,6 @@ impl<T: MemoryPackSerialize> MemoryPackSerialize for Arc<T> {
 impl<T: MemoryPackDeserialize> MemoryPackDeserialize for Arc<T> {
     #[inline]
     fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
-        Ok(Arc::new(T::deserialize(reader)?))
+        Ok(Self::new(T::deserialize(reader)?))
     }
 }

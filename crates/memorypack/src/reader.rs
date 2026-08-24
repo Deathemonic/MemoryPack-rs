@@ -1,4 +1,5 @@
 use simdutf8::basic;
+use std::{mem, ptr};
 
 use crate::error::MemoryPackError;
 use crate::state::MemoryPackReaderOptionalState;
@@ -10,7 +11,7 @@ pub struct MemoryPackReader<'a> {
 }
 
 impl<'a> MemoryPackReader<'a> {
-    pub fn new(data: &'a [u8]) -> Self {
+    pub const fn new(data: &'a [u8]) -> Self {
         Self {
             data,
             pos: 0,
@@ -98,14 +99,14 @@ impl<'a> MemoryPackReader<'a> {
 
     #[inline]
     pub fn read_fixed_bytes<const N: usize>(&mut self) -> Result<[u8; N], MemoryPackError> {
-        let mut buffer = [0u8; N];
+        let mut buffer = [0_u8; N];
         buffer.copy_from_slice(self.read_bytes(N)?);
         Ok(buffer)
     }
 
     #[inline(always)]
     fn read_unaligned<T: Copy>(&mut self) -> Result<T, MemoryPackError> {
-        let size = std::mem::size_of::<T>();
+        let size = mem::size_of::<T>();
         let end = self.pos.checked_add(size).ok_or(MemoryPackError::UnexpectedEndOfBuffer)?;
 
         if end > self.data.len() {
@@ -113,7 +114,7 @@ impl<'a> MemoryPackReader<'a> {
         }
 
         let value =
-            unsafe { std::ptr::read_unaligned(self.data.as_ptr().add(self.pos) as *const T) };
+            unsafe { ptr::read_unaligned(self.data.as_ptr().add(self.pos).cast::<T>()) };
         self.pos = end;
         Ok(value)
     }
@@ -169,7 +170,7 @@ impl<'a> MemoryPackReader<'a> {
     pub fn read_i8(&mut self) -> Result<i8, MemoryPackError> { Ok(self.read_u8()? as i8) }
 
     #[inline(always)]
-    pub fn read_u8(&mut self) -> Result<u8, MemoryPackError> {
+    pub const fn read_u8(&mut self) -> Result<u8, MemoryPackError> {
         if self.pos >= self.data.len() {
             return Err(MemoryPackError::UnexpectedEndOfBuffer);
         }
@@ -254,7 +255,7 @@ impl<'a> MemoryPackReader<'a> {
     }
 
     #[inline]
-    pub fn rewind(&mut self, n: usize) -> Result<(), MemoryPackError> {
+    pub const fn rewind(&mut self, n: usize) -> Result<(), MemoryPackError> {
         if n > self.pos {
             return Err(MemoryPackError::UnexpectedEndOfBuffer);
         }
@@ -264,5 +265,5 @@ impl<'a> MemoryPackReader<'a> {
     }
 
     #[inline]
-    pub fn position(&self) -> u64 { self.pos as u64 }
+    pub const fn position(&self) -> u64 { self.pos as u64 }
 }

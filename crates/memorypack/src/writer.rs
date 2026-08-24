@@ -1,6 +1,7 @@
 use crate::error::MemoryPackError;
 use crate::state::MemoryPackWriterOptionalState;
 use crate::varint;
+use std::{mem, ptr};
 
 pub struct MemoryPackWriter {
     pub buffer: Vec<u8>,
@@ -8,7 +9,7 @@ pub struct MemoryPackWriter {
 }
 
 impl MemoryPackWriter {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             buffer: Vec::new(),
             optional_state: None
@@ -30,10 +31,10 @@ impl MemoryPackWriter {
     }
 
     #[inline]
-    pub fn len(&self) -> usize { self.buffer.len() }
+    pub const fn len(&self) -> usize { self.buffer.len() }
 
     #[inline]
-    pub fn is_empty(&self) -> bool { self.buffer.is_empty() }
+    pub const fn is_empty(&self) -> bool { self.buffer.is_empty() }
 
     #[inline]
     pub fn write_string(&mut self, value: &str) -> Result<(), MemoryPackError> {
@@ -42,7 +43,7 @@ impl MemoryPackWriter {
         }
         let bytes = value.as_bytes();
         let utf16_length: usize =
-            if value.is_ascii() { bytes.len() } else { value.chars().map(|c| c.len_utf16()).sum() };
+            if value.is_ascii() { bytes.len() } else { value.chars().map(char::len_utf16).sum() };
         self.write_i32(!(bytes.len() as i32))?;
         self.write_i32(utf16_length as i32)?;
         self.buffer.extend_from_slice(bytes);
@@ -171,11 +172,11 @@ impl MemoryPackWriter {
     #[inline(always)]
     fn write_unaligned<T: Copy>(&mut self, value: T) {
         let len = self.buffer.len();
-        let size = std::mem::size_of::<T>();
+        let size = mem::size_of::<T>();
         self.buffer.reserve(size);
 
         unsafe {
-            std::ptr::write_unaligned(self.buffer.as_mut_ptr().add(len) as *mut T, value);
+            ptr::write_unaligned(self.buffer.as_mut_ptr().add(len).cast::<T>(), value);
             self.buffer.set_len(len + size);
         }
     }

@@ -18,10 +18,10 @@ impl<T> MultiDimArray<T> {
     }
 
     #[inline]
-    pub fn rank(&self) -> usize { self.dimensions.len() }
+    pub const fn rank(&self) -> usize { self.dimensions.len() }
 
     #[inline]
-    fn total_elements(&self) -> usize { self.data.len() }
+    const fn total_elements(&self) -> usize { self.data.len() }
 }
 
 impl<T: MemoryPackSerialize> MemoryPackSerialize for MultiDimArray<T> {
@@ -74,7 +74,7 @@ impl<T: MemoryPackDeserialize> MemoryPackDeserialize for MultiDimArray<T> {
             data.push(T::deserialize(reader)?);
         }
 
-        Ok(MultiDimArray { dimensions, data })
+        Ok(Self { dimensions, data })
     }
 }
 

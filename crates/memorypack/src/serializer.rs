@@ -2,6 +2,7 @@ use crate::error::MemoryPackError;
 use crate::reader::MemoryPackReader;
 use crate::traits::{MemoryPackDeserialize, MemoryPackSerialize};
 use crate::writer::MemoryPackWriter;
+use crate::traits::MemoryPackDeserializeZeroCopy;
 
 /// MemoryPack serializer
 pub struct MemoryPackSerializer;
@@ -43,7 +44,7 @@ impl MemoryPackSerializer {
     #[inline]
     pub fn deserialize_zero_copy<'a, T>(data: &'a [u8]) -> Result<T, MemoryPackError>
     where
-        T: crate::traits::MemoryPackDeserializeZeroCopy<'a>
+        T: MemoryPackDeserializeZeroCopy<'a>
     {
         let mut reader = MemoryPackReader::new(data);
         T::deserialize(&mut reader)
