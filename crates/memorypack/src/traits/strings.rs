@@ -8,6 +8,11 @@ impl MemoryPackSerialize for String {
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
         writer.write_string(self)
     }
+
+    #[inline(always)]
+    fn serialized_size_hint(&self) -> usize {
+        if self.is_empty() { 4 } else { 8 + self.len() }
+    }
 }
 
 impl MemoryPackDeserialize for String {
@@ -21,6 +26,11 @@ impl MemoryPackSerialize for &str {
     #[inline(always)]
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
         writer.write_string(self)
+    }
+
+    #[inline(always)]
+    fn serialized_size_hint(&self) -> usize {
+        if self.is_empty() { 4 } else { 8 + self.len() }
     }
 }
 

@@ -20,7 +20,7 @@ use enums::{
     generate_transparent_deserialize,
     generate_transparent_serialize
 };
-use helpers::{has_explicit_discriminants, is_single_field_i32};
+use helpers::{generate_size_hint, has_explicit_discriminants, is_single_field_i32};
 use regular::{generate_deserialize, generate_serialize};
 use unions::{generate_union_deserialize, generate_union_serialize};
 use version_tolerant::{
@@ -88,6 +88,13 @@ pub fn derive_memorypack(input: TokenStream) -> TokenStream {
         quote! {}
     };
 
+    let size_hint_impl = generate_size_hint(
+        &input.data,
+        attrs.is_union,
+        attrs.is_version_tolerant,
+        attrs.is_circular
+    );
+
     let zero_copy_impl = if attrs.is_zero_copy {
         quote! {
             impl<'a> memorypack::MemoryPackDeserializeZeroCopy<'a> for #name<'a> {
@@ -120,6 +127,11 @@ pub fn derive_memorypack(input: TokenStream) -> TokenStream {
             fn serialize(&self, writer: &mut memorypack::MemoryPackWriter) -> Result<(), memorypack::MemoryPackError> {
                 #serialize_impl
                 Ok(())
+            }
+
+            #[inline]
+            fn serialized_size_hint(&self) -> usize {
+                #size_hint_impl
             }
         }
 

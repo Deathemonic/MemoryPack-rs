@@ -38,6 +38,11 @@ impl<T: MemoryPackSerialize> MemoryPackSerialize for Vec<T> {
         }
         Ok(())
     }
+
+    #[inline]
+    fn serialized_size_hint(&self) -> usize {
+        4 + self.iter().map(MemoryPackSerialize::serialized_size_hint).sum::<usize>()
+    }
 }
 
 impl<T: MemoryPackDeserialize> MemoryPackDeserialize for Vec<T> {
@@ -197,6 +202,13 @@ macro_rules! impl_std_hashmap {
                     value.serialize(writer)?;
                 }
                 Ok(())
+            }
+
+            #[inline]
+            fn serialized_size_hint(&self) -> usize {
+                4 + self.iter().map(|(key, value)| {
+                    key.serialized_size_hint() + value.serialized_size_hint()
+                }).sum::<usize>()
             }
         }
     };

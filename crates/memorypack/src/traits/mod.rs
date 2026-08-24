@@ -32,6 +32,9 @@ use crate::writer::MemoryPackWriter;
 
 pub trait MemoryPackSerialize {
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError>;
+
+    #[inline]
+    fn serialized_size_hint(&self) -> usize { 0 }
 }
 
 pub trait MemoryPackDeserialize: Sized {

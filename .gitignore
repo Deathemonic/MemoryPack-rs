@@ -42,8 +42,7 @@ bin/
 **/BenchmarkDotNet.Artifacts/
 **/results/
 **/profile/
+**/ref/
 
 # Tests
-.NETGenerateMemoryPack/
-.NETMemoryPack/
-memorypack/examples/
+crates/memorypack/examples

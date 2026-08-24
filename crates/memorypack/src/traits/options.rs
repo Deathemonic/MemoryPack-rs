@@ -99,6 +99,11 @@ mod option_impls {
         default fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
             serialize_option_generic(self, writer)
         }
+
+        #[inline]
+        default fn serialized_size_hint(&self) -> usize {
+            4 + self.as_ref().map_or(0, MemoryPackSerialize::serialized_size_hint)
+        }
     }
 
     impl<T: MemoryPackDeserialize> MemoryPackDeserialize for Option<T> {
@@ -113,6 +118,11 @@ mod option_impls {
         fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
             serialize_nullable_string(self, writer)
         }
+
+        #[inline]
+        fn serialized_size_hint(&self) -> usize {
+            self.as_ref().map_or(4, MemoryPackSerialize::serialized_size_hint)
+        }
     }
 
     impl MemoryPackDeserialize for Option<String> {
@@ -126,6 +136,11 @@ mod option_impls {
         #[inline]
         fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
             serialize_nullable_vec(self, writer)
+        }
+
+        #[inline]
+        fn serialized_size_hint(&self) -> usize {
+            self.as_ref().map_or(4, MemoryPackSerialize::serialized_size_hint)
         }
     }
 
@@ -145,6 +160,11 @@ mod option_impls {
         #[inline]
         fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
             serialize_option_generic(self, writer)
+        }
+
+        #[inline]
+        fn serialized_size_hint(&self) -> usize {
+            4 + self.as_ref().map_or(0, MemoryPackSerialize::serialized_size_hint)
         }
     }
 

@@ -1,3 +1,4 @@
+use quote::quote;
 use syn::Field;
 
 #[inline]
@@ -163,4 +164,58 @@ pub fn generate_field_deserialize(
     }
 
     quote! { let #name = memorypack::MemoryPackDeserialize::deserialize(reader)?; }
+}
+
+pub fn generate_size_hint(
+    data: &syn::Data,
+    is_union: bool,
+    is_version_tolerant: bool,
+    is_circular: bool
+) -> proc_macro2::TokenStream {
+    if is_circular {
+        return quote! { 0 };
+    }
+
+    match data {
+        syn::Data::Struct(data_struct) => {
+            let header_size = 1usize;
+            match &data_struct.fields {
+                syn::Fields::Named(fields) => {
+                    let fields: Vec<_> = fields
+                        .named
+                        .iter()
+                        .filter(|field| !should_skip_field(field))
+                        .filter_map(|field| field.ident.as_ref())
+                        .collect();
+                    let length_table_size = if is_version_tolerant { fields.len() } else { 0 };
+                    quote! {
+                        #header_size + #length_table_size
+                            #( + memorypack::MemoryPackSerialize::serialized_size_hint(&self.#fields) )*
+                    }
+                }
+                syn::Fields::Unnamed(fields) => {
+                    let indices: Vec<_> = (0..fields.unnamed.len()).map(syn::Index::from).collect();
+                    let length_table_size = if is_version_tolerant { indices.len() } else { 0 };
+                    quote! {
+                        #header_size + #length_table_size
+                            #( + memorypack::MemoryPackSerialize::serialized_size_hint(&self.#indices) )*
+                    }
+                }
+                syn::Fields::Unit => quote! { #header_size }
+            }
+        }
+        syn::Data::Enum(data_enum) if is_union => {
+            let variants = data_enum.variants.iter().map(|variant| {
+                let variant_name = &variant.ident;
+                quote! {
+                    Self::#variant_name(inner) => {
+                        1 + memorypack::MemoryPackSerialize::serialized_size_hint(inner)
+                    }
+                }
+            });
+            quote! { match self { #(#variants),* } }
+        }
+        syn::Data::Enum(_) => quote! { 4 },
+        syn::Data::Union(_) => quote! { 0 }
+    }
 }

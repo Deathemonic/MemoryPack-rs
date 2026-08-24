@@ -8,6 +8,9 @@ impl MemoryPackSerialize for bool {
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
         writer.write_bool(*self)
     }
+
+    #[inline(always)]
+    fn serialized_size_hint(&self) -> usize { 1 }
 }
 
 impl MemoryPackDeserialize for bool {
@@ -22,6 +25,9 @@ impl MemoryPackSerialize for i8 {
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
         writer.write_i8(*self)
     }
+
+    #[inline(always)]
+    fn serialized_size_hint(&self) -> usize { 1 }
 }
 
 impl MemoryPackDeserialize for i8 {
@@ -36,6 +42,9 @@ impl MemoryPackSerialize for u8 {
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
         writer.write_u8(*self)
     }
+
+    #[inline(always)]
+    fn serialized_size_hint(&self) -> usize { 1 }
 }
 
 impl MemoryPackDeserialize for u8 {
@@ -50,6 +59,9 @@ impl MemoryPackSerialize for i16 {
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
         writer.write_i16(*self)
     }
+
+    #[inline(always)]
+    fn serialized_size_hint(&self) -> usize { 2 }
 }
 
 impl MemoryPackDeserialize for i16 {
@@ -64,6 +76,9 @@ impl MemoryPackSerialize for u16 {
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
         writer.write_u16(*self)
     }
+
+    #[inline(always)]
+    fn serialized_size_hint(&self) -> usize { 2 }
 }
 
 impl MemoryPackDeserialize for u16 {
@@ -78,6 +93,9 @@ impl MemoryPackSerialize for i32 {
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
         writer.write_i32(*self)
     }
+
+    #[inline(always)]
+    fn serialized_size_hint(&self) -> usize { 4 }
 }
 
 impl MemoryPackDeserialize for i32 {
@@ -92,6 +110,9 @@ impl MemoryPackSerialize for u32 {
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
         writer.write_u32(*self)
     }
+
+    #[inline(always)]
+    fn serialized_size_hint(&self) -> usize { 4 }
 }
 
 impl MemoryPackDeserialize for u32 {
@@ -106,6 +127,9 @@ impl MemoryPackSerialize for i64 {
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
         writer.write_i64(*self)
     }
+
+    #[inline(always)]
+    fn serialized_size_hint(&self) -> usize { 8 }
 }
 
 impl MemoryPackDeserialize for i64 {
@@ -120,6 +144,9 @@ impl MemoryPackSerialize for u64 {
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
         writer.write_u64(*self)
     }
+
+    #[inline(always)]
+    fn serialized_size_hint(&self) -> usize { 8 }
 }
 
 impl MemoryPackDeserialize for u64 {
@@ -134,6 +161,9 @@ impl MemoryPackSerialize for f32 {
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
         writer.write_f32(*self)
     }
+
+    #[inline(always)]
+    fn serialized_size_hint(&self) -> usize { 4 }
 }
 
 impl MemoryPackDeserialize for f32 {
@@ -148,6 +178,9 @@ impl MemoryPackSerialize for f64 {
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
         writer.write_f64(*self)
     }
+
+    #[inline(always)]
+    fn serialized_size_hint(&self) -> usize { 8 }
 }
 
 impl MemoryPackDeserialize for f64 {
@@ -162,6 +195,9 @@ impl MemoryPackSerialize for i128 {
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
         writer.write_i128(*self)
     }
+
+    #[inline(always)]
+    fn serialized_size_hint(&self) -> usize { 16 }
 }
 
 impl MemoryPackDeserialize for i128 {
@@ -176,6 +212,9 @@ impl MemoryPackSerialize for u128 {
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
         writer.write_u128(*self)
     }
+
+    #[inline(always)]
+    fn serialized_size_hint(&self) -> usize { 16 }
 }
 
 impl MemoryPackDeserialize for u128 {
@@ -190,6 +229,9 @@ impl MemoryPackSerialize for char {
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
         writer.write_char(*self)
     }
+
+    #[inline(always)]
+    fn serialized_size_hint(&self) -> usize { 2 }
 }
 
 impl MemoryPackDeserialize for char {
