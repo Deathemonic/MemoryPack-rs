@@ -1,4 +1,5 @@
-use ahash::AHashMap as HashMap;
+use std::collections::HashMap;
+
 use memorypack::prelude::*;
 
 #[cfg(feature = "dhat-heap")]
