@@ -1,5 +1,5 @@
 [package]
-name = "memorypack-rust-tests"
+name = "memorypack-test"
 
 version.workspace = true
 edition.workspace = true
