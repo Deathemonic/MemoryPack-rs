@@ -1,3 +1,5 @@
+use std::ptr;
+
 use quote::quote;
 use syn::{Data, Fields};
 
@@ -72,8 +74,8 @@ pub fn generate_deserialize(data: &Data, is_zero_copy: bool) -> proc_macro2::Tok
                     let field_idx = fields
                         .named
                         .iter()
-                        .position(|field| std::ptr::eq(field, ordered[ordered_idx].field))
-                        .unwrap();
+                        .position(|field| ptr::eq(field, ordered[ordered_idx].field))
+                        .expect("ordered field must originate from the struct's named fields");
                     ordered_deserialize.push(deserialize_stmts[field_idx].clone());
                     ordered_idx += 1;
                 }
@@ -88,7 +90,7 @@ pub fn generate_deserialize(data: &Data, is_zero_copy: bool) -> proc_macro2::Tok
         Fields::Unnamed(fields) => {
             let len = fields.unnamed.len();
             let field_vars: Vec<_> = (0..len)
-                .map(|i| syn::Ident::new(&format!("field_{}", i), proc_macro2::Span::call_site()))
+                .map(|i| syn::Ident::new(&format!("field_{i}"), proc_macro2::Span::call_site()))
                 .collect();
 
             let deserialize_stmts = field_vars.iter().map(|var| {

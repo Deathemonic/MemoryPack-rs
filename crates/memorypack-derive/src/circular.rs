@@ -3,6 +3,7 @@ use syn::{Data, Fields};
 
 use crate::helpers::{is_option_box, prepare_ordered_fields, should_skip_field};
 
+#[allow(clippy::too_many_lines)]
 pub fn generate_circular_serialize(data: &Data, needs_state: bool) -> proc_macro2::TokenStream {
     let Data::Struct(data_struct) = data else {
         return quote! {
@@ -14,7 +15,7 @@ pub fn generate_circular_serialize(data: &Data, needs_state: bool) -> proc_macro
         Fields::Named(fields) => {
             let non_skip: Vec<_> = fields.named.iter().filter(|f| !should_skip_field(f)).collect();
             let ordered = prepare_ordered_fields(&non_skip);
-            let max_order = ordered.last().map(|f| f.order).unwrap_or(0);
+            let max_order = ordered.last().map_or(0, |f| f.order);
             let member_count = max_order + 1;
 
             let field_serialization: Vec<_> = ordered.iter().map(|of| {
@@ -179,6 +180,7 @@ pub fn generate_circular_serialize(data: &Data, needs_state: bool) -> proc_macro
     }
 }
 
+#[allow(clippy::too_many_lines)]
 pub fn generate_circular_deserialize(data: &Data, needs_state: bool) -> proc_macro2::TokenStream {
     let _ = needs_state;
     let Data::Struct(data_struct) = data else {
@@ -248,16 +250,17 @@ pub fn generate_circular_deserialize(data: &Data, needs_state: bool) -> proc_mac
                 }
             }).collect();
 
-            let skip_extra_fields = if let Some(max_order) = ordered.last().map(|f| f.order) {
-                let next_order = max_order + 1;
-                quote! {
-                    for i in #next_order..member_count {
-                        reader.skip(lengths[i])?;
+            let skip_extra_fields = ordered.last().map(|f| f.order).map_or_else(
+                || quote! {},
+                |max_order| {
+                    let next_order = max_order + 1;
+                    quote! {
+                        for i in #next_order..member_count {
+                            reader.skip(lengths[i])?;
+                        }
                     }
                 }
-            } else {
-                quote! {}
-            };
+            );
 
             quote! {
                 if reader.optional_state.is_none() {
@@ -293,7 +296,7 @@ pub fn generate_circular_deserialize(data: &Data, needs_state: bool) -> proc_mac
         Fields::Unnamed(fields) => {
             let field_count = fields.unnamed.len();
             let field_vars: Vec<_> = (0..field_count)
-                .map(|i| syn::Ident::new(&format!("field_{}", i), proc_macro2::Span::call_site()))
+                .map(|i| syn::Ident::new(&format!("field_{i}"), proc_macro2::Span::call_site()))
                 .collect();
 
             let deserialize_fields = field_vars.iter().enumerate().map(|(i, var)| {

@@ -21,15 +21,11 @@ pub fn has_explicit_discriminants(data_enum: &syn::DataEnum) -> bool {
 pub fn should_skip_field(field: &Field) -> bool {
     field.attrs.iter().any(|attr| {
         attr.path().is_ident("memorypack")
-            && attr
-                .meta
-                .require_list()
-                .map(|m| {
-                    let tokens = m.tokens.to_string();
-                    tokens.contains("skip") || tokens.contains("ignore")
-                })
-                .unwrap_or(false)
-    }) || field.ident.as_ref().map(|ident| ident.to_string().starts_with('_')).unwrap_or(false)
+            && attr.meta.require_list().is_ok_and(|m| {
+                let tokens = m.tokens.to_string();
+                tokens.contains("skip") || tokens.contains("ignore")
+            })
+    }) || field.ident.as_ref().is_some_and(|ident| ident.to_string().starts_with('_'))
 }
 
 pub fn get_field_order(field: &Field) -> Option<usize> {
@@ -45,10 +41,8 @@ pub fn get_field_order(field: &Field) -> Option<usize> {
         let eq_pos = after_order.find('=')?;
         let after_eq = after_order[eq_pos + 1..].trim();
 
-        let num_str = after_eq
-            .find(|c: char| !c.is_ascii_digit())
-            .map(|end| &after_eq[..end])
-            .unwrap_or(after_eq);
+        let num_str =
+            after_eq.find(|c: char| !c.is_ascii_digit()).map_or(after_eq, |end| &after_eq[..end]);
 
         num_str.parse::<usize>().ok()
     })
@@ -58,11 +52,7 @@ pub fn get_field_order(field: &Field) -> Option<usize> {
 pub fn is_zero_copy_field(field: &Field) -> bool {
     field.attrs.iter().any(|attr| {
         attr.path().is_ident("memorypack")
-            && attr
-                .meta
-                .require_list()
-                .map(|m| m.tokens.to_string().contains("zero_copy"))
-                .unwrap_or(false)
+            && attr.meta.require_list().is_ok_and(|m| m.tokens.to_string().contains("zero_copy"))
     })
 }
 
@@ -178,7 +168,7 @@ pub fn generate_size_hint(
 
     match data {
         syn::Data::Struct(data_struct) => {
-            let header_size = 1usize;
+            let header_size = 1_usize;
             match &data_struct.fields {
                 syn::Fields::Named(fields) => {
                     let fields: Vec<_> = fields

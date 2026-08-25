@@ -19,21 +19,22 @@ pub fn generate_version_tolerant_serialize(data: &Data) -> proc_macro2::TokenStr
             }
 
             let ordered = prepare_ordered_fields(&non_skip);
-            let max_order = ordered.last().map(|f| f.order).unwrap_or(0);
+            let max_order = ordered.last().map_or(0, |f| f.order);
             let member_count = max_order + 1;
 
             let serialize_fields: Vec<_> = (0..member_count)
                 .map(|order| {
-                    if let Some(of) = ordered.iter().find(|f| f.order == order) {
-                        let name = of.ident;
-                        quote! {
-                            let start = writer.buffer.len();
-                            memorypack::MemoryPackSerialize::serialize(&self.#name, writer)?;
-                            field_lengths[#order] = writer.buffer.len() - start;
+                    ordered.iter().find(|f| f.order == order).map_or_else(
+                        || quote! { field_lengths[#order] = 0; },
+                        |of| {
+                            let name = of.ident;
+                            quote! {
+                                let start = writer.buffer.len();
+                                memorypack::MemoryPackSerialize::serialize(&self.#name, writer)?;
+                                field_lengths[#order] = writer.buffer.len() - start;
+                            }
                         }
-                    } else {
-                        quote! { field_lengths[#order] = 0; }
-                    }
+                    )
                 })
                 .collect();
 
@@ -113,6 +114,7 @@ pub fn generate_version_tolerant_serialize(data: &Data) -> proc_macro2::TokenStr
     }
 }
 
+#[allow(clippy::too_many_lines)]
 pub fn generate_version_tolerant_deserialize(data: &Data) -> proc_macro2::TokenStream {
     let Data::Struct(data_struct) = data else {
         return quote! {
@@ -152,18 +154,19 @@ pub fn generate_version_tolerant_deserialize(data: &Data) -> proc_macro2::TokenS
                 })
                 .collect();
 
-            let skip_extra_fields = if let Some(max_order) = ordered.last().map(|f| f.order) {
-                let next_order = max_order + 1;
-                quote! {
-                    for i in #next_order..member_count {
-                        reader.skip(lengths[i])?;
+            let skip_extra_fields = ordered.last().map(|f| f.order).map_or_else(
+                || quote! {},
+                |max_order| {
+                    let next_order = max_order + 1;
+                    quote! {
+                        for i in #next_order..member_count {
+                            reader.skip(lengths[i])?;
+                        }
                     }
                 }
-            } else {
-                quote! {}
-            };
+            );
 
-            let max_fields = ordered.last().map(|f| f.order + 1).unwrap_or(0);
+            let max_fields = ordered.last().map_or(0, |f| f.order + 1);
 
             if max_fields <= 8 {
                 quote! {
@@ -192,7 +195,7 @@ pub fn generate_version_tolerant_deserialize(data: &Data) -> proc_macro2::TokenS
         Fields::Unnamed(fields) => {
             let field_count = fields.unnamed.len();
             let field_vars: Vec<_> = (0..field_count)
-                .map(|i| syn::Ident::new(&format!("field_{}", i), proc_macro2::Span::call_site()))
+                .map(|i| syn::Ident::new(&format!("field_{i}"), proc_macro2::Span::call_site()))
                 .collect();
 
             let deserialize_fields = field_vars.iter().enumerate().map(|(i, var)| {
