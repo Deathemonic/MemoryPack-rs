@@ -209,9 +209,10 @@ macro_rules! impl_std_hashmap {
 
             #[inline]
             fn serialized_size_hint(&self) -> usize {
-                4 + self.iter().map(|(key, value)| {
-                    key.serialized_size_hint() + value.serialized_size_hint()
-                }).sum::<usize>()
+                4 + self
+                    .iter()
+                    .map(|(key, value)| key.serialized_size_hint() + value.serialized_size_hint())
+                    .sum::<usize>()
             }
         }
     };
@@ -289,9 +290,7 @@ impl<T: MemoryPackSerialize + Eq + Hash> MemoryPackSerialize for HashbrownHashSe
 }
 
 #[cfg(feature = "hashbrown")]
-impl<T: MemoryPackDeserialize + Eq + Hash> MemoryPackDeserialize
-    for HashbrownHashSet<T>
-{
+impl<T: MemoryPackDeserialize + Eq + Hash> MemoryPackDeserialize for HashbrownHashSet<T> {
     #[inline(always)]
     fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
         let size = reader.read_i32()?;
@@ -478,7 +477,8 @@ impl<T: MemoryPackDeserialize + Eq + Hash> MemoryPackDeserialize for FxHashSet<T
         match validate_size(size)? {
             None => Ok(Self::default()),
             Some(capacity) => {
-                let mut result = Self::with_capacity_and_hasher(capacity, rustc_hash::FxBuildHasher);
+                let mut result =
+                    Self::with_capacity_and_hasher(capacity, rustc_hash::FxBuildHasher);
                 for _ in 0..capacity {
                     result.insert(T::deserialize(reader)?);
                 }
@@ -491,17 +491,17 @@ impl<T: MemoryPackDeserialize + Eq + Hash> MemoryPackDeserialize for FxHashSet<T
 #[cfg(feature = "fxhash")]
 macro_rules! impl_fxhash_hashmap {
     ($key_type:ty) => {
-        impl<V: MemoryPackDeserialize + Default> MemoryPackDeserialize
-            for FxHashMap<$key_type, V>
-        {
+        impl<V: MemoryPackDeserialize + Default> MemoryPackDeserialize for FxHashMap<$key_type, V> {
             #[inline(always)]
             fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
                 let count = reader.read_i32()?;
                 match validate_size(count)? {
                     None => Ok(FxHashMap::default()),
                     Some(capacity) => {
-                        let mut map =
-                            FxHashMap::with_capacity_and_hasher(capacity, rustc_hash::FxBuildHasher::default());
+                        let mut map = FxHashMap::with_capacity_and_hasher(
+                            capacity,
+                            rustc_hash::FxBuildHasher::default()
+                        );
                         for _ in 0..capacity {
                             map.insert(<$key_type>::deserialize(reader)?, V::deserialize(reader)?);
                         }

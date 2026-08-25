@@ -1,5 +1,6 @@
-use thiserror::Error;
 use std::{io, string};
+
+use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum MemoryPackError {

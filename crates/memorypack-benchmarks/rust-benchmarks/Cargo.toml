@@ -10,8 +10,9 @@ publish = false
 dhat-heap = ["dhat"]
 
 [dependencies]
+memorypack = { workspace = true }
+
 dhat = { version = "0.3", optional = true }
-memorypack = { path = "../../memorypack" }
 
 [dev-dependencies]
 divan = { package = "codspeed-divan-compat", version = "*" }

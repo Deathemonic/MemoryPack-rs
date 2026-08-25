@@ -1,7 +1,8 @@
+use std::{mem, ptr};
+
 use crate::error::MemoryPackError;
 use crate::state::MemoryPackWriterOptionalState;
 use crate::varint;
-use std::{mem, ptr};
 
 pub struct MemoryPackWriter {
     pub buffer: Vec<u8>,

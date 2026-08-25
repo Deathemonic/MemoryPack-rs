@@ -10,9 +10,7 @@ impl MemoryPackSerialize for String {
     }
 
     #[inline(always)]
-    fn serialized_size_hint(&self) -> usize {
-        if self.is_empty() { 4 } else { 8 + self.len() }
-    }
+    fn serialized_size_hint(&self) -> usize { if self.is_empty() { 4 } else { 8 + self.len() } }
 }
 
 impl MemoryPackDeserialize for String {
@@ -29,9 +27,7 @@ impl MemoryPackSerialize for &str {
     }
 
     #[inline(always)]
-    fn serialized_size_hint(&self) -> usize {
-        if self.is_empty() { 4 } else { 8 + self.len() }
-    }
+    fn serialized_size_hint(&self) -> usize { if self.is_empty() { 4 } else { 8 + self.len() } }
 }
 
 impl<'a> MemoryPackDeserializeZeroCopy<'a> for &'a str {

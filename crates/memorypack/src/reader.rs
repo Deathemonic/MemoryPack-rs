@@ -1,5 +1,6 @@
-use simdutf8::basic;
 use std::{mem, ptr};
+
+use simdutf8::basic;
 
 use crate::error::MemoryPackError;
 use crate::state::MemoryPackReaderOptionalState;

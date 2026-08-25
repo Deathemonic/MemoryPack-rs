@@ -830,6 +830,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "memorypack-rust-tests"
+version = "2.0.0"
+dependencies = [
+ "chrono",
+ "eyre",
+ "glam",
+ "half",
+ "memorypack",
+ "num-bigint",
+ "num-complex",
+ "rust_decimal",
+ "rust_decimal_macros",
+ "serde",
+ "serde_json",
+ "url",
+ "uuid",
+]
+
+[[package]]
 name = "miniz_oxide"
 version = "0.8.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"

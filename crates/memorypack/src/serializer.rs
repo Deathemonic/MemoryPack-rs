@@ -1,8 +1,7 @@
 use crate::error::MemoryPackError;
 use crate::reader::MemoryPackReader;
-use crate::traits::{MemoryPackDeserialize, MemoryPackSerialize};
+use crate::traits::{MemoryPackDeserialize, MemoryPackDeserializeZeroCopy, MemoryPackSerialize};
 use crate::writer::MemoryPackWriter;
-use crate::traits::MemoryPackDeserializeZeroCopy;
 
 /// MemoryPack serializer
 pub struct MemoryPackSerializer;

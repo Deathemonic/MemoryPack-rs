@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "crates/memorypack",
+    "crates/memorypack-tests/rust-tests",
     "crates/memorypack-benchmarks/rust-benchmarks",
     "crates/memorypack-derive",
 ]
@@ -16,6 +17,7 @@ repository = "https://github.com/Deathemonic/MemoryPack-rs"
 authors = ["Zinth"]
 
 [workspace.dependencies]
+memorypack = { path = "crates/memorypack" }
 memorypack-derive = { path = "crates/memorypack-derive" }
 
 thiserror = "2.0"

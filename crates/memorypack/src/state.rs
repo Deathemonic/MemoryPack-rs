@@ -85,8 +85,15 @@ impl MemoryPackReaderOptionalState {
         value: T
     ) -> Result<(), MemoryPackError> {
         self.ref_to_object.get_mut(&id).map_or_else(
-            || Err(MemoryPackError::DeserializationError(format!("Object not found for update, id: {id}"))),
-            |entry| { *entry = Box::new(value); Ok(()) },
+            || {
+                Err(MemoryPackError::DeserializationError(format!(
+                    "Object not found for update, id: {id}"
+                )))
+            },
+            |entry| {
+                *entry = Box::new(value);
+                Ok(())
+            }
         )
     }
 }

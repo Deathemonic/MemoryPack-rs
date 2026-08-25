@@ -43,6 +43,7 @@ bin/
 **/results/
 **/profile/
 **/ref/
+**/fixtures/
 
 # Tests
 crates/memorypack/examples

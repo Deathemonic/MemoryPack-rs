@@ -106,7 +106,11 @@ fn create_complex_data() -> ComplexData {
 }
 
 fn create_simple_data_no_string() -> SimpleDataNoString {
-    SimpleDataNoString { id: 42, value: 3.14159, is_active: true }
+    SimpleDataNoString {
+        id: 42,
+        value: 3.14159,
+        is_active: true
+    }
 }
 
 fn create_complex_data_no_string() -> ComplexDataNoString {
@@ -114,7 +118,11 @@ fn create_complex_data_no_string() -> ComplexDataNoString {
         id: 100,
         numbers: (1..=100).collect(),
         properties: (1..=50).map(|i| (i, i * 10)).collect(),
-        nested: Some(SimpleDataNoString { id: 1, value: 1.23, is_active: false })
+        nested: Some(SimpleDataNoString {
+            id: 1,
+            value: 1.23,
+            is_active: false
+        })
     }
 }
 

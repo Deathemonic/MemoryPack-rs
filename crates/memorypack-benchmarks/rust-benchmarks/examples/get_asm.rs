@@ -61,7 +61,11 @@ fn main() {
     let _complex_deserialize: ComplexData =
         MemoryPackSerializer::deserialize(&complex_serialize).unwrap();
 
-    let simple_data_no_string = SimpleDataNoString { id: 42, value: 3.14159, is_active: true };
+    let simple_data_no_string = SimpleDataNoString {
+        id: 42,
+        value: 3.14159,
+        is_active: true
+    };
 
     let serialize_no_string = MemoryPackSerializer::serialize(&simple_data_no_string).unwrap();
     let _deserialize_no_string: SimpleDataNoString =
@@ -71,10 +75,15 @@ fn main() {
         id: 100,
         numbers: (1..=100).collect(),
         properties: (1..=50).map(|i| (i, i * 10)).collect(),
-        nested: Some(SimpleDataNoString { id: 1, value: 1.23, is_active: false })
+        nested: Some(SimpleDataNoString {
+            id: 1,
+            value: 1.23,
+            is_active: false
+        })
     };
 
-    let complex_serialize_no_string = MemoryPackSerializer::serialize(&complex_data_no_string).unwrap();
+    let complex_serialize_no_string =
+        MemoryPackSerializer::serialize(&complex_data_no_string).unwrap();
     let _complex_deserialize_no_string: ComplexDataNoString =
         MemoryPackSerializer::deserialize(&complex_serialize_no_string).unwrap();
 }
