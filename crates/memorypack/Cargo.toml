@@ -16,7 +16,6 @@ categories = ["encoding", "parsing"]
 [features]
 default = ["derive", "serde"]
 derive = ["memorypack-derive"]
-nightly = []
 extended_types = [
     "uuid",
     "rust_decimal",
