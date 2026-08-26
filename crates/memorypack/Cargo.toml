@@ -22,7 +22,7 @@ extended_types = [
     "rust_decimal_macros",
     "half",
     "num-bigint",
-    "chrono",
+    "jiff",
     "glam",
     "num-complex",
     "url",
@@ -36,7 +36,7 @@ memorypack-derive = { workspace = true, optional = true }
 
 ahash = { version = "0.8", features = ["compile-time-rng"], optional = true }
 byteorder = { version = "1.5.0", features = ["i128"] }
-chrono = { version = "0.4", optional = true, features = ["serde"] }
+jiff = { version = "0.2", optional = true }
 glam = { version = "0.33", optional = true, features = ["serde", "fast-math"] }
 half = { version = "2.7", optional = true, features = ["serde"] }
 hashbrown = { version = "0.17", features = ["serde"], optional = true }

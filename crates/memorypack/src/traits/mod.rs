@@ -11,7 +11,7 @@ mod unmanaged;
 #[cfg(any(feature = "uuid", feature = "rust_decimal", feature = "half", feature = "num-bigint"))]
 mod extended;
 
-#[cfg(feature = "chrono")]
+#[cfg(feature = "jiff")]
 mod datetime;
 
 #[cfg(any(feature = "glam", feature = "num-complex"))]

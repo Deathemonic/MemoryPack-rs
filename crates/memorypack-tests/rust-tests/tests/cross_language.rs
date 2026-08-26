@@ -1,8 +1,10 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, LinkedList, VecDeque};
-use std::fs;
 use std::path::PathBuf;
+use std::{env, fs};
 
-use chrono::TimeZone;
+use jiff::civil::{Date, DateTime, Time};
+use jiff::tz::{Offset, TimeZone};
+use jiff::{SignedDuration, Timestamp, Zoned};
 use memorypack::MultiDimArray;
 use memorypack::prelude::*;
 
@@ -310,17 +312,17 @@ struct VersionTolerantWithNullable {
     #[memorypack(order = 1)]
     nullable_string: NullableStringField,
     #[memorypack(order = 2)]
-    nullable_datetime: Option<chrono::DateTime<chrono::Utc>>
+    nullable_datetime: Option<DateTime>
 }
 
 fn csharp_dir() -> PathBuf {
-    std::env::var_os("MEMORYPACK_DOTNET_FIXTURES").map(PathBuf::from).unwrap_or_else(|| {
+    env::var_os("MEMORYPACK_DOTNET_FIXTURES").map(PathBuf::from).unwrap_or_else(|| {
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..").join("fixtures").join("c#")
     })
 }
 
 fn rust_dir() -> PathBuf {
-    std::env::var_os("MEMORYPACK_RUST_FIXTURES").map(PathBuf::from).unwrap_or_else(|| {
+    env::var_os("MEMORYPACK_RUST_FIXTURES").map(PathBuf::from).unwrap_or_else(|| {
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..").join("fixtures").join("rust")
     })
 }
@@ -440,11 +442,11 @@ exact_cases! {
     guid, "21_guid.bytes", uuid::Uuid::from_bytes([0x78, 0x56, 0x34, 0x12, 0x34, 0x12, 0x34, 0x12, 0x12, 0x34, 0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc]);
     rune, "22_rune.bytes", 0x1F389_i32;
     biginteger, "23_biginteger.bytes", num_bigint::BigInt::parse_bytes(b"12345678901234567890", 10).unwrap();
-    timespan, "24_timespan.bytes", chrono::TimeDelta::minutes(42) + chrono::TimeDelta::seconds(30);
-    datetime, "25_datetime.bytes", chrono::Utc.with_ymd_and_hms(2025, 10, 19, 14, 30, 0).unwrap();
-    datetimeoffset, "26_datetimeoffset.bytes", { let offset = chrono::FixedOffset::west_opt(5 * 3600).unwrap(); offset.with_ymd_and_hms(2025, 10, 19, 14, 30, 0).unwrap() };
-    timeonly, "27_timeonly.bytes", chrono::NaiveTime::from_hms_opt(14, 30, 0).unwrap();
-    dateonly, "28_dateonly.bytes", chrono::NaiveDate::from_ymd_opt(2025, 10, 19).unwrap();
+    timespan, "24_timespan.bytes", SignedDuration::from_mins(42) + SignedDuration::from_secs(30);
+    datetime, "25_datetime.bytes", "2025-10-19T14:30:00Z".parse::<Timestamp>().unwrap();
+    datetimeoffset, "26_datetimeoffset.bytes", Zoned::new("2025-10-19T19:30:00Z".parse::<Timestamp>().unwrap(), TimeZone::fixed(Offset::from_hours(-5).unwrap()));
+    timeonly, "27_timeonly.bytes", Time::new(14, 30, 0, 0).unwrap();
+    dateonly, "28_dateonly.bytes", Date::new(2025, 10, 19).unwrap();
     uri, "30_uri.bytes", url::Url::parse("https://github.com/Cysharp/MemoryPack").unwrap();
     complex, "36_complex.bytes", num_complex::Complex::new(3.0, 4.0);
     quaternion, "38_quaternion.bytes", glam::Quat::from_xyzw(1.0, 2.0, 3.0, 4.0);
@@ -558,7 +560,7 @@ exact_cases! {
     igrouping, "107_igrouping.bytes", Grouping { key: 'a', values: vec!["apple".to_owned(), "apricot".to_owned()] };
     nullable_struct_values, "148_nullable_struct_values.bytes", NullableStruct { nullable_int: Some(42), nullable_string: NullableStringField(Some("value".to_owned())) };
     nullable_struct_nulls, "149_nullable_struct_nulls.bytes", NullableStruct { nullable_int: None, nullable_string: NullableStringField(None) };
-    version_tolerant_nullable_values, "163_version_tolerant_nullable_values.bytes", VersionTolerantWithNullable { nullable_int: Some(42), nullable_string: NullableStringField(Some("test".to_owned())), nullable_datetime: Some(chrono::Utc.with_ymd_and_hms(2025, 10, 19, 0, 0, 0).unwrap()) };
+    version_tolerant_nullable_values, "163_version_tolerant_nullable_values.bytes", VersionTolerantWithNullable { nullable_int: Some(42), nullable_string: NullableStringField(Some("test".to_owned())), nullable_datetime: Some(DateTime::new(2025, 10, 19, 0, 0, 0, 0).unwrap()) };
     version_tolerant_nullable_nulls, "164_version_tolerant_nullable_nulls.bytes", VersionTolerantWithNullable { nullable_int: None, nullable_string: NullableStringField(None), nullable_datetime: None };
 }
 
@@ -633,13 +635,5 @@ semantic_case!(
     "129_custom_dictionary.bytes",
     [("a".to_owned(), 1_i32), ("b".to_owned(), 2_i32)].into_iter().collect::<HashMap<_, _>>()
 );
-round_trip_case!(
-    nullable_datetime_value,
-    "56_nullable_datetime_value.bytes",
-    Option<chrono::DateTime<chrono::Utc>>
-);
-round_trip_case!(
-    nullable_datetime_null,
-    "57_nullable_datetime_null.bytes",
-    Option<chrono::DateTime<chrono::Utc>>
-);
+round_trip_case!(nullable_datetime_value, "56_nullable_datetime_value.bytes", Option<Timestamp>);
+round_trip_case!(nullable_datetime_null, "57_nullable_datetime_null.bytes", Option<Timestamp>);

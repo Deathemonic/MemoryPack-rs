@@ -9,7 +9,7 @@ publish = false
 [dev-dependencies]
 memorypack = { workspace = true, features = ["extended_types"] }
 
-chrono = { version = "0.4", features = ["serde"] }
+jiff = "0.2"
 eyre = "0.6"
 glam = { version = "0.33", features = ["serde", "fast-math"] }
 half = { version = "2.7", features = ["serde"] }
