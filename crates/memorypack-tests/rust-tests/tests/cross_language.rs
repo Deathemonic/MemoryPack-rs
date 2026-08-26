@@ -6,6 +6,7 @@ use chrono::TimeZone;
 use memorypack::MultiDimArray;
 use memorypack::prelude::*;
 
+#[allow(unused)]
 #[derive(MemoryPackable, Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 enum Color {
