@@ -38,12 +38,12 @@ bin/
 # ASM
 *.asm
 
+# Dev
+.serena/
+
 # Artifacts
 **/BenchmarkDotNet.Artifacts/
 **/results/
 **/profile/
 **/ref/
 **/fixtures/
-
-# Tests
-crates/memorypack/examples

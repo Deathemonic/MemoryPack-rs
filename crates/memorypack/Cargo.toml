@@ -1,6 +1,6 @@
 [package]
 name = "memorypack"
-description = "A rust implementation of Cysharp/MemoryPack"
+description = "A binary wire compatible rust implementation of Cysharp/MemoryPack"
 
 version.workspace = true
 edition.workspace = true
