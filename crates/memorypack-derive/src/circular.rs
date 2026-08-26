@@ -24,7 +24,7 @@ pub fn generate_circular_serialize(data: &Data, needs_state: bool) -> proc_macro
 
                 if is_option_box(&field.ty) {
                     quote! {
-                        let mut temp_writer = memorypack::MemoryPackWriter::new();
+                        let mut temp_writer = memorypack::MemoryPackWriter::new_with_options(writer.options());
                         match &self.#name {
                             None => {
                                 temp_writer.write_u8(255)?;
@@ -37,7 +37,7 @@ pub fn generate_circular_serialize(data: &Data, needs_state: bool) -> proc_macro
                     }
                 } else {
                     quote! {
-                        let mut temp_writer = memorypack::MemoryPackWriter::new();
+                        let mut temp_writer = memorypack::MemoryPackWriter::new_with_options(writer.options());
                         memorypack::MemoryPackSerialize::serialize(&self.#name, &mut temp_writer)?;
                         field_buffers.push(temp_writer.buffer);
                     }
@@ -108,7 +108,7 @@ pub fn generate_circular_serialize(data: &Data, needs_state: bool) -> proc_macro
 
                 if is_option_box(&field.ty) {
                     quote! {
-                        let mut temp_writer = memorypack::MemoryPackWriter::new();
+                        let mut temp_writer = memorypack::MemoryPackWriter::new_with_options(writer.options());
                         match &self.#idx {
                             None => {
                                 temp_writer.write_u8(255)?;
@@ -121,7 +121,7 @@ pub fn generate_circular_serialize(data: &Data, needs_state: bool) -> proc_macro
                     }
                 } else {
                     quote! {
-                        let mut temp_writer = memorypack::MemoryPackWriter::new();
+                        let mut temp_writer = memorypack::MemoryPackWriter::new_with_options(writer.options());
                         memorypack::MemoryPackSerialize::serialize(&self.#idx, &mut temp_writer)?;
                         field_buffers.push(temp_writer.buffer);
                     }

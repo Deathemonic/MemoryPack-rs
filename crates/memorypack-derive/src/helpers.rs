@@ -12,6 +12,17 @@ pub fn is_single_field_i32(data_struct: &syn::DataStruct) -> bool {
     )
 }
 
+pub fn has_repr_c(attrs: &[syn::Attribute]) -> bool {
+    attrs.iter().any(|attr| {
+        if !attr.path().is_ident("repr") {
+            return false;
+        }
+        attr.meta
+            .require_list()
+            .is_ok_and(|list| list.tokens.to_string().split(',').any(|token| token.trim() == "C"))
+    })
+}
+
 #[inline]
 pub fn has_explicit_discriminants(data_enum: &syn::DataEnum) -> bool {
     data_enum.variants.iter().all(|v| v.discriminant.is_some())

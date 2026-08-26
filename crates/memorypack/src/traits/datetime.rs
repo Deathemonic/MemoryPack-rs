@@ -43,6 +43,24 @@ impl MemoryPackSerialize for chrono::DateTime<chrono::Utc> {
         let ticks = (unix_nanos / TICKS_PER_NANOSECOND) + DOTNET_EPOCH_TICKS;
         writer.write_i64(ticks | UTC_KIND_FLAG)
     }
+
+    fn serialize_nullable(
+        value: Option<&Self>,
+        writer: &mut MemoryPackWriter
+    ) -> Result<(), MemoryPackError> {
+        writer.write_u8(u8::from(value.is_some()))?;
+        for _ in 0..7 {
+            writer.write_u8(0)?;
+        }
+        if let Some(value) = value {
+            value.serialize(writer)
+        } else {
+            writer.write_i64(0)?;
+            Ok(())
+        }
+    }
+
+    fn nullable_size_hint(_: Option<&Self>) -> usize { 16 }
 }
 
 #[cfg(feature = "chrono")]
@@ -53,6 +71,20 @@ impl MemoryPackDeserialize for chrono::DateTime<chrono::Utc> {
         let ticks = ticks_with_kind & TICKS_MASK;
         let unix_nanos = (ticks - DOTNET_EPOCH_TICKS).saturating_mul(TICKS_PER_NANOSECOND);
         Ok(Self::from_timestamp_nanos(unix_nanos))
+    }
+
+    fn deserialize_nullable(
+        reader: &mut MemoryPackReader
+    ) -> Result<Option<Self>, MemoryPackError> {
+        let has_value = reader.read_u8()? != 0;
+        reader.skip(7)?;
+        let ticks_with_kind = reader.read_i64()?;
+        if !has_value {
+            return Ok(None);
+        }
+        let ticks = ticks_with_kind & TICKS_MASK;
+        let unix_nanos = (ticks - DOTNET_EPOCH_TICKS).saturating_mul(TICKS_PER_NANOSECOND);
+        Ok(Some(Self::from_timestamp_nanos(unix_nanos)))
     }
 }
 

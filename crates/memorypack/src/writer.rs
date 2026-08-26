@@ -1,35 +1,65 @@
-use std::{mem, ptr};
+use std::{mem, ptr, slice};
 
 use crate::error::MemoryPackError;
+use crate::serializer_options::{MemoryPackSerializerOptions, StringEncoding};
 use crate::state::MemoryPackWriterOptionalState;
+use crate::traits::MemoryPackUnmanaged;
 use crate::varint;
 
 pub struct MemoryPackWriter {
     pub buffer: Vec<u8>,
-    pub optional_state: Option<MemoryPackWriterOptionalState>
+    pub optional_state: Option<MemoryPackWriterOptionalState>,
+    options: MemoryPackSerializerOptions
 }
 
 impl MemoryPackWriter {
+    #[inline]
+    pub(crate) fn write_unmanaged_slice<T: MemoryPackUnmanaged>(&mut self, values: &[T]) {
+        let byte_len = mem::size_of_val(values);
+        let bytes = unsafe { slice::from_raw_parts(values.as_ptr().cast::<u8>(), byte_len) };
+        self.buffer.extend_from_slice(bytes);
+    }
+
     pub const fn new() -> Self {
         Self {
             buffer: Vec::new(),
-            optional_state: None
+            optional_state: None,
+            options: MemoryPackSerializerOptions::UTF8
         }
     }
 
     pub fn new_with_state() -> Self {
         Self {
             buffer: Vec::new(),
-            optional_state: Some(MemoryPackWriterOptionalState::new())
+            optional_state: Some(MemoryPackWriterOptionalState::new()),
+            options: MemoryPackSerializerOptions::UTF8
         }
     }
 
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             buffer: Vec::with_capacity(capacity),
-            optional_state: None
+            optional_state: None,
+            options: MemoryPackSerializerOptions::UTF8
         }
     }
+
+    pub fn with_capacity_and_options(
+        capacity: usize,
+        options: MemoryPackSerializerOptions
+    ) -> Self {
+        Self {
+            buffer: Vec::with_capacity(capacity),
+            optional_state: None,
+            options
+        }
+    }
+
+    pub fn new_with_options(options: MemoryPackSerializerOptions) -> Self {
+        Self::with_capacity_and_options(0, options)
+    }
+
+    pub const fn options(&self) -> MemoryPackSerializerOptions { self.options }
 
     #[inline]
     pub const fn len(&self) -> usize { self.buffer.len() }
@@ -42,6 +72,16 @@ impl MemoryPackWriter {
         if value.is_empty() {
             return self.write_i32(0);
         }
+
+        if self.options.string_encoding == StringEncoding::Utf16 {
+            let utf16: Vec<_> = value.encode_utf16().collect();
+            self.write_i32(utf16.len() as i32)?;
+            for code_unit in utf16 {
+                self.write_u16(code_unit)?;
+            }
+            return Ok(());
+        }
+
         let bytes = value.as_bytes();
         let utf16_length: usize =
             if value.is_ascii() { bytes.len() } else { value.chars().map(char::len_utf16).sum() };

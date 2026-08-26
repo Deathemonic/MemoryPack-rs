@@ -111,6 +111,7 @@ struct Person {
 }
 
 #[derive(MemoryPackable, Debug, Clone)]
+#[repr(C)]
 struct Point {
     x: i32,
     y: i32
@@ -123,6 +124,7 @@ struct PersonRecord {
 }
 
 #[derive(MemoryPackable, Debug, Clone)]
+#[repr(C)]
 struct PointRecord {
     x: i32,
     y: i32
@@ -145,6 +147,7 @@ struct IncludeIgnoreSample {
 }
 
 #[derive(MemoryPackable, Debug, Clone)]
+#[repr(C)]
 struct UnmanagedStruct {
     a: i32,
     b: f32,
@@ -220,13 +223,13 @@ struct NullableStringField(Option<String>);
 
 impl MemoryPackSerialize for NullableStringField {
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
-        memorypack::NullableString(self.0.clone()).serialize(writer)
+        self.0.serialize(writer)
     }
 }
 
 impl MemoryPackDeserialize for NullableStringField {
     fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
-        Ok(Self(memorypack::NullableString::deserialize(reader)?.0))
+        Ok(Self(Option::<String>::deserialize(reader)?))
     }
 }
 
@@ -253,6 +256,7 @@ struct RequiredMembersSample {
 }
 
 #[derive(MemoryPackable, Debug, Clone)]
+#[repr(C)]
 struct ReadOnlyPoint {
     x: i32,
     y: i32
@@ -336,6 +340,19 @@ fn exact<T: MemoryPackSerialize + MemoryPackDeserialize>(name: &str, value: &T) 
     write_rust(name, &rust);
 }
 
+fn exact_with_options<T: MemoryPackSerialize + MemoryPackDeserialize>(
+    name: &str,
+    value: &T,
+    options: &memorypack::MemoryPackSerializerOptions
+) {
+    let rust = MemoryPackSerializer::serialize_with_options(value, options).unwrap();
+    let csharp_bytes = csharp(name);
+    assert_eq!(rust, csharp_bytes, "{name}");
+    let decoded = MemoryPackSerializer::deserialize::<T>(&csharp_bytes).unwrap();
+    let _ = MemoryPackSerializer::serialize_with_options(&decoded, options).unwrap();
+    write_rust(name, &rust);
+}
+
 fn semantic<T: MemoryPackSerialize + MemoryPackDeserialize + PartialEq + std::fmt::Debug>(
     name: &str,
     value: &T
@@ -375,6 +392,16 @@ macro_rules! semantic_case {
     };
 }
 
+macro_rules! exact_options_case {
+    ($test:ident, $fixture:literal, $value:expr, $options:expr) => {
+        #[test]
+        fn $test() {
+            let value = $value;
+            exact_with_options($fixture, &value, &$options);
+        }
+    };
+}
+
 macro_rules! round_trip_case {
     ($test:ident, $fixture:literal, $type:ty) => {
         #[test]
@@ -404,7 +431,7 @@ exact_cases! {
     char, "13_char.bytes", 'A';
     string, "14_string.bytes", "Hello, MemoryPack!".to_owned();
     string_empty, "15_string_empty.bytes", String::new();
-    string_null, "16_string_null.bytes", memorypack::NullableString(None);
+    string_null, "16_string_null.bytes", Option::<String>::None;
     decimal, "17_decimal.bytes", rust_decimal_macros::dec!(123.456);
     half, "18_half.bytes", half::f16::from_f32(3.14);
     int128, "19_int128.bytes", ((12345_i128) << 64) | 67890;
@@ -431,7 +458,7 @@ exact_cases! {
     array_3d, "47_array_3d.bytes", MultiDimArray::new(vec![2, 2, 2], vec![1, 2, 3, 4, 5, 6, 7, 8]);
     array_4d, "48_array_4d.bytes", MultiDimArray::new(vec![1, 1, 1, 1], vec![1]);
     array_empty, "49_array_empty.bytes", Vec::<i32>::new();
-    array_null, "50_array_null.bytes", memorypack::NullableVec(None::<Vec<i32>>);
+    array_null, "50_array_null.bytes", Option::<Vec<i32>>::None;
     nullable_int_value, "54_nullable_int_value.bytes", Some(42_i32);
     nullable_int_null, "55_nullable_int_null.bytes", None::<i32>;
     valuetuple3, "60_valuetuple3.bytes", (1_i32, "two".to_owned(), 3.0_f64);
@@ -455,13 +482,13 @@ exact_cases! {
     readonlyobservablecollection, "81_readonlyobservablecollection.bytes", vec!["x".to_owned(), "y".to_owned()];
     concurrentbag, "90_concurrentbag.bytes", vec![3, 2, 1];
     concurrentqueue, "91_concurrentqueue.bytes", vec!["a".to_owned(), "b".to_owned(), "c".to_owned()];
-    concurrentstack, "92_concurrentstack.bytes", vec![3, 2, 1];
+    concurrentstack, "92_concurrentstack.bytes", memorypack::Stack(vec![3, 2, 1]);
     blockingcollection, "94_blockingcollection.bytes", vec![1, 2, 3];
     immutablearray, "95_immutablearray.bytes", vec![1, 2, 3];
     immutablelist, "96_immutablelist.bytes", vec!["a".to_owned(), "b".to_owned(), "c".to_owned()];
     immutablesortedset, "98_immutablesortedset.bytes", ["z", "a", "m"].into_iter().map(str::to_owned).collect::<BTreeSet<_>>();
     immutablequeue, "99_immutablequeue.bytes", vec![1, 2, 3];
-    immutablestack, "100_immutablestack.bytes", vec![3, 2, 1];
+    immutablestack, "100_immutablestack.bytes", memorypack::Stack(vec![3, 2, 1]);
     immutablesorteddictionary, "102_immutablesorteddictionary.bytes", [("key".to_owned(), 42)].into_iter().collect::<BTreeMap<_, _>>();
     iimmutablelist, "103_iimmutablelist.bytes", vec![1, 2, 3];
     person_class, "108_person_class.bytes", Person { age: 42, name: "John Doe".to_owned() };
@@ -504,20 +531,19 @@ exact_cases! {
     double_negative_infinity, "139_double_negative_infinity.bytes", f64::NEG_INFINITY;
     double_max, "142_double_max.bytes", f64::MAX;
     double_min, "143_double_min.bytes", f64::MIN;
-    double_nan, "137_double_nan.bytes", f64::NAN;
-    float_nan, "140_float_nan.bytes", f32::NAN;
-    double_epsilon, "141_double_epsilon.bytes", f64::EPSILON;
+    double_nan, "137_double_nan.bytes", f64::from_bits(0xfff8_0000_0000_0000);
+    float_nan, "140_float_nan.bytes", f32::from_bits(0xffc0_0000);
+    double_epsilon, "141_double_epsilon.bytes", f64::from_bits(1);
     large_array, "135_large_array_10k.bytes", (0..10000).collect::<Vec<i32>>();
     list_empty_duplicate, "144_list_empty.bytes", Vec::<i32>::new();
     string_utf8, "133_string_utf8.bytes", "Hello MemoryPack! こんにちは 你好 مرحبا".to_owned();
-    string_utf16, "134_string_utf16.bytes", "Hello MemoryPack! こんにちは 你好 مرحبا".to_owned();
     person_class_null, "109_person_class_null.bytes", Option::<Person>::None;
-    list_null, "145_list_null.bytes", memorypack::NullableVec(None::<Vec<i32>>);
-    dict_null, "147_dict_null.bytes", memorypack::NullableVec(None::<Vec<(String, i32)>>);
-    tuple3, "58_tuple3.bytes", (1_i32, "two".to_owned(), 3.0_f64);
-    tuple7, "59_tuple7.bytes", (1_i32, 2_i32, 3_i32, 4_i32, 5_i32, 6_i32, 7_i32);
+    list_null, "145_list_null.bytes", Option::<Vec<i32>>::None;
+    dict_null, "147_dict_null.bytes", Option::<Vec<(String, i32)>>::None;
+    tuple3, "58_tuple3.bytes", memorypack::Tuple((1_i32, "two".to_owned(), 3.0_f64));
+    tuple7, "59_tuple7.bytes", memorypack::Tuple((1_i32, 2_i32, 3_i32, 4_i32, 5_i32, 6_i32, 7_i32));
     keyvaluepair, "62_keyvaluepair.bytes", ("age".to_owned(), 42_i32);
-    lazy, "63_lazy.bytes", Some(42_i32);
+    lazy, "63_lazy.bytes", memorypack::Lazy(42_i32);
     priorityqueue, "72_priorityqueue.bytes", vec![("high".to_owned(), 1_i32), ("low".to_owned(), 10_i32), ("medium".to_owned(), 5_i32)];
     sortedlist, "75_sortedlist.bytes", [("a".to_owned(), 1_i32), ("b".to_owned(), 2_i32)].into_iter().collect::<BTreeMap<_, _>>();
     custom_list, "128_custom_list.bytes", vec![10, 20, 30];
@@ -534,6 +560,13 @@ exact_cases! {
     version_tolerant_nullable_values, "163_version_tolerant_nullable_values.bytes", VersionTolerantWithNullable { nullable_int: Some(42), nullable_string: NullableStringField(Some("test".to_owned())), nullable_datetime: Some(chrono::Utc.with_ymd_and_hms(2025, 10, 19, 0, 0, 0).unwrap()) };
     version_tolerant_nullable_nulls, "164_version_tolerant_nullable_nulls.bytes", VersionTolerantWithNullable { nullable_int: None, nullable_string: NullableStringField(None), nullable_datetime: None };
 }
+
+exact_options_case!(
+    string_utf16,
+    "134_string_utf16.bytes",
+    "Hello MemoryPack! こんにちは 你好 مرحبا".to_owned(),
+    memorypack::MemoryPackSerializerOptions::UTF16
+);
 
 semantic_case!(
     hashset,

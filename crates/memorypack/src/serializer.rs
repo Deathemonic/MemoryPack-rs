@@ -1,5 +1,6 @@
 use crate::error::MemoryPackError;
 use crate::reader::MemoryPackReader;
+use crate::serializer_options::MemoryPackSerializerOptions;
 use crate::traits::{MemoryPackDeserialize, MemoryPackDeserializeZeroCopy, MemoryPackSerialize};
 use crate::writer::MemoryPackWriter;
 
@@ -10,7 +11,18 @@ impl MemoryPackSerializer {
     /// Serialize a value to a byte vector
     #[inline]
     pub fn serialize<T: MemoryPackSerialize>(value: &T) -> Result<Vec<u8>, MemoryPackError> {
-        let mut writer = MemoryPackWriter::with_capacity(value.serialized_size_hint().max(64));
+        Self::serialize_with_options(value, &MemoryPackSerializerOptions::UTF8)
+    }
+
+    #[inline]
+    pub fn serialize_with_options<T: MemoryPackSerialize>(
+        value: &T,
+        options: &MemoryPackSerializerOptions
+    ) -> Result<Vec<u8>, MemoryPackError> {
+        let mut writer = MemoryPackWriter::with_capacity_and_options(
+            value.serialized_size_hint().max(64),
+            *options
+        );
         value.serialize(&mut writer)?;
         Ok(writer.into_bytes())
     }

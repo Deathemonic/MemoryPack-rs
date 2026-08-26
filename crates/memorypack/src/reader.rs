@@ -4,6 +4,7 @@ use simdutf8::basic;
 
 use crate::error::MemoryPackError;
 use crate::state::MemoryPackReaderOptionalState;
+use crate::traits::MemoryPackUnmanaged;
 
 pub struct MemoryPackReader<'a> {
     data: &'a [u8],
@@ -12,6 +13,22 @@ pub struct MemoryPackReader<'a> {
 }
 
 impl<'a> MemoryPackReader<'a> {
+    #[inline]
+    pub(crate) fn read_unmanaged_vec<T: MemoryPackUnmanaged>(
+        &mut self,
+        count: usize
+    ) -> Result<Vec<T>, MemoryPackError> {
+        let byte_count =
+            count.checked_mul(mem::size_of::<T>()).ok_or(MemoryPackError::UnexpectedEndOfBuffer)?;
+        let bytes = self.read_bytes(byte_count)?;
+        let mut values = Vec::<T>::with_capacity(count);
+        unsafe {
+            ptr::copy_nonoverlapping(bytes.as_ptr(), values.as_mut_ptr().cast::<u8>(), byte_count);
+            values.set_len(count);
+        }
+        Ok(values)
+    }
+
     pub const fn new(data: &'a [u8]) -> Self {
         Self {
             data,

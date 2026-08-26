@@ -1,11 +1,9 @@
-#![cfg_attr(feature = "nightly", feature(specialization))]
-#![cfg_attr(feature = "nightly", allow(incomplete_features))]
-
 mod reader;
 mod writer;
 
 pub mod error;
 pub mod serializer;
+pub mod serializer_options;
 pub mod state;
 pub mod traits;
 pub mod varint;
@@ -15,15 +13,17 @@ pub use error::MemoryPackError;
 pub use memorypack_derive::MemoryPackable;
 pub use reader::MemoryPackReader;
 pub use serializer::MemoryPackSerializer;
+pub use serializer_options::{MemoryPackSerializerOptions, StringEncoding};
 pub use state::{MemoryPackReaderOptionalState, MemoryPackWriterOptionalState};
 pub use traits::{
+    Lazy,
     MemoryPackDeserialize,
     MemoryPackDeserializeZeroCopy,
     MemoryPackSerialize,
-    MultiDimArray
+    MultiDimArray,
+    Stack,
+    Tuple
 };
-#[cfg(not(feature = "nightly"))]
-pub use traits::{NullableString, NullableVec};
 pub use writer::MemoryPackWriter;
 
 pub mod prelude {

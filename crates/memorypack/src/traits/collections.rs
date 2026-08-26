@@ -36,15 +36,26 @@ impl<T: MemoryPackSerialize> MemoryPackSerialize for Vec<T> {
     #[inline(always)]
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
         write_collection_header(writer, self.len())?;
-        for item in self {
-            item.serialize(writer)?;
-        }
-        Ok(())
+        T::serialize_many(self, writer)
     }
 
     #[inline]
     fn serialized_size_hint(&self) -> usize {
         4 + self.iter().map(MemoryPackSerialize::serialized_size_hint).sum::<usize>()
+    }
+
+    fn serialize_nullable(
+        value: Option<&Self>,
+        writer: &mut MemoryPackWriter
+    ) -> Result<(), MemoryPackError> {
+        match value {
+            Some(value) => value.serialize(writer),
+            None => writer.write_i32(-1)
+        }
+    }
+
+    fn nullable_size_hint(value: Option<&Self>) -> usize {
+        value.map_or(4, MemoryPackSerialize::serialized_size_hint)
     }
 }
 
@@ -52,16 +63,21 @@ impl<T: MemoryPackDeserialize> MemoryPackDeserialize for Vec<T> {
     #[inline(always)]
     fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
         let size = reader.read_i32()?;
-        match validate_size(size)? {
-            None => Ok(Self::new()),
-            Some(capacity) => {
-                let mut result = Self::with_capacity(capacity);
-                for _ in 0..capacity {
-                    result.push(T::deserialize(reader)?);
-                }
-                Ok(result)
-            }
+        validate_size(size)?
+            .map_or_else(|| Ok(Self::new()), |capacity| T::deserialize_many(reader, capacity))
+    }
+
+    fn deserialize_nullable(
+        reader: &mut MemoryPackReader
+    ) -> Result<Option<Self>, MemoryPackError> {
+        let size = reader.read_i32()?;
+        if size == -1 {
+            return Ok(None);
         }
+        if size < 0 {
+            return Err(MemoryPackError::InvalidLength(size));
+        }
+        Ok(Some(T::deserialize_many(reader, size as usize)?))
     }
 }
 
