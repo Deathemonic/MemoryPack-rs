@@ -50,7 +50,7 @@ impl<T: MemoryPackDeserialize> MemoryPackDeserialize for MultiDimArray<T> {
         let rank = (rank_plus_1 as usize).saturating_sub(1);
 
         if rank == 0 {
-            return Err(MemoryPackError::DeserializationError("Invalid array rank".into()));
+            return Err(MemoryPackError::InvalidArrayRank);
         }
 
         let mut dimensions = Vec::with_capacity(rank);

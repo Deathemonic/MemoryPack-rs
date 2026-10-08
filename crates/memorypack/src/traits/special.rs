@@ -17,9 +17,7 @@ impl<T: MemoryPackDeserialize> MemoryPackDeserialize for Lazy<T> {
     fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
         let count = reader.read_u8()?;
         if count != 1 {
-            return Err(MemoryPackError::DeserializationError(format!(
-                "Invalid Lazy field count: expected 1, got {count}"
-            )));
+            return Err(MemoryPackError::InvalidLazyFieldCount { got: count });
         }
         Ok(Self(T::deserialize(reader)?))
     }
@@ -71,10 +69,10 @@ impl<T: TupleElements> MemoryPackDeserialize for Tuple<T> {
     fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
         let count = reader.read_u8()?;
         if count != T::COUNT {
-            return Err(MemoryPackError::DeserializationError(format!(
-                "Invalid Tuple field count: expected {}, got {count}",
-                T::COUNT
-            )));
+            return Err(MemoryPackError::InvalidTupleFieldCount {
+                expected: T::COUNT,
+                got: count
+            });
         }
         Ok(Self(T::deserialize_elements(reader)?))
     }

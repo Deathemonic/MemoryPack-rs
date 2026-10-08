@@ -104,9 +104,7 @@ impl MemoryPackDeserialize for num_bigint::BigInt {
     fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
         let len = reader.read_i32()?;
         if len < 0 {
-            return Err(MemoryPackError::DeserializationError(
-                "Negative length in BigInteger".into()
-            ));
+            return Err(MemoryPackError::NegativeBigIntegerLength);
         }
 
         let mut bytes = reader.read_bytes_vec(len as usize)?;
@@ -138,7 +136,7 @@ impl MemoryPackDeserialize for num_bigint::BigUint {
     fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
         let len = reader.read_i32()?;
         if len < 0 {
-            return Err(MemoryPackError::DeserializationError("Negative length in BigUint".into()));
+            return Err(MemoryPackError::NegativeBigUintLength);
         }
 
         Ok(Self::from_bytes_le(&reader.read_bytes_vec(len as usize)?))
@@ -158,6 +156,6 @@ impl MemoryPackDeserialize for url::Url {
     #[inline(always)]
     fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
         let s = String::deserialize(reader)?;
-        Self::parse(&s).map_err(|e| MemoryPackError::DeserializationError(e.to_string()))
+        Self::parse(&s).map_err(MemoryPackError::from)
     }
 }

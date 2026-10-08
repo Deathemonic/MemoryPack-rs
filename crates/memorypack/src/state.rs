@@ -58,11 +58,7 @@ impl MemoryPackReaderOptionalState {
             .get(&id)
             .and_then(|boxed: &Box<dyn Any>| boxed.downcast_ref::<T>())
             .cloned()
-            .ok_or_else(|| {
-                MemoryPackError::DeserializationError(format!(
-                    "Object is not found in this reference id: {id}"
-                ))
-            })
+            .ok_or(MemoryPackError::ObjectReferenceNotFound(id))
     }
 
     pub fn add_object_reference<T: 'static>(
@@ -71,9 +67,7 @@ impl MemoryPackReaderOptionalState {
         value: T
     ) -> Result<(), MemoryPackError> {
         if self.ref_to_object.contains_key(&id) {
-            return Err(MemoryPackError::DeserializationError(format!(
-                "Object is already added, id: {id}"
-            )));
+            return Err(MemoryPackError::ObjectReferenceAlreadyAdded(id));
         }
         self.ref_to_object.insert(id, Box::new(value));
         Ok(())
@@ -85,11 +79,7 @@ impl MemoryPackReaderOptionalState {
         value: T
     ) -> Result<(), MemoryPackError> {
         self.ref_to_object.get_mut(&id).map_or_else(
-            || {
-                Err(MemoryPackError::DeserializationError(format!(
-                    "Object not found for update, id: {id}"
-                )))
-            },
+            || Err(MemoryPackError::ObjectReferenceUpdateNotFound(id)),
             |entry| {
                 *entry = Box::new(value);
                 Ok(())

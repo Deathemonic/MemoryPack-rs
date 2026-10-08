@@ -253,9 +253,7 @@ impl<'a> MemoryPackReader<'a> {
             return char::from_u32(code_unit as u32).ok_or(MemoryPackError::InvalidCodePoint);
         }
 
-        Err(MemoryPackError::DeserializationError(
-            "Surrogate code unit cannot be converted to Rust char".into()
-        ))
+        Err(MemoryPackError::SurrogateCodeUnit)
     }
 
     #[inline]

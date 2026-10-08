@@ -15,21 +15,18 @@ const UTC_KIND_FLAG: i64 = 1_i64 << 62;
 
 #[inline(always)]
 fn ticks_to_timestamp(ticks: i64) -> Result<Timestamp, MemoryPackError> {
-    let unix_ticks = ticks
-        .checked_sub(DOTNET_EPOCH_TICKS)
-        .ok_or_else(|| MemoryPackError::DeserializationError("DateTime out of range".into()))?;
-    let unix_nanos = unix_ticks
-        .checked_mul(TICKS_PER_NANOSECOND)
-        .ok_or_else(|| MemoryPackError::DeserializationError("DateTime out of range".into()))?;
-    Timestamp::from_nanosecond(unix_nanos as i128)
-        .map_err(|_| MemoryPackError::DeserializationError("DateTime out of range".into()))
+    let unix_ticks =
+        ticks.checked_sub(DOTNET_EPOCH_TICKS).ok_or(MemoryPackError::DateTimeOutOfRange)?;
+    let unix_nanos =
+        unix_ticks.checked_mul(TICKS_PER_NANOSECOND).ok_or(MemoryPackError::DateTimeOutOfRange)?;
+    Timestamp::from_nanosecond(unix_nanos as i128).map_err(|_| MemoryPackError::DateTimeOutOfRange)
 }
 
 impl MemoryPackSerialize for SignedDuration {
     #[inline(always)]
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
         let ticks = i64::try_from(self.as_nanos() / i128::from(TICKS_PER_NANOSECOND))
-            .map_err(|_| MemoryPackError::SerializationError("Duration out of range".into()))?;
+            .map_err(|_| MemoryPackError::DurationOutOfRange)?;
         writer.write_i64(ticks)
     }
 }
@@ -46,9 +43,9 @@ impl MemoryPackSerialize for Timestamp {
     #[inline(always)]
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
         let ticks = i64::try_from(self.as_nanosecond() / i128::from(TICKS_PER_NANOSECOND))
-            .map_err(|_| MemoryPackError::SerializationError("DateTime out of range".into()))?
+            .map_err(|_| MemoryPackError::DateTimeOutOfRange)?
             .checked_add(DOTNET_EPOCH_TICKS)
-            .ok_or_else(|| MemoryPackError::SerializationError("DateTime out of range".into()))?;
+            .ok_or(MemoryPackError::DateTimeOutOfRange)?;
         writer.write_i64(ticks | UTC_KIND_FLAG)
     }
 
@@ -85,13 +82,12 @@ impl MemoryPackDeserialize for Timestamp {
 impl MemoryPackSerialize for DateTime {
     #[inline(always)]
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
-        let timestamp = TimeZone::UTC
-            .to_timestamp(*self)
-            .map_err(|_| MemoryPackError::SerializationError("DateTime out of range".into()))?;
+        let timestamp =
+            TimeZone::UTC.to_timestamp(*self).map_err(|_| MemoryPackError::DateTimeOutOfRange)?;
         let ticks = i64::try_from(timestamp.as_nanosecond() / i128::from(TICKS_PER_NANOSECOND))
-            .map_err(|_| MemoryPackError::SerializationError("DateTime out of range".into()))?
+            .map_err(|_| MemoryPackError::DateTimeOutOfRange)?
             .checked_add(DOTNET_EPOCH_TICKS)
-            .ok_or_else(|| MemoryPackError::SerializationError("DateTime out of range".into()))?;
+            .ok_or(MemoryPackError::DateTimeOutOfRange)?;
         writer.write_i64(ticks)
     }
 
@@ -137,11 +133,9 @@ impl MemoryPackSerialize for Zoned {
         let offset_minutes = (self.offset().seconds() / 60) as i16;
         let ticks =
             i64::try_from(self.timestamp().as_nanosecond() / i128::from(TICKS_PER_NANOSECOND))
-                .map_err(|_| MemoryPackError::SerializationError("DateTime out of range".into()))?
+                .map_err(|_| MemoryPackError::DateTimeOutOfRange)?
                 .checked_add(DOTNET_EPOCH_TICKS)
-                .ok_or_else(|| {
-                    MemoryPackError::SerializationError("DateTime out of range".into())
-                })?;
+                .ok_or(MemoryPackError::DateTimeOutOfRange)?;
         writer.write_i16(offset_minutes)?;
         writer.buffer.extend_from_slice(&[0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00]);
         writer.write_i64(ticks)
@@ -155,7 +149,7 @@ impl MemoryPackDeserialize for Zoned {
         reader.read_fixed_bytes::<6>()?;
         let timestamp = ticks_to_timestamp(reader.read_i64()?)?;
         let offset = Offset::from_seconds(i32::from(offset_minutes) * 60)
-            .map_err(|_| MemoryPackError::DeserializationError("Invalid offset".into()))?;
+            .map_err(|_| MemoryPackError::InvalidOffset)?;
         Ok(Zoned::new(timestamp, TimeZone::fixed(offset)))
     }
 }
@@ -178,11 +172,11 @@ impl MemoryPackDeserialize for Time {
         let nanos = reader
             .read_i64()?
             .checked_mul(TICKS_PER_NANOSECOND)
-            .ok_or_else(|| MemoryPackError::DeserializationError("Invalid time ticks".into()))?;
+            .ok_or(MemoryPackError::InvalidTimeTicks)?;
         let secs = nanos.div_euclid(NANOSECONDS_PER_SECOND);
         let subsec = nanos.rem_euclid(NANOSECONDS_PER_SECOND);
         Time::new((secs / 3600) as i8, ((secs % 3600) / 60) as i8, (secs % 60) as i8, subsec as i32)
-            .map_err(|_| MemoryPackError::DeserializationError("Invalid time ticks".into()))
+            .map_err(|_| MemoryPackError::InvalidTimeTicks)
     }
 }
 
@@ -190,10 +184,7 @@ impl MemoryPackSerialize for Date {
     #[inline(always)]
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
         let epoch = Date::new(1, 1, 1).expect("valid jiff epoch date");
-        let days = self
-            .since(epoch)
-            .map_err(|_| MemoryPackError::SerializationError("Date out of range".into()))?
-            .get_days();
+        let days = self.since(epoch).map_err(|_| MemoryPackError::DateOutOfRange)?.get_days();
         writer.write_i32(days)
     }
 }
@@ -205,6 +196,6 @@ impl MemoryPackDeserialize for Date {
         Date::new(1, 1, 1)
             .expect("valid jiff epoch date")
             .checked_add(Span::new().days(i64::from(days)))
-            .map_err(|_| MemoryPackError::DeserializationError("Invalid date".into()))
+            .map_err(|_| MemoryPackError::InvalidDate)
     }
 }

@@ -32,9 +32,10 @@ pub fn generate_enum_deserialize_safe(data_enum: &syn::DataEnum) -> proc_macro2:
         let value = reader.read_i32()?;
         match value {
             #(#variants)*
-            _ => Err(memorypack::MemoryPackError::DeserializationError(
-                format!("Invalid discriminant {} for enum {}", value, stringify!(Self))
-            ))
+            _ => Err(memorypack::MemoryPackError::InvalidEnumDiscriminant {
+                value,
+                name: stringify!(Self)
+            })
         }
     }
 }

@@ -52,9 +52,10 @@ pub fn generate_union_deserialize(
         let tag = reader.read_u8()?;
         match tag {
             #(#variants)*
-            _ => Err(memorypack::MemoryPackError::DeserializationError(
-                format!("Unknown union tag {} for {}", tag, stringify!(#name))
-            ))
+            _ => Err(memorypack::MemoryPackError::UnknownUnionTag {
+                tag,
+                name: stringify!(#name)
+            })
         }
     }
 }
