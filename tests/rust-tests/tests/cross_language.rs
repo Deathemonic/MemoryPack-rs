@@ -208,7 +208,7 @@ struct CallbackSample {
 
 #[derive(MemoryPackable, Debug, Clone)]
 struct ComplexNested {
-    data: Vec<HashMap<String, Vec<i32>>>
+    data: Vec<BTreeMap<String, Vec<i32>>>
 }
 
 #[derive(MemoryPackable, Debug, Clone)]
@@ -351,7 +351,7 @@ fn exact<T: MemoryPackSerialize + MemoryPackDeserialize>(name: &str, value: &T) 
     let csharp_bytes = csharp(name);
     assert_eq!(rust, csharp_bytes, "{name}");
     let decoded = MemoryPackSerializer::deserialize::<T>(&csharp_bytes).unwrap();
-    let _ = MemoryPackSerializer::serialize(&decoded).unwrap();
+    assert_eq!(MemoryPackSerializer::serialize(&decoded).unwrap(), csharp_bytes, "{name} decoded round-trip");
     write_rust(name, &rust);
 }
 
@@ -518,7 +518,7 @@ exact_cases! {
     generic_int, "121_generic_int.bytes", GenericContainer { value: 42_i32 };
     generic_string, "122_generic_string.bytes", GenericContainer { value: "generic".to_owned() };
     generic_list, "123_generic_list.bytes", GenericContainer { value: vec![1_i32, 2, 3] };
-    mixed_members, "113_mixed_members.bytes", MixedMembers { public_field: 1, public_read_only_field: 100, public_property: 2, private_set_public_property: 200, read_only_public_property: 0, init_property: 3 };
+    mixed_members, "113_mixed_members.bytes", MixedMembers { public_field: 1, public_read_only_field: 100, public_property: 2, private_set_public_property: 0, read_only_public_property: 200, init_property: 3 };
     include_ignore_sample, "114_include_ignore_sample.bytes", IncludeIgnoreSample { public_value: 10, private_value: 42 };
     dotnet_version, "31_version.bytes", DotNetVersion { major: 1, minor: 2, build: 3, revision: 4 };
     callbacks, "130_callbacks.bytes", CallbackSample { value: 100, call_count: 1 };
@@ -667,3 +667,9 @@ semantic_case!(
 );
 round_trip_case!(nullable_datetime_value, "56_nullable_datetime_value.bytes", Option<Timestamp>);
 round_trip_case!(nullable_datetime_null, "57_nullable_datetime_null.bytes", Option<Timestamp>);
+
+semantic_case!(
+    readonlydictionary,
+    "77_readonlydictionary.bytes",
+    [("x".to_owned(), 10_i32)].into_iter().collect::<HashMap<_, _>>()
+);

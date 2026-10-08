@@ -134,9 +134,9 @@ impl MemoryPackDeserialize for glam::Mat3A {
         let m31 = reader.read_f32()?;
         let m32 = reader.read_f32()?;
         Ok(Self::from_cols(
-            glam::Vec3A::new(m11, m12, 0.0),
-            glam::Vec3A::new(m21, m22, 0.0),
-            glam::Vec3A::new(m31, m32, 1.0)
+            glam::Vec3A::new(m11, m21, m31),
+            glam::Vec3A::new(m12, m22, m32),
+            glam::Vec3A::new(0.0, 0.0, 1.0)
         ))
     }
 }

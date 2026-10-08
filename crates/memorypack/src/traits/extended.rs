@@ -69,29 +69,10 @@ impl MemoryPackDeserialize for half::f16 {
 }
 
 #[cfg(feature = "num-bigint")]
-#[inline]
-fn twos_complement_invert(bytes: &mut [u8]) {
-    let mut carry = true;
-    for byte in bytes.iter_mut() {
-        *byte = !*byte;
-        if carry {
-            let (new_byte, new_carry) = byte.overflowing_add(1);
-            *byte = new_byte;
-            carry = new_carry;
-        }
-    }
-}
-
-#[cfg(feature = "num-bigint")]
 impl MemoryPackSerialize for num_bigint::BigInt {
     #[inline]
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
-        let (sign, mut bytes) = self.to_bytes_le();
-
-        if sign == num_bigint::Sign::Minus {
-            twos_complement_invert(&mut bytes);
-        }
-
+        let bytes = self.to_signed_bytes_le();
         writer.write_i32(bytes.len() as i32)?;
         writer.buffer.extend_from_slice(&bytes);
         Ok(())
@@ -106,16 +87,7 @@ impl MemoryPackDeserialize for num_bigint::BigInt {
         if len < 0 {
             return Err(MemoryPackError::NegativeBigIntegerLength);
         }
-
-        let mut bytes = reader.read_bytes_vec(len as usize)?;
-        let is_negative = bytes.last().is_some_and(|&b| b & 0x80 != 0);
-
-        if is_negative {
-            twos_complement_invert(&mut bytes);
-            Ok(Self::from_bytes_le(num_bigint::Sign::Minus, &bytes))
-        } else {
-            Ok(Self::from_bytes_le(num_bigint::Sign::Plus, &bytes))
-        }
+        Ok(Self::from_signed_bytes_le(reader.read_bytes(len as usize)?))
     }
 }
 
