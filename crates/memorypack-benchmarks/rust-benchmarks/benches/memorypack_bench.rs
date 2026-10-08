@@ -95,6 +95,7 @@ struct ZeroCopyDataLarge<'a> {
     is_active: bool
 }
 
+#[allow(clippy::approx_constant)]
 fn create_simple_data() -> SimpleData {
     SimpleData {
         id: 42,
@@ -109,7 +110,9 @@ fn create_complex_data() -> ComplexData {
         id: 100,
         name: "Complex Test".to_string(),
         numbers: (1..=100).collect(),
-        properties: (1..=50).map(|i| (format!("key{}", i), format!("value{}", i))).collect(),
+        properties: (1..=50)
+            .map(|i| (format!("key{}", i), format!("value{}", i)))
+            .collect(),
         nested: Some(SimpleData {
             id: 1,
             name: "Nested".to_string(),
@@ -119,6 +122,7 @@ fn create_complex_data() -> ComplexData {
     }
 }
 
+#[allow(clippy::approx_constant)]
 fn create_simple_data_no_string() -> SimpleDataNoString {
     SimpleDataNoString {
         id: 42,
@@ -150,6 +154,7 @@ fn create_version_tolerant_data() -> VersionTolerantData {
 
 fn create_union_data() -> UnionSample { UnionSample::Foo(FooClass { xyz: 999 }) }
 
+#[allow(clippy::approx_constant)]
 fn create_zero_copy_data() -> ZeroCopyData<'static> {
     ZeroCopyData {
         id: 42,
@@ -161,6 +166,7 @@ fn create_zero_copy_data() -> ZeroCopyData<'static> {
 
 const LARGE_TEXT: &str = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.";
 
+#[allow(clippy::approx_constant)]
 fn create_zero_copy_data_large() -> ZeroCopyDataLarge<'static> {
     ZeroCopyDataLarge {
         id: 100,

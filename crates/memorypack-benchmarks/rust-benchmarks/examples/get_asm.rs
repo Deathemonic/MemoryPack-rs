@@ -34,6 +34,7 @@ struct ComplexDataNoString {
     nested: Option<SimpleDataNoString>
 }
 
+#[allow(clippy::approx_constant)]
 fn main() {
     let simple_data = SimpleData {
         id: 42,
@@ -49,7 +50,9 @@ fn main() {
         id: 100,
         name: "Complex Test".to_string(),
         numbers: (1..=100).collect(),
-        properties: (1..=50).map(|i| (format!("key{}", i), format!("value{}", i))).collect(),
+        properties: (1..=50)
+            .map(|i| (format!("key{}", i), format!("value{}", i)))
+            .collect(),
         nested: Some(SimpleData {
             id: 1,
             name: "Nested".to_string(),

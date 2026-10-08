@@ -65,9 +65,13 @@ pub fn deserialize(data: &DataStruct) -> proc_macro2::TokenStream {
         .collect();
     let result = match &data.fields {
         Fields::Named(fields) => {
-            let names = fields.named.iter().map(|field| field.ident.as_ref().expect("named field"));
-            let assignments =
-                names.zip(values.iter()).map(|(name, value)| quote! { #name: #value });
+            let names = fields
+                .named
+                .iter()
+                .map(|field| field.ident.as_ref().expect("named field"));
+            let assignments = names
+                .zip(values.iter())
+                .map(|(name, value)| quote! { #name: #value });
             quote! { Self { #(#assignments),* } }
         }
         Fields::Unnamed(_) => quote! { Self(#(#values),*) },
@@ -85,7 +89,9 @@ pub fn deserialize(data: &DataStruct) -> proc_macro2::TokenStream {
 }
 
 pub fn size_hint(data: &DataStruct) -> proc_macro2::TokenStream {
-    let types = field_layout(&data.fields).into_iter().map(|(ty, _)| ty);
+    let types = field_layout(&data.fields)
+        .into_iter()
+        .map(|(ty, _)| ty);
     quote! {{
         let mut offset = 0_usize;
         let mut max_alignment = 1_usize;

@@ -12,7 +12,11 @@ pub fn generate_version_tolerant_serialize(data: &Data) -> proc_macro2::TokenStr
 
     match &data_struct.fields {
         Fields::Named(fields) => {
-            let non_skip: Vec<_> = fields.named.iter().filter(|f| !should_skip_field(f)).collect();
+            let non_skip: Vec<_> = fields
+                .named
+                .iter()
+                .filter(|f| !should_skip_field(f))
+                .collect();
 
             if non_skip.is_empty() {
                 return quote! { writer.write_u8(0)?; };
@@ -124,7 +128,11 @@ pub fn generate_version_tolerant_deserialize(data: &Data) -> proc_macro2::TokenS
 
     match &data_struct.fields {
         Fields::Named(fields) => {
-            let non_skip: Vec<_> = fields.named.iter().filter(|f| !should_skip_field(f)).collect();
+            let non_skip: Vec<_> = fields
+                .named
+                .iter()
+                .filter(|f| !should_skip_field(f))
+                .collect();
 
             if non_skip.is_empty() {
                 return quote! {

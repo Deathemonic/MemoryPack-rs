@@ -17,15 +17,21 @@ pub fn has_repr_c(attrs: &[syn::Attribute]) -> bool {
         if !attr.path().is_ident("repr") {
             return false;
         }
-        attr.meta
-            .require_list()
-            .is_ok_and(|list| list.tokens.to_string().split(',').any(|token| token.trim() == "C"))
+        attr.meta.require_list().is_ok_and(|list| {
+            list.tokens
+                .to_string()
+                .split(',')
+                .any(|token| token.trim() == "C")
+        })
     })
 }
 
 #[inline]
 pub fn has_explicit_discriminants(data_enum: &syn::DataEnum) -> bool {
-    data_enum.variants.iter().all(|v| v.discriminant.is_some())
+    data_enum
+        .variants
+        .iter()
+        .all(|v| v.discriminant.is_some())
 }
 
 #[inline]
@@ -36,7 +42,10 @@ pub fn should_skip_field(field: &Field) -> bool {
                 let tokens = m.tokens.to_string();
                 tokens.contains("skip") || tokens.contains("ignore")
             })
-    }) || field.ident.as_ref().is_some_and(|ident| ident.to_string().starts_with('_'))
+    }) || field
+        .ident
+        .as_ref()
+        .is_some_and(|ident| ident.to_string().starts_with('_'))
 }
 
 pub fn get_field_order(field: &Field) -> Option<usize> {
@@ -52,8 +61,9 @@ pub fn get_field_order(field: &Field) -> Option<usize> {
         let eq_pos = after_order.find('=')?;
         let after_eq = after_order[eq_pos + 1..].trim();
 
-        let num_str =
-            after_eq.find(|c: char| !c.is_ascii_digit()).map_or(after_eq, |end| &after_eq[..end]);
+        let num_str = after_eq
+            .find(|c: char| !c.is_ascii_digit())
+            .map_or(after_eq, |end| &after_eq[..end]);
 
         num_str.parse::<usize>().ok()
     })
@@ -63,7 +73,10 @@ pub fn get_field_order(field: &Field) -> Option<usize> {
 pub fn is_zero_copy_field(field: &Field) -> bool {
     field.attrs.iter().any(|attr| {
         attr.path().is_ident("memorypack")
-            && attr.meta.require_list().is_ok_and(|m| m.tokens.to_string().contains("zero_copy"))
+            && attr
+                .meta
+                .require_list()
+                .is_ok_and(|m| m.tokens.to_string().contains("zero_copy"))
     })
 }
 
@@ -195,8 +208,14 @@ pub fn generate_size_hint(
                     }
                 }
                 syn::Fields::Unnamed(fields) => {
-                    let indices: Vec<_> = (0..fields.unnamed.len()).map(syn::Index::from).collect();
-                    let length_table_size = if is_version_tolerant { indices.len() } else { 0 };
+                    let indices: Vec<_> = (0..fields.unnamed.len())
+                        .map(syn::Index::from)
+                        .collect();
+                    let length_table_size = if is_version_tolerant {
+                        indices.len()
+                    } else {
+                        0
+                    };
                     quote! {
                         #header_size + #length_table_size
                             #( + memorypack::MemoryPackSerialize::serialized_size_hint(&self.#indices) )*

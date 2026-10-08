@@ -41,7 +41,10 @@ impl<T: MemoryPackSerialize> MemoryPackSerialize for Vec<T> {
 
     #[inline]
     fn serialized_size_hint(&self) -> usize {
-        4 + self.iter().map(MemoryPackSerialize::serialized_size_hint).sum::<usize>()
+        4 + self
+            .iter()
+            .map(MemoryPackSerialize::serialized_size_hint)
+            .sum::<usize>()
     }
 
     fn serialize_nullable(

@@ -18,8 +18,9 @@ impl<'a> MemoryPackReader<'a> {
         &mut self,
         count: usize
     ) -> Result<Vec<T>, MemoryPackError> {
-        let byte_count =
-            count.checked_mul(mem::size_of::<T>()).ok_or(MemoryPackError::UnexpectedEndOfBuffer)?;
+        let byte_count = count
+            .checked_mul(mem::size_of::<T>())
+            .ok_or(MemoryPackError::UnexpectedEndOfBuffer)?;
         let bytes = self.read_bytes(byte_count)?;
         let mut values = Vec::<T>::with_capacity(count);
         unsafe {
@@ -103,7 +104,9 @@ impl<'a> MemoryPackReader<'a> {
     pub fn read_bytes(&mut self, length: usize) -> Result<&'a [u8], MemoryPackError> {
         let pos = self.pos;
 
-        let end = pos.checked_add(length).ok_or(MemoryPackError::UnexpectedEndOfBuffer)?;
+        let end = pos
+            .checked_add(length)
+            .ok_or(MemoryPackError::UnexpectedEndOfBuffer)?;
         if end > self.data.len() {
             return Err(MemoryPackError::UnexpectedEndOfBuffer);
         }
@@ -263,7 +266,10 @@ impl<'a> MemoryPackReader<'a> {
 
     #[inline]
     pub fn skip(&mut self, n: usize) -> Result<(), MemoryPackError> {
-        let new_pos = self.pos.checked_add(n).ok_or(MemoryPackError::UnexpectedEndOfBuffer)?;
+        let new_pos = self
+            .pos
+            .checked_add(n)
+            .ok_or(MemoryPackError::UnexpectedEndOfBuffer)?;
         if new_pos > self.data.len() {
             return Err(MemoryPackError::UnexpectedEndOfBuffer);
         }

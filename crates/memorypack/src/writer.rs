@@ -83,8 +83,11 @@ impl MemoryPackWriter {
         }
 
         let bytes = value.as_bytes();
-        let utf16_length: usize =
-            if value.is_ascii() { bytes.len() } else { value.chars().map(char::len_utf16).sum() };
+        let utf16_length: usize = if value.is_ascii() {
+            bytes.len()
+        } else {
+            value.chars().map(char::len_utf16).sum()
+        };
         self.write_i32(!(bytes.len() as i32))?;
         self.write_i32(utf16_length as i32)?;
         self.buffer.extend_from_slice(bytes);
@@ -181,11 +184,13 @@ impl MemoryPackWriter {
     pub fn write_char(&mut self, value: char) -> Result<(), MemoryPackError> {
         let code = value as u32;
         if code <= 0xFFFF {
-            self.buffer.extend_from_slice(&(code as u16).to_le_bytes());
+            self.buffer
+                .extend_from_slice(&(code as u16).to_le_bytes());
         } else {
             let adjusted = code - 0x10000;
             let high_surrogate = ((adjusted >> 10) as u16) + 0xD800;
-            self.buffer.extend_from_slice(&high_surrogate.to_le_bytes());
+            self.buffer
+                .extend_from_slice(&high_surrogate.to_le_bytes());
         }
         Ok(())
     }

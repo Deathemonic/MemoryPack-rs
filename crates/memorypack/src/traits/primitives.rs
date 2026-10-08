@@ -42,7 +42,10 @@ macro_rules! nullable_value {
             for _ in 1..value_offset {
                 writer.write_u8(0)?;
             }
-            value.copied().unwrap_or_default().serialize(writer)?;
+            value
+                .copied()
+                .unwrap_or_default()
+                .serialize(writer)?;
             for _ in value_offset + std::mem::size_of::<Self>()..size {
                 writer.write_u8(0)?;
             }

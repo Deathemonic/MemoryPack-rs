@@ -82,6 +82,7 @@ enum UnionSample {
     Bar(BarClass)
 }
 
+#[allow(clippy::approx_constant)]
 fn create_simple_data() -> SimpleData {
     SimpleData {
         id: 42,
@@ -96,7 +97,9 @@ fn create_complex_data() -> ComplexData {
         id: 100,
         name: "Complex Test".to_string(),
         numbers: (1..=100).collect(),
-        properties: (1..=50).map(|i| (format!("key{}", i), format!("value{}", i))).collect(),
+        properties: (1..=50)
+            .map(|i| (format!("key{}", i), format!("value{}", i)))
+            .collect(),
         nested: Some(SimpleData {
             id: 1,
             name: "Nested".to_string(),
@@ -106,6 +109,7 @@ fn create_complex_data() -> ComplexData {
     }
 }
 
+#[allow(clippy::approx_constant)]
 fn create_simple_data_no_string() -> SimpleDataNoString {
     SimpleDataNoString {
         id: 42,

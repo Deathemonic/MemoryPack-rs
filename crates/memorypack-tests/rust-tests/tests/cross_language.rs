@@ -1,3 +1,5 @@
+#![allow(clippy::approx_constant)]
+
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, LinkedList, VecDeque};
 use std::path::PathBuf;
 use std::{env, fs};
@@ -316,15 +318,25 @@ struct VersionTolerantWithNullable {
 }
 
 fn csharp_dir() -> PathBuf {
-    env::var_os("MEMORYPACK_DOTNET_FIXTURES").map(PathBuf::from).unwrap_or_else(|| {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..").join("fixtures").join("c#")
-    })
+    env::var_os("MEMORYPACK_DOTNET_FIXTURES")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("..")
+                .join("fixtures")
+                .join("c#")
+        })
 }
 
 fn rust_dir() -> PathBuf {
-    env::var_os("MEMORYPACK_RUST_FIXTURES").map(PathBuf::from).unwrap_or_else(|| {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..").join("fixtures").join("rust")
-    })
+    env::var_os("MEMORYPACK_RUST_FIXTURES")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("..")
+                .join("fixtures")
+                .join("rust")
+        })
 }
 
 fn csharp(name: &str) -> Vec<u8> { fs::read(csharp_dir().join(name)).unwrap() }
@@ -574,7 +586,9 @@ exact_options_case!(
 semantic_case!(
     hashset,
     "70_hashset.bytes",
-    [3, 1, 4, 1, 5, 9, 2, 6].into_iter().collect::<HashSet<_>>()
+    [3, 1, 4, 1, 5, 9, 2, 6]
+        .into_iter()
+        .collect::<HashSet<_>>()
 );
 semantic_case!(
     dictionary,
@@ -586,24 +600,32 @@ semantic_case!(
 semantic_case!(
     dictionary_int_key,
     "74_dictionary_int_key.bytes",
-    [(1, "one".to_owned()), (2, "two".to_owned())].into_iter().collect::<HashMap<_, _>>()
+    [(1, "one".to_owned()), (2, "two".to_owned())]
+        .into_iter()
+        .collect::<HashMap<_, _>>()
 );
 semantic_case!(iset, "87_iset.bytes", [1, 2, 3].into_iter().collect::<HashSet<_>>());
 semantic_case!(
     idictionary,
     "88_idictionary.bytes",
-    [("a".to_owned(), 1)].into_iter().collect::<HashMap<_, _>>()
+    [("a".to_owned(), 1)]
+        .into_iter()
+        .collect::<HashMap<_, _>>()
 );
 semantic_case!(
     ireadonlydictionary,
     "89_ireadonlydictionary.bytes",
-    [("a".to_owned(), 1)].into_iter().collect::<HashMap<_, _>>()
+    [("a".to_owned(), 1)]
+        .into_iter()
+        .collect::<HashMap<_, _>>()
 );
 semantic_case!(dict_empty, "146_dict_empty.bytes", HashMap::<String, i32>::new());
 semantic_case!(
     concurrentdictionary,
     "93_concurrentdictionary.bytes",
-    [("key".to_owned(), 42)].into_iter().collect::<HashMap<_, _>>()
+    [("key".to_owned(), 42)]
+        .into_iter()
+        .collect::<HashMap<_, _>>()
 );
 semantic_case!(
     immutablehashset,
@@ -613,7 +635,9 @@ semantic_case!(
 semantic_case!(
     immutabledictionary,
     "101_immutabledictionary.bytes",
-    [("key".to_owned(), 42)].into_iter().collect::<HashMap<_, _>>()
+    [("key".to_owned(), 42)]
+        .into_iter()
+        .collect::<HashMap<_, _>>()
 );
 semantic_case!(
     iimmutableset,
@@ -623,17 +647,23 @@ semantic_case!(
 semantic_case!(
     iimmutabledictionary,
     "105_iimmutabledictionary.bytes",
-    [("k".to_owned(), 1)].into_iter().collect::<HashMap<_, _>>()
+    [("k".to_owned(), 1)]
+        .into_iter()
+        .collect::<HashMap<_, _>>()
 );
 semantic_case!(
     large_dictionary,
     "136_large_dict_1k.bytes",
-    (0..1000).map(|x| (format!("key{x}"), x)).collect::<HashMap<_, _>>()
+    (0..1000)
+        .map(|x| (format!("key{x}"), x))
+        .collect::<HashMap<_, _>>()
 );
 semantic_case!(
     custom_dictionary,
     "129_custom_dictionary.bytes",
-    [("a".to_owned(), 1_i32), ("b".to_owned(), 2_i32)].into_iter().collect::<HashMap<_, _>>()
+    [("a".to_owned(), 1_i32), ("b".to_owned(), 2_i32)]
+        .into_iter()
+        .collect::<HashMap<_, _>>()
 );
 round_trip_case!(nullable_datetime_value, "56_nullable_datetime_value.bytes", Option<Timestamp>);
 round_trip_case!(nullable_datetime_null, "57_nullable_datetime_null.bytes", Option<Timestamp>);

@@ -13,7 +13,11 @@ pub fn generate_circular_serialize(data: &Data, needs_state: bool) -> proc_macro
 
     match &data_struct.fields {
         Fields::Named(fields) => {
-            let non_skip: Vec<_> = fields.named.iter().filter(|f| !should_skip_field(f)).collect();
+            let non_skip: Vec<_> = fields
+                .named
+                .iter()
+                .filter(|f| !should_skip_field(f))
+                .collect();
             let ordered = prepare_ordered_fields(&non_skip);
             let max_order = ordered.last().map_or(0, |f| f.order);
             let member_count = max_order + 1;
@@ -191,7 +195,11 @@ pub fn generate_circular_deserialize(data: &Data, needs_state: bool) -> proc_mac
 
     match &data_struct.fields {
         Fields::Named(fields) => {
-            let non_skip: Vec<_> = fields.named.iter().filter(|f| !should_skip_field(f)).collect();
+            let non_skip: Vec<_> = fields
+                .named
+                .iter()
+                .filter(|f| !should_skip_field(f))
+                .collect();
 
             if non_skip.is_empty() {
                 return quote! {
