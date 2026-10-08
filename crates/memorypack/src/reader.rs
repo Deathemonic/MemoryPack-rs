@@ -45,6 +45,7 @@ impl<'a> MemoryPackReader<'a> {
         }
     }
 
+    #[inline]
     pub fn read_string(&mut self) -> Result<String, MemoryPackError> {
         let length_or_marker = self.read_i32()?;
 
@@ -64,11 +65,14 @@ impl<'a> MemoryPackReader<'a> {
         self.read_utf16_string(char_count)
     }
 
+    #[inline]
     fn read_utf8_string(&mut self, byte_count: usize) -> Result<String, MemoryPackError> {
         let _char_length = self.read_i32()?;
         let slice = self.read_bytes(byte_count)?;
 
-        basic::from_utf8(slice).map_err(|_| MemoryPackError::InvalidUtf8)?;
+        if slice.len() >= 64 || !slice.is_ascii() {
+            basic::from_utf8(slice).map_err(|_| MemoryPackError::InvalidUtf8)?;
+        }
         Ok(unsafe { String::from_utf8_unchecked(slice.to_vec()) })
     }
 
@@ -134,7 +138,8 @@ impl<'a> MemoryPackReader<'a> {
         Ok(value)
     }
 
-    #[inline]
+    #[cold]
+    #[inline(never)]
     fn read_utf16_string(&mut self, char_count: usize) -> Result<String, MemoryPackError> {
         let byte_count = char_count * 2;
         let slice = self.read_bytes(byte_count)?;
