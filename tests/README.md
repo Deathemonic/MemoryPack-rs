@@ -1,0 +1,13 @@
+# Tests
+
+Rust integration tests and cross-language compatibility tests for the Rust and .NET MemoryPack implementations.
+
+Run the .NET tests first to create the shared fixtures, then run Rust tests:
+
+```shell
+dotnet test --project tests/dotnet-tests
+cargo test -p memorypack-test
+dotnet test --project tests/dotnet-tests
+```
+
+The second .NET run evaluates the Rust-generated files.

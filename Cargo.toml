@@ -1,8 +1,8 @@
 [workspace]
 members = [
     "crates/memorypack",
-    "crates/memorypack-tests/rust-tests",
-    "crates/memorypack-benchmarks/rust-benchmarks",
+    "tests/rust-tests",
+    "benches/rust-benchmarks",
     "crates/memorypack-derive",
 ]
 resolver = "3"

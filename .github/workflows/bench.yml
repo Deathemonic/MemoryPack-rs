@@ -30,27 +30,27 @@ jobs:
 
       - name: Run Rust Benchmarks
         run: |
-          cd crates/memorypack-benchmarks/rust-benchmarks
-          cargo bench --bench memorypack_bench | tee ../../../rust_results.txt
+          cd benches/rust-benchmarks
+          cargo bench --bench memorypack_bench | tee ../../rust_results.txt
 
       - name: Restore .NET
         run: |
-          cd crates/memorypack-benchmarks/dotnet-benchmarks
+          cd benches/dotnet-benchmarks
           dotnet restore
 
       - name: Run .NET Benchmarks
         run: |
-          cd crates/memorypack-benchmarks/dotnet-benchmarks
+          cd benches/dotnet-benchmarks
           dotnet run -c Release
 
       - name: Locate .NET Results
         id: dotnet-locate
         run: |
           echo "Searching for BenchmarkDotNet results..."
-          find crates/memorypack-benchmarks/dotnet-benchmarks/BenchmarkDotNet.Artifacts -type f -name "*.json" 2>/dev/null || true
-          JSON_PATH=$(find crates/memorypack-benchmarks/dotnet-benchmarks/BenchmarkDotNet.Artifacts/results -name "*-report-full.json" -type f 2>/dev/null | head -n 1)
+          find benches/dotnet-benchmarks/BenchmarkDotNet.Artifacts -type f -name "*.json" 2>/dev/null || true
+          JSON_PATH=$(find benches/dotnet-benchmarks/BenchmarkDotNet.Artifacts/results -name "*-report-full.json" -type f 2>/dev/null | head -n 1)
           if [ -z "$JSON_PATH" ]; then
-            JSON_PATH=$(find crates/memorypack-benchmarks/dotnet-benchmarks/BenchmarkDotNet.Artifacts/results -name "*.json" -type f 2>/dev/null | head -n 1)
+            JSON_PATH=$(find benches/dotnet-benchmarks/BenchmarkDotNet.Artifacts/results -name "*.json" -type f 2>/dev/null | head -n 1)
           fi
           if [ -z "$JSON_PATH" ]; then
             echo "No JSON results found"

@@ -19,11 +19,11 @@ public class FixtureTests
     public static IEnumerable<Func<FixtureCase>> GetFixtureCases()
     {
         var outputDir = Environment.GetEnvironmentVariable("MEMORYPACK_TEST_FIXTURES")
-                        ?? Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "..",
-                            "crates", "memorypack-tests", "fixtures", "c#"));
+                        ?? Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..",
+                            "fixtures", "c#"));
         var rustOutputDir = Environment.GetEnvironmentVariable("MEMORYPACK_RUST_FIXTURES")
-                            ?? Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..",
-                                "..", "crates", "memorypack-tests", "fixtures", "rust"));
+                            ?? Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..",
+                                "fixtures", "rust"));
         Directory.CreateDirectory(outputDir);
 
         var cases = new List<FixtureCase>();
