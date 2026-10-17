@@ -1,30 +1,35 @@
 use std::any::Any;
 use std::collections::HashMap;
 use std::ptr;
+use std::rc::Rc;
 
 use crate::error::MemoryPackError;
+use crate::graph::arena::{GraphArena, ReferenceKey};
 
 #[derive(Default)]
 pub struct MemoryPackWriterOptionalState {
     next_id: u32,
-    object_references: HashMap<usize, u32>
+    object_references: HashMap<usize, u32>,
+    pub(crate) graph: Option<Box<WriterGraphContext>>
 }
 
 #[derive(Default)]
 pub struct MemoryPackReaderOptionalState {
-    referenced_objects: HashMap<u32, Box<dyn Any>>
+    referenced_objects: HashMap<u32, Box<dyn Any>>,
+    pub(crate) graph: Option<Box<GraphArena>>
+}
+
+pub(crate) struct WriterGraphContext {
+    pub arena: Rc<GraphArena>,
+    references: HashMap<ReferenceKey, u32>
 }
 
 impl MemoryPackWriterOptionalState {
-    pub fn new() -> Self {
-        Self {
-            next_id: 0,
-            object_references: HashMap::new()
-        }
-    }
+    pub fn new() -> Self { Self::default() }
 
     pub fn reset(&mut self) {
         self.object_references.clear();
+        self.graph = None;
         self.next_id = 0;
     }
 
@@ -42,16 +47,35 @@ impl MemoryPackWriterOptionalState {
             (false, id)
         }
     }
+
+    pub(crate) fn get_or_add_graph_reference(
+        &mut self,
+        key: ReferenceKey
+    ) -> Result<(bool, u32), MemoryPackError> {
+        let context = self
+            .graph
+            .as_mut()
+            .ok_or(MemoryPackError::ObjectReferenceNotFound(key.error_id()))?;
+
+        if let Some(&reference_id) = context.references.get(&key) {
+            return Ok((true, reference_id));
+        }
+
+        let reference_id = self.next_id;
+        self.next_id += 1;
+        context.references.insert(key, reference_id);
+
+        Ok((false, reference_id))
+    }
 }
 
 impl MemoryPackReaderOptionalState {
-    pub fn new() -> Self {
-        Self {
-            referenced_objects: HashMap::new()
-        }
-    }
+    pub fn new() -> Self { Self::default() }
 
-    pub fn reset(&mut self) { self.referenced_objects.clear(); }
+    pub fn reset(&mut self) {
+        self.referenced_objects.clear();
+        self.graph = None;
+    }
 
     pub fn get_object_reference<T: 'static + Clone>(&self, id: u32) -> Result<T, MemoryPackError> {
         self.referenced_objects
@@ -87,5 +111,14 @@ impl MemoryPackReaderOptionalState {
                 Ok(())
             }
         )
+    }
+}
+
+impl WriterGraphContext {
+    pub(crate) fn new(arena: Rc<GraphArena>) -> Self {
+        Self {
+            arena,
+            references: HashMap::new()
+        }
     }
 }

@@ -11,10 +11,12 @@ pub mod prelude {
     pub use crate::writer::MemoryPackWriter;
 }
 
+mod graph;
 mod io;
 mod serialization;
 
 pub use error::MemoryPackError;
+pub use graph::{MemoryPackCircular, MemoryPackGraph, MemoryPackReference};
 #[cfg(feature = "derive")]
 pub use memorypack_derive::MemoryPackable;
 pub use reader::MemoryPackReader;

@@ -226,6 +226,16 @@ partial class NodeWithCircular
     public NodeWithCircular? Next { get; set; }
 }
 
+[MemoryPackable(GenerateType.CircularReference)]
+partial class SharedCircularRoot
+{
+    [MemoryPackOrder(0)]
+    public NodeWithCircular? Left { get; set; }
+
+    [MemoryPackOrder(1)]
+    public NodeWithCircular? Right { get; set; }
+}
+
 [MemoryPackable]
 partial struct NullableStruct
 {

@@ -9,8 +9,8 @@ use std::{env, fs, iter};
 use jiff::civil::{Date, DateTime, Time};
 use jiff::tz::{Offset, TimeZone};
 use jiff::{SignedDuration, Timestamp, Zoned};
-use memorypack::MultiDimArray;
 use memorypack::prelude::*;
+use memorypack::{MemoryPackGraph, MemoryPackReference, MultiDimArray};
 
 const SAMPLE_FLOAT: f32 = 314_159.0 / 100_000.0;
 
@@ -237,7 +237,14 @@ struct NodeWithCircular {
     #[memorypack(order = 0)]
     id: i32,
     #[memorypack(order = 1)]
-    next: Option<Box<Self>>
+    next: Option<MemoryPackReference<Self>>
+}
+
+#[derive(MemoryPackable, Debug, Clone)]
+#[memorypack(circular)]
+struct SharedCircularRoot {
+    left: Option<MemoryPackReference<NodeWithCircular>>,
+    right: Option<MemoryPackReference<NodeWithCircular>>
 }
 
 #[derive(MemoryPackable, Debug, Clone)]
@@ -357,6 +364,107 @@ impl MemoryPackDeserialize for NullableStringField {
     fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
         Ok(Self(Option::<String>::deserialize(reader)?))
     }
+}
+
+#[test]
+fn circular_reference() -> TestResult {
+    let mut graph = MemoryPackGraph::new(NodeWithCircular { id: 1, next: None });
+    let root = graph.root;
+    let second = graph.insert(NodeWithCircular { id: 2, next: None })?;
+    let third = graph.insert(NodeWithCircular { id: 3, next: None })?;
+    graph.get_mut(root)?.next = Some(second);
+    graph.get_mut(second)?.next = Some(third);
+    graph.get_mut(third)?.next = Some(root);
+
+    exact("132_circular_reference.bytes", &graph)?;
+    let decoded = MemoryPackSerializer::deserialize::<MemoryPackGraph<NodeWithCircular>>(&csharp(
+        "132_circular_reference.bytes"
+    )?)?;
+    let second = decoded
+        .get(decoded.root)?
+        .next
+        .ok_or("missing second node")?;
+    let third = decoded
+        .get(second)?
+        .next
+        .ok_or("missing third node")?;
+
+    assert_eq!(
+        (decoded.get(decoded.root)?.id, decoded.get(second)?.id, decoded.get(third)?.id),
+        (1, 2, 3)
+    );
+    assert_eq!(decoded.get(third)?.next, Some(decoded.root));
+
+    Ok(())
+}
+
+#[test]
+fn self_reference() -> TestResult {
+    let mut graph = MemoryPackGraph::new(NodeWithCircular { id: 1, next: None });
+    let root = graph.root;
+    graph.get_mut(root)?.next = Some(root);
+
+    exact("165_self_reference.bytes", &graph)?;
+    let decoded = MemoryPackSerializer::deserialize::<MemoryPackGraph<NodeWithCircular>>(&csharp(
+        "165_self_reference.bytes"
+    )?)?;
+
+    assert_eq!(decoded.get(decoded.root)?.next, Some(decoded.root));
+
+    Ok(())
+}
+
+#[test]
+fn shared_reference() -> TestResult {
+    let mut graph = MemoryPackGraph::new(SharedCircularRoot { left: None, right: None });
+    let child = graph.insert(NodeWithCircular { id: 7, next: None })?;
+    let root = graph.root;
+    graph.get_mut(root)?.left = Some(child);
+    graph.get_mut(root)?.right = Some(child);
+
+    exact("166_shared_reference.bytes", &graph)?;
+    let mut decoded = MemoryPackSerializer::deserialize::<MemoryPackGraph<SharedCircularRoot>>(
+        &csharp("166_shared_reference.bytes")?
+    )?;
+    let left = decoded
+        .get(decoded.root)?
+        .left
+        .ok_or("missing left node")?;
+    let right = decoded
+        .get(decoded.root)?
+        .right
+        .ok_or("missing right node")?;
+    decoded.get_mut(left)?.id = 42;
+
+    assert_eq!(left, right);
+    assert_eq!(decoded.get(right)?.id, 42);
+
+    Ok(())
+}
+
+#[test]
+fn bitarray() -> TestResult {
+    let fixture_name = "34_bitarray.bytes";
+    let csharp_bytes = csharp(fixture_name)?;
+    let decoded = MemoryPackSerializer::deserialize::<BitArrayValue>(&csharp_bytes)?;
+    let expected_bits = [true, false, true, true, false];
+
+    assert_eq!(decoded.length, expected_bits.len() as i32);
+
+    let decoded_bits = decoded
+        .values
+        .iter()
+        .flat_map(|word| (0..i32::BITS).map(move |offset| (word >> offset) & 1 != 0))
+        .take(expected_bits.len())
+        .collect::<Vec<_>>();
+
+    assert_eq!(decoded_bits, expected_bits);
+
+    let rust_bytes = MemoryPackSerializer::serialize(&decoded)?;
+
+    assert_eq!(rust_bytes, csharp_bytes);
+
+    write_rust(fixture_name, &rust_bytes)
 }
 
 fn csharp_dir() -> PathBuf {
@@ -785,14 +893,6 @@ exact_case!(
     }
 );
 
-exact_case!(circular_reference, "132_circular_reference.bytes", NodeWithCircular {
-    id: 1,
-    next: Some(Box::new(NodeWithCircular {
-        id: 2,
-        next: Some(Box::new(NodeWithCircular { id: 3, next: None }))
-    }))
-});
-
 exact_case!(required_members, "153_required_members.bytes", RequiredMembersSample {
     required_int: 42,
     required_string: "required".to_owned(),
@@ -936,11 +1036,6 @@ exact_case!(memory, "51_memory.bytes", vec![1_u8, 2, 3, 4, 5]);
 exact_case!(readonlymemory, "52_readonlymemory.bytes", vec![10_i32, 20, 30]);
 
 exact_case!(arraysegment, "53_arraysegment.bytes", vec![2_u8, 3, 4]);
-
-exact_case!(bitarray, "34_bitarray.bytes", BitArrayValue {
-    length: 5,
-    values: vec![13]
-});
 
 exact_case!(cultureinfo, "35_cultureinfo.bytes", "en-US".to_owned());
 

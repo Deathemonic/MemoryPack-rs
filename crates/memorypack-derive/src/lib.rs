@@ -5,7 +5,11 @@ use quote::quote;
 use syn::{Data, DeriveInput, parse_macro_input};
 
 use crate::generation::attributes::AttributeFlags;
-use crate::generation::circular::{generate_circular_deserialize, generate_circular_serialize};
+use crate::generation::circular::{
+    generate_circular_deserialize,
+    generate_circular_serialize,
+    generate_graph_impl
+};
 use crate::generation::enums::{
     generate_enum_deserialize_safe,
     generate_enum_serialize,
@@ -38,6 +42,10 @@ pub fn derive_memorypack(input: TokenStream) -> TokenStream {
         Ok(impls) => impls,
         Err(error) => return error.to_compile_error().into()
     };
+
+    let graph_impl = attrs
+        .is_circular
+        .then(|| generate_graph_impl(&input));
 
     let flags_impl = if attrs.is_flags && attrs.is_transparent {
         generate_flags_impls(name)
@@ -100,6 +108,7 @@ pub fn derive_memorypack(input: TokenStream) -> TokenStream {
         #zero_copy_impl
 
         #flags_impl
+        #graph_impl
     }
     .into()
 }

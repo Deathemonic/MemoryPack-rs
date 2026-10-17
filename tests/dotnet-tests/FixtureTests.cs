@@ -56,6 +56,13 @@ public class FixtureTests
                 if (!File.Exists(rustPath)) return;
 
                 var rustBytes = File.ReadAllBytes(rustPath);
+
+                if (value is BitArray expectedBits)
+                {
+                    VerifyBitArray(rustBytes, expectedBits, options);
+                    return;
+                }
+
                 if (!unorderedFixtures.Contains(filename) && !rustBytes.AsSpan().SequenceEqual(bytes))
                     throw new InvalidOperationException("C# and Rust serialization differs");
 
@@ -180,7 +187,7 @@ public class FixtureTests
             "76_sorteddictionary.bytes");
 
         var readOnlyDict = new ReadOnlyDictionary<string, int>(new Dictionary<string, int> { ["x"] = 10 });
-        SaveBytes(readOnlyDict, "77_readonlydictionary.bytes");
+        SaveBytes<IReadOnlyDictionary<string, int>>(readOnlyDict, "77_readonlydictionary.bytes");
 
         SaveBytes(new Collection<int> { 1, 2, 3 }, "78_collection.bytes");
         SaveBytes(new ReadOnlyCollection<string>(["a", "b", "c"]), "79_readonlycollection.bytes");
@@ -325,6 +332,14 @@ public class FixtureTests
 
         SaveBytes(node1, "132_circular_reference.bytes");
 
+        var selfReference = new NodeWithCircular { Id = 1 };
+        selfReference.Next = selfReference;
+        SaveBytes(selfReference, "165_self_reference.bytes");
+
+        var sharedChild = new NodeWithCircular { Id = 7 };
+        SaveBytes(new SharedCircularRoot { Left = sharedChild, Right = sharedChild },
+            "166_shared_reference.bytes");
+
         const string stringData = "Hello MemoryPack! こんにちは 你好 مرحبا";
         SaveBytes(stringData, "133_string_utf8.bytes", MemoryPackSerializerOptions.Utf8);
         SaveBytes(stringData, "134_string_utf16.bytes", MemoryPackSerializerOptions.Utf16);
@@ -387,6 +402,20 @@ public class FixtureTests
             "164_version_tolerant_nullable_nulls.bytes");
 
         return cases.Select(x => new Func<FixtureCase>(() => x));
+    }
+
+    private static void VerifyBitArray(byte[] rustBytes, BitArray expected, MemoryPackSerializerOptions? options)
+    {
+        var decoded = MemoryPackSerializer.Deserialize<BitArray>(rustBytes)
+                      ?? throw new InvalidOperationException("Rust BitArray bytes decoded to null");
+        var reserialized = MemoryPackSerializer.Serialize(decoded, options);
+        var roundTrip = MemoryPackSerializer.Deserialize<BitArray>(reserialized)
+                        ?? throw new InvalidOperationException("BitArray round-trip decoded to null");
+        var expectedBits = expected.Cast<bool>().ToArray();
+
+        if (!decoded.Cast<bool>().SequenceEqual(expectedBits)
+            || !roundTrip.Cast<bool>().SequenceEqual(expectedBits))
+            throw new InvalidOperationException("Rust BitArray bytes do not preserve the logical bits");
     }
 }
 
