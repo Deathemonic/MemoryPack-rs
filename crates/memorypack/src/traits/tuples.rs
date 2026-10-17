@@ -9,20 +9,20 @@ macro_rules! impl_tuple {
         where
             $($T: MemoryPackSerialize,)+
         {
-
             #[inline]
             fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
                 $(self.$index.serialize(writer)?;)+
+
                 Ok(())
             }
         }
 
-        impl<$($T),+> MemoryPackDeserialize for ($($T,)+)
+        impl<'de, $($T),+> MemoryPackDeserialize<'de> for ($($T,)+)
         where
-            $($T: MemoryPackDeserialize,)+
+            $($T: MemoryPackDeserialize<'de>,)+
         {
             #[inline]
-            fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+            fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
                 Ok(($($T::deserialize(reader)?,)+))
             }
         }

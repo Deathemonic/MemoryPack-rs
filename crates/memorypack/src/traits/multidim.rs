@@ -44,9 +44,9 @@ impl<T: MemoryPackSerialize> MemoryPackSerialize for MultiDimArray<T> {
     }
 }
 
-impl<T: MemoryPackDeserialize> MemoryPackDeserialize for MultiDimArray<T> {
+impl<'de, T: MemoryPackDeserialize<'de>> MemoryPackDeserialize<'de> for MultiDimArray<T> {
     #[inline]
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         let rank_plus_1 = reader.read_u8()?;
         let rank = (rank_plus_1 as usize).saturating_sub(1);
 

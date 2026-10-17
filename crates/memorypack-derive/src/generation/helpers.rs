@@ -1,5 +1,8 @@
+use proc_macro2::{Span, TokenStream};
 use quote::quote;
-use syn::Field;
+use syn::{Field, GenericParam, Generics, Lifetime, LifetimeParam, parse_quote};
+
+const INPUT_LIFETIME_NAME: &str = "'de";
 
 pub struct OrderedField<'a> {
     pub order: usize,
@@ -77,37 +80,6 @@ pub fn get_field_order(field: &Field) -> Option<usize> {
     })
 }
 
-#[inline]
-pub fn is_zero_copy_field(field: &Field) -> bool {
-    field.attrs.iter().any(|attr| {
-        attr.path().is_ident("memorypack")
-            && attr
-                .meta
-                .require_list()
-                .is_ok_and(|m| m.tokens.to_string().contains("zero_copy"))
-    })
-}
-
-#[inline]
-pub fn is_borrowed_str(ty: &syn::Type) -> bool {
-    if let syn::Type::Reference(type_reference) = ty
-        && let syn::Type::Path(inner_path) = &*type_reference.elem
-    {
-        return inner_path.path.is_ident("str");
-    }
-
-    false
-}
-
-#[inline]
-pub fn is_borrowed_slice(ty: &syn::Type) -> bool {
-    if let syn::Type::Reference(type_reference) = ty {
-        return matches!(&*type_reference.elem, syn::Type::Slice(_));
-    }
-
-    false
-}
-
 pub fn prepare_ordered_fields<'a>(fields: &'a [&'a Field]) -> Vec<OrderedField<'a>> {
     let mut ordered: Vec<_> = fields
         .iter()
@@ -123,35 +95,11 @@ pub fn prepare_ordered_fields<'a>(fields: &'a [&'a Field]) -> Vec<OrderedField<'
     ordered
 }
 
-pub fn generate_field_deserialize(
-    field: &Field,
-    is_zero_copy_struct: bool
-) -> proc_macro2::TokenStream {
-    use quote::quote;
-
+pub fn generate_field_deserialize(field: &Field) -> TokenStream {
     let name = &field.ident;
-    let ty = &field.ty;
 
     if should_skip_field(field) {
-        return quote! {
-            let #name = Default::default();
-        };
-    }
-
-    let is_field_zero_copy = is_zero_copy_field(field);
-
-    if is_zero_copy_struct || is_field_zero_copy {
-        if is_borrowed_str(ty) {
-            return quote! { let #name = reader.read_str()?; };
-        }
-
-        if is_borrowed_slice(ty) {
-            return quote! { let #name = reader.read_bytes()?; };
-        }
-
-        if is_field_zero_copy {
-            return quote! { let #name = memorypack::MemoryPackDeserializeZeroCopy::deserialize(reader)?; };
-        }
+        return quote! { let #name = Default::default(); };
     }
 
     quote! { let #name = memorypack::MemoryPackDeserialize::deserialize(reader)?; }
@@ -220,4 +168,44 @@ pub fn generate_size_hint(
         syn::Data::Enum(_) => quote! { 4 },
         syn::Data::Union(_) => quote! { 0 }
     }
+}
+
+pub fn prepare_deserialization_generics(generics: &Generics) -> (Generics, Lifetime) {
+    let input_lifetime = prepare_input_lifetime(generics);
+    let lifetime_parameter = prepare_lifetime_parameter(generics, &input_lifetime);
+    let mut deserialization_generics = generics.clone();
+    deserialization_generics
+        .params
+        .insert(0, GenericParam::Lifetime(lifetime_parameter));
+
+    for parameter in deserialization_generics.type_params_mut() {
+        parameter
+            .bounds
+            .push(parse_quote!(memorypack::MemoryPackDeserialize<#input_lifetime>));
+    }
+
+    (deserialization_generics, input_lifetime)
+}
+
+fn prepare_input_lifetime(generics: &Generics) -> Lifetime {
+    let mut lifetime_name = INPUT_LIFETIME_NAME.to_owned();
+
+    while generics
+        .lifetimes()
+        .any(|parameter| parameter.lifetime.to_string() == lifetime_name)
+    {
+        lifetime_name.push('_');
+    }
+
+    Lifetime::new(&lifetime_name, Span::call_site())
+}
+
+fn prepare_lifetime_parameter(generics: &Generics, input_lifetime: &Lifetime) -> LifetimeParam {
+    let mut parameter = LifetimeParam::new(input_lifetime.clone());
+    parameter.bounds = generics
+        .lifetimes()
+        .map(|parameter| parameter.lifetime.clone())
+        .collect();
+
+    parameter
 }

@@ -1,4 +1,5 @@
 mod collections;
+mod deserialization;
 mod multidim;
 mod options;
 mod primitives;
@@ -18,11 +19,8 @@ mod datetime;
 #[cfg(any(feature = "glam", feature = "num-complex"))]
 mod math;
 
+pub use deserialization::MemoryPackDeserialize;
 pub use multidim::MultiDimArray;
-pub use serialization::{
-    MemoryPackDeserialize,
-    MemoryPackDeserializeZeroCopy,
-    MemoryPackSerialize
-};
+pub use serialization::MemoryPackSerialize;
 pub use special::{Lazy, Stack, Tuple, TupleElements};
 pub(crate) use unmanaged::MemoryPackUnmanaged;

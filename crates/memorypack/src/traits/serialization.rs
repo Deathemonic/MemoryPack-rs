@@ -1,5 +1,4 @@
 use crate::error::MemoryPackError;
-use crate::reader::MemoryPackReader;
 use crate::serialization::format::NULL_OBJECT_HEADER;
 use crate::writer::MemoryPackWriter;
 
@@ -43,41 +42,4 @@ pub trait MemoryPackSerialize {
 
     #[inline]
     fn serialized_size_hint(&self) -> usize { 0 }
-}
-
-pub trait MemoryPackDeserialize: Sized {
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError>;
-
-    #[doc(hidden)]
-    fn deserialize_nullable(
-        reader: &mut MemoryPackReader
-    ) -> Result<Option<Self>, MemoryPackError> {
-        let marker = reader.read_u8()?;
-
-        if marker == NULL_OBJECT_HEADER {
-            Ok(None)
-        } else {
-            reader.rewind(1)?;
-            Ok(Some(Self::deserialize(reader)?))
-        }
-    }
-
-    #[doc(hidden)]
-    #[inline]
-    fn deserialize_many(
-        reader: &mut MemoryPackReader,
-        count: usize
-    ) -> Result<Vec<Self>, MemoryPackError> {
-        let mut values = Vec::with_capacity(count);
-
-        for _ in 0..count {
-            values.push(Self::deserialize(reader)?);
-        }
-
-        Ok(values)
-    }
-}
-
-pub trait MemoryPackDeserializeZeroCopy<'a>: Sized {
-    fn deserialize(reader: &mut MemoryPackReader<'a>) -> Result<Self, MemoryPackError>;
 }

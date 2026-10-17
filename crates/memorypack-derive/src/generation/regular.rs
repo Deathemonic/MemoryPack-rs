@@ -54,7 +54,7 @@ pub fn generate_serialize(data: &Data) -> proc_macro2::TokenStream {
     }
 }
 
-pub fn generate_deserialize(data: &Data, is_zero_copy: bool) -> proc_macro2::TokenStream {
+pub fn generate_deserialize(data: &Data) -> proc_macro2::TokenStream {
     let Data::Struct(data_struct) = data else {
         return quote! {
             compile_error!("MemoryPackable deserialize can only be derived for structs");
@@ -75,7 +75,7 @@ pub fn generate_deserialize(data: &Data, is_zero_copy: bool) -> proc_macro2::Tok
             let deserialize_stmts: Vec<_> = fields
                 .named
                 .iter()
-                .map(|f| generate_field_deserialize(f, is_zero_copy))
+                .map(generate_field_deserialize)
                 .collect();
 
             let mut ordered_deserialize = Vec::new();

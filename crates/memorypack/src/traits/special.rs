@@ -23,7 +23,7 @@ macro_rules! impl_tuple_elements {
     ($count:literal; $($T:ident : $index:tt),+) => {
         impl<$($T),+> TupleElements for ($($T,)+)
         where
-            $($T: MemoryPackSerialize + MemoryPackDeserialize,)+
+            $($T: MemoryPackSerialize + for<'de> MemoryPackDeserialize<'de>,)+
         {
             const COUNT: u8 = $count;
 
@@ -46,8 +46,8 @@ impl<T: MemoryPackSerialize> MemoryPackSerialize for Lazy<T> {
     }
 }
 
-impl<T: MemoryPackDeserialize> MemoryPackDeserialize for Lazy<T> {
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+impl<'de, T: MemoryPackDeserialize<'de>> MemoryPackDeserialize<'de> for Lazy<T> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         let count = reader.read_u8()?;
 
         if count != 1 {
@@ -70,8 +70,8 @@ impl<T: MemoryPackSerialize> MemoryPackSerialize for Stack<T> {
     }
 }
 
-impl<T: MemoryPackDeserialize> MemoryPackDeserialize for Stack<T> {
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+impl<'de, T: MemoryPackDeserialize<'de>> MemoryPackDeserialize<'de> for Stack<T> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         let count = reader.read_i32()?;
 
         if count < 0 {
@@ -93,8 +93,8 @@ impl<T: TupleElements> MemoryPackSerialize for Tuple<T> {
     }
 }
 
-impl<T: TupleElements> MemoryPackDeserialize for Tuple<T> {
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+impl<'de, T: TupleElements> MemoryPackDeserialize<'de> for Tuple<T> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         let count = reader.read_u8()?;
 
         if count != T::COUNT {

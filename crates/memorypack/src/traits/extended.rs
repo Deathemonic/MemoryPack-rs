@@ -13,9 +13,9 @@ impl MemoryPackSerialize for uuid::Uuid {
 }
 
 #[cfg(feature = "uuid")]
-impl MemoryPackDeserialize for uuid::Uuid {
+impl<'de> MemoryPackDeserialize<'de> for uuid::Uuid {
     #[inline(always)]
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         Ok(Self::from_bytes(reader.read_fixed_bytes::<16>()?))
     }
 }
@@ -37,9 +37,9 @@ impl MemoryPackSerialize for rust_decimal::Decimal {
 }
 
 #[cfg(feature = "rust_decimal")]
-impl MemoryPackDeserialize for rust_decimal::Decimal {
+impl<'de> MemoryPackDeserialize<'de> for rust_decimal::Decimal {
     #[inline(always)]
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         let flags = reader.read_u32()?;
         let hi = reader.read_u32()?;
         let lo64 = reader.read_u64()?;
@@ -62,9 +62,9 @@ impl MemoryPackSerialize for half::f16 {
 }
 
 #[cfg(feature = "half")]
-impl MemoryPackDeserialize for half::f16 {
+impl<'de> MemoryPackDeserialize<'de> for half::f16 {
     #[inline(always)]
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         Ok(Self::from_bits(reader.read_u16()?))
     }
 }
@@ -83,9 +83,9 @@ impl MemoryPackSerialize for num_bigint::BigInt {
 }
 
 #[cfg(feature = "num-bigint")]
-impl MemoryPackDeserialize for num_bigint::BigInt {
+impl<'de> MemoryPackDeserialize<'de> for num_bigint::BigInt {
     #[inline]
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         let len = reader.read_i32()?;
 
         if len < 0 {
@@ -110,9 +110,9 @@ impl MemoryPackSerialize for num_bigint::BigUint {
 }
 
 #[cfg(feature = "num-bigint")]
-impl MemoryPackDeserialize for num_bigint::BigUint {
+impl<'de> MemoryPackDeserialize<'de> for num_bigint::BigUint {
     #[inline]
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         let len = reader.read_i32()?;
 
         if len < 0 {
@@ -132,9 +132,9 @@ impl MemoryPackSerialize for url::Url {
 }
 
 #[cfg(feature = "url")]
-impl MemoryPackDeserialize for url::Url {
+impl<'de> MemoryPackDeserialize<'de> for url::Url {
     #[inline(always)]
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         let s = String::deserialize(reader)?;
 
         Self::parse(&s).map_err(MemoryPackError::from)

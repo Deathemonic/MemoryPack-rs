@@ -22,7 +22,7 @@ macro_rules! unmanaged_deserialize_many {
         #[cfg(target_endian = "little")]
         #[inline]
         fn deserialize_many(
-            reader: &mut MemoryPackReader,
+            reader: &mut MemoryPackReader<'de>,
             count: usize
         ) -> Result<Vec<Self>, MemoryPackError> {
             reader.read_unmanaged_vec(count)
@@ -65,7 +65,7 @@ macro_rules! nullable_value {
 macro_rules! nullable_value_deserialize {
     () => {
         fn deserialize_nullable(
-            reader: &mut MemoryPackReader
+            reader: &mut MemoryPackReader<'de>
         ) -> Result<Option<Self>, MemoryPackError> {
             let alignment = std::mem::align_of::<Self>();
             let value_offset = (1 + alignment - 1) & !(alignment - 1);
@@ -92,11 +92,11 @@ impl MemoryPackSerialize for bool {
     fn serialized_size_hint(&self) -> usize { 1 }
 }
 
-impl MemoryPackDeserialize for bool {
+impl<'de> MemoryPackDeserialize<'de> for bool {
     nullable_value_deserialize!();
 
     #[inline(always)]
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         reader.read_bool()
     }
 }
@@ -115,13 +115,13 @@ impl MemoryPackSerialize for i8 {
     fn serialized_size_hint(&self) -> usize { 1 }
 }
 
-impl MemoryPackDeserialize for i8 {
+impl<'de> MemoryPackDeserialize<'de> for i8 {
     unmanaged_deserialize_many!();
 
     nullable_value_deserialize!();
 
     #[inline(always)]
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         reader.read_i8()
     }
 }
@@ -140,13 +140,13 @@ impl MemoryPackSerialize for u8 {
     fn serialized_size_hint(&self) -> usize { 1 }
 }
 
-impl MemoryPackDeserialize for u8 {
+impl<'de> MemoryPackDeserialize<'de> for u8 {
     unmanaged_deserialize_many!();
 
     nullable_value_deserialize!();
 
     #[inline(always)]
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         reader.read_u8()
     }
 }
@@ -165,13 +165,13 @@ impl MemoryPackSerialize for i16 {
     fn serialized_size_hint(&self) -> usize { 2 }
 }
 
-impl MemoryPackDeserialize for i16 {
+impl<'de> MemoryPackDeserialize<'de> for i16 {
     unmanaged_deserialize_many!();
 
     nullable_value_deserialize!();
 
     #[inline(always)]
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         reader.read_i16()
     }
 }
@@ -190,13 +190,13 @@ impl MemoryPackSerialize for u16 {
     fn serialized_size_hint(&self) -> usize { 2 }
 }
 
-impl MemoryPackDeserialize for u16 {
+impl<'de> MemoryPackDeserialize<'de> for u16 {
     unmanaged_deserialize_many!();
 
     nullable_value_deserialize!();
 
     #[inline(always)]
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         reader.read_u16()
     }
 }
@@ -215,13 +215,13 @@ impl MemoryPackSerialize for i32 {
     fn serialized_size_hint(&self) -> usize { 4 }
 }
 
-impl MemoryPackDeserialize for i32 {
+impl<'de> MemoryPackDeserialize<'de> for i32 {
     unmanaged_deserialize_many!();
 
     nullable_value_deserialize!();
 
     #[inline(always)]
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         reader.read_i32()
     }
 }
@@ -240,13 +240,13 @@ impl MemoryPackSerialize for u32 {
     fn serialized_size_hint(&self) -> usize { 4 }
 }
 
-impl MemoryPackDeserialize for u32 {
+impl<'de> MemoryPackDeserialize<'de> for u32 {
     unmanaged_deserialize_many!();
 
     nullable_value_deserialize!();
 
     #[inline(always)]
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         reader.read_u32()
     }
 }
@@ -265,13 +265,13 @@ impl MemoryPackSerialize for i64 {
     fn serialized_size_hint(&self) -> usize { 8 }
 }
 
-impl MemoryPackDeserialize for i64 {
+impl<'de> MemoryPackDeserialize<'de> for i64 {
     unmanaged_deserialize_many!();
 
     nullable_value_deserialize!();
 
     #[inline(always)]
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         reader.read_i64()
     }
 }
@@ -290,13 +290,13 @@ impl MemoryPackSerialize for u64 {
     fn serialized_size_hint(&self) -> usize { 8 }
 }
 
-impl MemoryPackDeserialize for u64 {
+impl<'de> MemoryPackDeserialize<'de> for u64 {
     unmanaged_deserialize_many!();
 
     nullable_value_deserialize!();
 
     #[inline(always)]
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         reader.read_u64()
     }
 }
@@ -315,13 +315,13 @@ impl MemoryPackSerialize for f32 {
     fn serialized_size_hint(&self) -> usize { 4 }
 }
 
-impl MemoryPackDeserialize for f32 {
+impl<'de> MemoryPackDeserialize<'de> for f32 {
     unmanaged_deserialize_many!();
 
     nullable_value_deserialize!();
 
     #[inline(always)]
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         reader.read_f32()
     }
 }
@@ -340,13 +340,13 @@ impl MemoryPackSerialize for f64 {
     fn serialized_size_hint(&self) -> usize { 8 }
 }
 
-impl MemoryPackDeserialize for f64 {
+impl<'de> MemoryPackDeserialize<'de> for f64 {
     unmanaged_deserialize_many!();
 
     nullable_value_deserialize!();
 
     #[inline(always)]
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         reader.read_f64()
     }
 }
@@ -365,13 +365,13 @@ impl MemoryPackSerialize for i128 {
     fn serialized_size_hint(&self) -> usize { 16 }
 }
 
-impl MemoryPackDeserialize for i128 {
+impl<'de> MemoryPackDeserialize<'de> for i128 {
     unmanaged_deserialize_many!();
 
     nullable_value_deserialize!();
 
     #[inline(always)]
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         reader.read_i128()
     }
 }
@@ -390,13 +390,13 @@ impl MemoryPackSerialize for u128 {
     fn serialized_size_hint(&self) -> usize { 16 }
 }
 
-impl MemoryPackDeserialize for u128 {
+impl<'de> MemoryPackDeserialize<'de> for u128 {
     unmanaged_deserialize_many!();
 
     nullable_value_deserialize!();
 
     #[inline(always)]
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         reader.read_u128()
     }
 }
@@ -411,9 +411,9 @@ impl MemoryPackSerialize for char {
     fn serialized_size_hint(&self) -> usize { 2 }
 }
 
-impl MemoryPackDeserialize for char {
+impl<'de> MemoryPackDeserialize<'de> for char {
     #[inline(always)]
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         reader.read_char()
     }
 }

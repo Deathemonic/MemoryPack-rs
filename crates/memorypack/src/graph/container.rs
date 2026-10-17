@@ -74,8 +74,8 @@ impl<T: MemoryPackCircular + 'static> MemoryPackSerialize for MemoryPackGraph<T>
     }
 }
 
-impl<T: MemoryPackCircular + 'static> MemoryPackDeserialize for MemoryPackGraph<T> {
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+impl<'de, T: MemoryPackCircular + 'static> MemoryPackDeserialize<'de> for MemoryPackGraph<T> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         let previous = reader
             .optional_state
             .get_or_insert_with(MemoryPackReaderOptionalState::new)

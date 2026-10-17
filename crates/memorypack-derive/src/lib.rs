@@ -21,7 +21,8 @@ use crate::generation::helpers::{
     generate_size_hint,
     has_explicit_discriminants,
     has_repr_c,
-    is_single_field_i32
+    is_single_field_i32,
+    prepare_deserialization_generics
 };
 use crate::generation::regular::{generate_deserialize, generate_serialize};
 use crate::generation::unions::{generate_union_deserialize, generate_union_serialize};
@@ -63,32 +64,10 @@ pub fn derive_memorypack(input: TokenStream) -> TokenStream {
         )
     };
 
-    let zero_copy_impl = if attrs.is_zero_copy {
-        quote! {
-            impl<'a> memorypack::MemoryPackDeserializeZeroCopy<'a> for #name<'a> {
-                #[inline]
-                fn deserialize(reader: &mut memorypack::MemoryPackReader<'a>) -> Result<Self, memorypack::MemoryPackError> {
-                    #deserialize_impl
-                }
-            }
-        }
-    } else {
-        quote! {}
-    };
-
-    let deserialize_regular_impl = if attrs.is_zero_copy {
-        quote! {}
-    } else {
-        quote! {
-            impl #impl_generics memorypack::MemoryPackDeserialize for #name #ty_generics #where_clause {
-                #[inline]
-                fn deserialize(reader: &mut memorypack::MemoryPackReader) -> Result<Self, memorypack::MemoryPackError> {
-                    #deserialize_impl
-                }
-            }
-        }
-    };
-
+    let (deserialization_generics, input_lifetime) =
+        prepare_deserialization_generics(&input.generics);
+    let (deserialization_impl_generics, _, deserialization_where_clause) =
+        deserialization_generics.split_for_impl();
     quote! {
         impl #impl_generics memorypack::MemoryPackSerialize for #name #ty_generics #where_clause {
             #[inline]
@@ -103,9 +82,12 @@ pub fn derive_memorypack(input: TokenStream) -> TokenStream {
             }
         }
 
-        #deserialize_regular_impl
-
-        #zero_copy_impl
+        impl #deserialization_impl_generics memorypack::MemoryPackDeserialize<#input_lifetime> for #name #ty_generics #deserialization_where_clause {
+            #[inline]
+            fn deserialize(reader: &mut memorypack::MemoryPackReader<#input_lifetime>) -> Result<Self, memorypack::MemoryPackError> {
+                #deserialize_impl
+            }
+        }
 
         #flags_impl
         #graph_impl
@@ -132,9 +114,7 @@ fn generate_impls(
             generate_version_tolerant_serialize(&input.data),
             generate_version_tolerant_deserialize(&input.data)
         ),
-        Data::Struct(_) => {
-            (generate_serialize(&input.data), generate_deserialize(&input.data, attrs.is_zero_copy))
-        }
+        Data::Struct(_) => (generate_serialize(&input.data), generate_deserialize(&input.data)),
         Data::Enum(data_enum) if attrs.is_union => {
             (generate_union_serialize(data_enum), generate_union_deserialize(name, data_enum))
         }

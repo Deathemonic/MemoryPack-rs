@@ -80,8 +80,8 @@ impl<T: MemoryPackCircular + 'static> MemoryPackSerialize for MemoryPackReferenc
     }
 }
 
-impl<T: MemoryPackCircular + 'static> MemoryPackDeserialize for MemoryPackReference<T> {
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+impl<'de, T: MemoryPackCircular + 'static> MemoryPackDeserialize<'de> for MemoryPackReference<T> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         let header = reader.read_u8()?;
 
         if header == OBJECT_REFERENCE_HEADER {

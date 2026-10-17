@@ -1,7 +1,7 @@
 use crate::error::MemoryPackError;
 use crate::reader::MemoryPackReader;
 use crate::serializer_options::MemoryPackSerializerOptions;
-use crate::traits::{MemoryPackDeserialize, MemoryPackDeserializeZeroCopy, MemoryPackSerialize};
+use crate::traits::{MemoryPackDeserialize, MemoryPackSerialize};
 use crate::writer::MemoryPackWriter;
 
 const DEFAULT_BUFFER_CAPACITY: usize = 64;
@@ -39,26 +39,18 @@ impl MemoryPackSerializer {
     }
 
     #[inline]
-    pub fn deserialize<T: MemoryPackDeserialize>(data: &[u8]) -> Result<T, MemoryPackError> {
+    pub fn deserialize<'de, T: MemoryPackDeserialize<'de>>(
+        data: &'de [u8]
+    ) -> Result<T, MemoryPackError> {
         let mut reader = MemoryPackReader::new(data);
 
         T::deserialize(&mut reader)
     }
 
     #[inline]
-    pub fn deserialize_from<T: MemoryPackDeserialize>(
-        reader: &mut MemoryPackReader
+    pub fn deserialize_from<'de, T: MemoryPackDeserialize<'de>>(
+        reader: &mut MemoryPackReader<'de>
     ) -> Result<T, MemoryPackError> {
         T::deserialize(reader)
-    }
-
-    #[inline]
-    pub fn deserialize_zero_copy<'a, T>(data: &'a [u8]) -> Result<T, MemoryPackError>
-    where
-        T: MemoryPackDeserializeZeroCopy<'a>
-    {
-        let mut reader = MemoryPackReader::new(data);
-
-        T::deserialize(&mut reader)
     }
 }

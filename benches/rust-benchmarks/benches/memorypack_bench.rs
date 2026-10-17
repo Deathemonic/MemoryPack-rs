@@ -82,7 +82,6 @@ struct BarClass {
 }
 
 #[derive(MemoryPackable, Clone)]
-#[memorypack(zero_copy)]
 struct ZeroCopyData<'a> {
     id: i32,
     name: &'a str,
@@ -91,7 +90,6 @@ struct ZeroCopyData<'a> {
 }
 
 #[derive(MemoryPackable, Clone)]
-#[memorypack(zero_copy)]
 struct ZeroCopyDataLarge<'a> {
     id: i32,
     name: &'a str,
@@ -388,7 +386,7 @@ fn deserialize_zero_copy(bencher: Bencher) {
         .expect("benchmark fixture must serialize and deserialize successfully");
 
     bencher.bench_local(|| {
-        MemoryPackSerializer::deserialize_zero_copy::<ZeroCopyData>(black_box(&bytes))
+        MemoryPackSerializer::deserialize::<ZeroCopyData>(black_box(&bytes))
             .expect("benchmark fixture must serialize and deserialize successfully")
     });
 }
@@ -410,7 +408,7 @@ fn deserialize_zero_copy_large(bencher: Bencher) {
         .expect("benchmark fixture must serialize and deserialize successfully");
 
     bencher.bench_local(|| {
-        MemoryPackSerializer::deserialize_zero_copy::<ZeroCopyDataLarge>(black_box(&bytes))
+        MemoryPackSerializer::deserialize::<ZeroCopyDataLarge>(black_box(&bytes))
             .expect("benchmark fixture must serialize and deserialize successfully")
     });
 }

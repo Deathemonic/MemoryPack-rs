@@ -67,7 +67,6 @@ struct VersionTolerantData {
 }
 
 #[derive(MemoryPackable)]
-#[memorypack(zero_copy)]
 struct ZeroCopyData<'a> {
     id: i32,
     name: &'a str,
@@ -213,7 +212,7 @@ fn main() -> Result<(), MemoryPackError> {
     let zc_bytes = MemoryPackSerializer::serialize(&zc_owned)?;
 
     for _ in 0..100_000 {
-        let _data: ZeroCopyData = MemoryPackSerializer::deserialize_zero_copy(&zc_bytes)?;
+        let _data: ZeroCopyData = MemoryPackSerializer::deserialize(&zc_bytes)?;
     }
 
     let enum_data = Color::Green;

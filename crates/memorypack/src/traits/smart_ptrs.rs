@@ -13,9 +13,9 @@ impl<T: MemoryPackSerialize> MemoryPackSerialize for Box<T> {
     }
 }
 
-impl<T: MemoryPackDeserialize> MemoryPackDeserialize for Box<T> {
+impl<'de, T: MemoryPackDeserialize<'de>> MemoryPackDeserialize<'de> for Box<T> {
     #[inline]
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         Ok(Self::new(T::deserialize(reader)?))
     }
 }
@@ -27,9 +27,9 @@ impl<T: MemoryPackSerialize> MemoryPackSerialize for Rc<T> {
     }
 }
 
-impl<T: MemoryPackDeserialize> MemoryPackDeserialize for Rc<T> {
+impl<'de, T: MemoryPackDeserialize<'de>> MemoryPackDeserialize<'de> for Rc<T> {
     #[inline]
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         Ok(Self::new(T::deserialize(reader)?))
     }
 }
@@ -41,9 +41,9 @@ impl<T: MemoryPackSerialize> MemoryPackSerialize for Arc<T> {
     }
 }
 
-impl<T: MemoryPackDeserialize> MemoryPackDeserialize for Arc<T> {
+impl<'de, T: MemoryPackDeserialize<'de>> MemoryPackDeserialize<'de> for Arc<T> {
     #[inline]
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         Ok(Self::new(T::deserialize(reader)?))
     }
 }

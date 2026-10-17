@@ -12,15 +12,17 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::error::MemoryPackError;
 use crate::reader::MemoryPackReader;
-use crate::serialization::format::NULL_COLLECTION_LENGTH;
+use crate::serialization::format::{COLLECTION_HEADER_SIZE, NULL_COLLECTION_LENGTH};
 use crate::traits::{MemoryPackDeserialize, MemoryPackSerialize};
 use crate::writer::MemoryPackWriter;
 
 macro_rules! impl_std_hashmap {
     ($key_type:ty) => {
-        impl<V: MemoryPackDeserialize + Default> MemoryPackDeserialize for HashMap<$key_type, V> {
+        impl<'de, V: MemoryPackDeserialize<'de> + Default> MemoryPackDeserialize<'de>
+            for HashMap<$key_type, V>
+        {
             #[inline(always)]
-            fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+            fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
                 let count = reader.read_i32()?;
                 match validate_size(count)? {
                     None => Ok(HashMap::new()),
@@ -59,9 +61,11 @@ macro_rules! impl_std_hashmap {
 
 macro_rules! impl_btreemap {
     ($key_type:ty) => {
-        impl<V: MemoryPackDeserialize + Default> MemoryPackDeserialize for BTreeMap<$key_type, V> {
+        impl<'de, V: MemoryPackDeserialize<'de> + Default> MemoryPackDeserialize<'de>
+            for BTreeMap<$key_type, V>
+        {
             #[inline(always)]
-            fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+            fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
                 let count = reader.read_i32()?;
                 match validate_size(count)? {
                     None => Ok(BTreeMap::new()),
@@ -93,11 +97,11 @@ macro_rules! impl_btreemap {
 #[cfg(feature = "hashbrown")]
 macro_rules! impl_hashbrown_hashmap {
     ($key_type:ty) => {
-        impl<V: MemoryPackDeserialize + Default> MemoryPackDeserialize
+        impl<'de, V: MemoryPackDeserialize<'de> + Default> MemoryPackDeserialize<'de>
             for HashbrownHashMap<$key_type, V>
         {
             #[inline(always)]
-            fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+            fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
                 let count = reader.read_i32()?;
                 match validate_size(count)? {
                     None => Ok(HashbrownHashMap::new()),
@@ -129,9 +133,11 @@ macro_rules! impl_hashbrown_hashmap {
 #[cfg(feature = "ahash")]
 macro_rules! impl_ahash_hashmap {
     ($key_type:ty) => {
-        impl<V: MemoryPackDeserialize + Default> MemoryPackDeserialize for AHashMap<$key_type, V> {
+        impl<'de, V: MemoryPackDeserialize<'de> + Default> MemoryPackDeserialize<'de>
+            for AHashMap<$key_type, V>
+        {
             #[inline(always)]
-            fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+            fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
                 let count = reader.read_i32()?;
                 match validate_size(count)? {
                     None => Ok(AHashMap::new()),
@@ -163,9 +169,11 @@ macro_rules! impl_ahash_hashmap {
 #[cfg(feature = "fxhash")]
 macro_rules! impl_fxhash_hashmap {
     ($key_type:ty) => {
-        impl<V: MemoryPackDeserialize + Default> MemoryPackDeserialize for FxHashMap<$key_type, V> {
+        impl<'de, V: MemoryPackDeserialize<'de> + Default> MemoryPackDeserialize<'de>
+            for FxHashMap<$key_type, V>
+        {
             #[inline(always)]
-            fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+            fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
                 let count = reader.read_i32()?;
                 match validate_size(count)? {
                     None => Ok(FxHashMap::default()),
@@ -235,9 +243,9 @@ impl<T: MemoryPackSerialize> MemoryPackSerialize for Vec<T> {
     }
 }
 
-impl<T: MemoryPackDeserialize> MemoryPackDeserialize for Vec<T> {
+impl<'de, T: MemoryPackDeserialize<'de>> MemoryPackDeserialize<'de> for Vec<T> {
     #[inline(always)]
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         let size = reader.read_i32()?;
 
         validate_size(size)?
@@ -245,7 +253,7 @@ impl<T: MemoryPackDeserialize> MemoryPackDeserialize for Vec<T> {
     }
 
     fn deserialize_nullable(
-        reader: &mut MemoryPackReader
+        reader: &mut MemoryPackReader<'de>
     ) -> Result<Option<Self>, MemoryPackError> {
         let size = reader.read_i32()?;
 
@@ -274,9 +282,9 @@ impl<T: MemoryPackSerialize> MemoryPackSerialize for VecDeque<T> {
     }
 }
 
-impl<T: MemoryPackDeserialize> MemoryPackDeserialize for VecDeque<T> {
+impl<'de, T: MemoryPackDeserialize<'de>> MemoryPackDeserialize<'de> for VecDeque<T> {
     #[inline(always)]
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         let size = reader.read_i32()?;
 
         match validate_size(size)? {
@@ -307,9 +315,9 @@ impl<T: MemoryPackSerialize> MemoryPackSerialize for LinkedList<T> {
     }
 }
 
-impl<T: MemoryPackDeserialize> MemoryPackDeserialize for LinkedList<T> {
+impl<'de, T: MemoryPackDeserialize<'de>> MemoryPackDeserialize<'de> for LinkedList<T> {
     #[inline(always)]
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         let size = reader.read_i32()?;
 
         match validate_size(size)? {
@@ -340,9 +348,9 @@ impl<T: MemoryPackSerialize + Eq + Hash> MemoryPackSerialize for HashSet<T> {
     }
 }
 
-impl<T: MemoryPackDeserialize + Eq + Hash> MemoryPackDeserialize for HashSet<T> {
+impl<'de, T: MemoryPackDeserialize<'de> + Eq + Hash> MemoryPackDeserialize<'de> for HashSet<T> {
     #[inline(always)]
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         let size = reader.read_i32()?;
 
         match validate_size(size)? {
@@ -373,9 +381,9 @@ impl<T: MemoryPackSerialize + Ord> MemoryPackSerialize for BTreeSet<T> {
     }
 }
 
-impl<T: MemoryPackDeserialize + Ord> MemoryPackDeserialize for BTreeSet<T> {
+impl<'de, T: MemoryPackDeserialize<'de> + Ord> MemoryPackDeserialize<'de> for BTreeSet<T> {
     #[inline(always)]
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         let size = reader.read_i32()?;
 
         match validate_size(size)? {
@@ -408,9 +416,11 @@ impl<T: MemoryPackSerialize + Eq + Hash> MemoryPackSerialize for HashbrownHashSe
 }
 
 #[cfg(feature = "hashbrown")]
-impl<T: MemoryPackDeserialize + Eq + Hash> MemoryPackDeserialize for HashbrownHashSet<T> {
+impl<'de, T: MemoryPackDeserialize<'de> + Eq + Hash> MemoryPackDeserialize<'de>
+    for HashbrownHashSet<T>
+{
     #[inline(always)]
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         let size = reader.read_i32()?;
 
         match validate_size(size)? {
@@ -443,9 +453,9 @@ impl<T: MemoryPackSerialize + Eq + Hash> MemoryPackSerialize for AHashSet<T> {
 }
 
 #[cfg(feature = "ahash")]
-impl<T: MemoryPackDeserialize + Eq + Hash> MemoryPackDeserialize for AHashSet<T> {
+impl<'de, T: MemoryPackDeserialize<'de> + Eq + Hash> MemoryPackDeserialize<'de> for AHashSet<T> {
     #[inline(always)]
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         let size = reader.read_i32()?;
 
         match validate_size(size)? {
@@ -478,9 +488,9 @@ impl<T: MemoryPackSerialize + Eq + Hash> MemoryPackSerialize for FxHashSet<T> {
 }
 
 #[cfg(feature = "fxhash")]
-impl<T: MemoryPackDeserialize + Eq + Hash> MemoryPackDeserialize for FxHashSet<T> {
+impl<'de, T: MemoryPackDeserialize<'de> + Eq + Hash> MemoryPackDeserialize<'de> for FxHashSet<T> {
     #[inline(always)]
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         let size = reader.read_i32()?;
 
         match validate_size(size)? {
@@ -497,23 +507,6 @@ impl<T: MemoryPackDeserialize + Eq + Hash> MemoryPackDeserialize for FxHashSet<T
             }
         }
     }
-}
-
-#[inline(always)]
-const fn validate_size(size: i32) -> Result<Option<usize>, MemoryPackError> {
-    match size {
-        NULL_COLLECTION_LENGTH | 0 => Ok(None),
-        s if s < 0 => Err(MemoryPackError::InvalidLength(s)),
-        s => Ok(Some(s as usize))
-    }
-}
-
-#[inline(always)]
-fn write_collection_header(
-    writer: &mut MemoryPackWriter,
-    len: usize
-) -> Result<(), MemoryPackError> {
-    writer.write_i32(len as i32)
 }
 
 impl_std_hashmap!(String);
@@ -671,3 +664,61 @@ impl_fxhash_hashmap!(u128);
 
 #[cfg(feature = "fxhash")]
 impl_fxhash_hashmap!(char);
+
+impl<T: MemoryPackSerialize> MemoryPackSerialize for &[T] {
+    fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
+        write_collection_header(writer, self.len())?;
+
+        T::serialize_many(self, writer)
+    }
+
+    fn serialize_nullable(
+        value: Option<&Self>,
+        writer: &mut MemoryPackWriter
+    ) -> Result<(), MemoryPackError> {
+        match value {
+            Some(value) => value.serialize(writer),
+            None => writer.write_i32(NULL_COLLECTION_LENGTH)
+        }
+    }
+}
+
+impl<'de: 'value, 'value> MemoryPackDeserialize<'de> for &'value [u8] {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
+        let length = reader.read_i32()?;
+        let count = validate_size(length)?.unwrap_or_default();
+
+        reader.read_bytes(count)
+    }
+
+    fn deserialize_nullable(
+        reader: &mut MemoryPackReader<'de>
+    ) -> Result<Option<Self>, MemoryPackError> {
+        let length = reader.read_i32()?;
+
+        if length == NULL_COLLECTION_LENGTH {
+            return Ok(None);
+        }
+
+        reader.rewind(COLLECTION_HEADER_SIZE)?;
+
+        Self::deserialize(reader).map(Some)
+    }
+}
+
+#[inline(always)]
+const fn validate_size(size: i32) -> Result<Option<usize>, MemoryPackError> {
+    match size {
+        NULL_COLLECTION_LENGTH | 0 => Ok(None),
+        s if s < 0 => Err(MemoryPackError::InvalidLength(s)),
+        s => Ok(Some(s as usize))
+    }
+}
+
+#[inline(always)]
+fn write_collection_header(
+    writer: &mut MemoryPackWriter,
+    len: usize
+) -> Result<(), MemoryPackError> {
+    writer.write_i32(len as i32)
+}

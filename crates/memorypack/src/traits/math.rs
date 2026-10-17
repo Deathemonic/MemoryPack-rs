@@ -13,9 +13,9 @@ impl MemoryPackSerialize for num_complex::Complex<f64> {
 }
 
 #[cfg(feature = "num-complex")]
-impl MemoryPackDeserialize for num_complex::Complex<f64> {
+impl<'de> MemoryPackDeserialize<'de> for num_complex::Complex<f64> {
     #[inline(always)]
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         let re = reader.read_f64()?;
         let im = reader.read_f64()?;
 
@@ -35,9 +35,9 @@ impl MemoryPackSerialize for glam::Vec2 {
 }
 
 #[cfg(feature = "glam")]
-impl MemoryPackDeserialize for glam::Vec2 {
+impl<'de> MemoryPackDeserialize<'de> for glam::Vec2 {
     #[inline(always)]
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         Ok(Self::from_array([reader.read_f32()?, reader.read_f32()?]))
     }
 }
@@ -56,9 +56,9 @@ impl MemoryPackSerialize for glam::Vec3 {
 }
 
 #[cfg(feature = "glam")]
-impl MemoryPackDeserialize for glam::Vec3 {
+impl<'de> MemoryPackDeserialize<'de> for glam::Vec3 {
     #[inline(always)]
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         Ok(Self::from_array([reader.read_f32()?, reader.read_f32()?, reader.read_f32()?]))
     }
 }
@@ -78,9 +78,9 @@ impl MemoryPackSerialize for glam::Vec4 {
 }
 
 #[cfg(feature = "glam")]
-impl MemoryPackDeserialize for glam::Vec4 {
+impl<'de> MemoryPackDeserialize<'de> for glam::Vec4 {
     #[inline(always)]
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         Ok(Self::from_array([
             reader.read_f32()?,
             reader.read_f32()?,
@@ -105,9 +105,9 @@ impl MemoryPackSerialize for glam::Quat {
 }
 
 #[cfg(feature = "glam")]
-impl MemoryPackDeserialize for glam::Quat {
+impl<'de> MemoryPackDeserialize<'de> for glam::Quat {
     #[inline(always)]
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         Ok(Self::from_array([
             reader.read_f32()?,
             reader.read_f32()?,
@@ -134,9 +134,9 @@ impl MemoryPackSerialize for glam::Mat3A {
 }
 
 #[cfg(feature = "glam")]
-impl MemoryPackDeserialize for glam::Mat3A {
+impl<'de> MemoryPackDeserialize<'de> for glam::Mat3A {
     #[inline(always)]
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         let m11 = reader.read_f32()?;
         let m12 = reader.read_f32()?;
         let m21 = reader.read_f32()?;
@@ -167,9 +167,9 @@ impl MemoryPackSerialize for glam::Mat4 {
 }
 
 #[cfg(feature = "glam")]
-impl MemoryPackDeserialize for glam::Mat4 {
+impl<'de> MemoryPackDeserialize<'de> for glam::Mat4 {
     #[inline(always)]
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         let mut arr = [0.0_f32; 16];
 
         for val in &mut arr {

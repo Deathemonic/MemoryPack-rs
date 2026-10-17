@@ -187,7 +187,7 @@ struct Inner {
 }
 
 #[derive(MemoryPackable, Debug, Clone)]
-struct GenericContainer<T: MemoryPackSerialize + MemoryPackDeserialize> {
+struct GenericContainer<T: MemoryPackSerialize + for<'input> MemoryPackDeserialize<'input>> {
     value: T
 }
 
@@ -360,8 +360,8 @@ impl MemoryPackSerialize for NullableStringField {
     }
 }
 
-impl MemoryPackDeserialize for NullableStringField {
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+impl<'de> MemoryPackDeserialize<'de> for NullableStringField {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         Ok(Self(Option::<String>::deserialize(reader)?))
     }
 }
@@ -500,7 +500,10 @@ fn write_rust(name: &str, bytes: &[u8]) -> TestResult {
     Ok(())
 }
 
-fn exact<T: MemoryPackSerialize + MemoryPackDeserialize>(name: &str, value: &T) -> TestResult {
+fn exact<T: MemoryPackSerialize + for<'input> MemoryPackDeserialize<'input>>(
+    name: &str,
+    value: &T
+) -> TestResult {
     let rust = MemoryPackSerializer::serialize(value)?;
     let csharp_bytes = csharp(name)?;
 
@@ -516,7 +519,7 @@ fn exact<T: MemoryPackSerialize + MemoryPackDeserialize>(name: &str, value: &T) 
     write_rust(name, &rust)
 }
 
-fn exact_with_options<T: MemoryPackSerialize + MemoryPackDeserialize>(
+fn exact_with_options<T: MemoryPackSerialize + for<'input> MemoryPackDeserialize<'input>>(
     name: &str,
     value: &T,
     options: &memorypack::MemoryPackSerializerOptions
@@ -531,7 +534,9 @@ fn exact_with_options<T: MemoryPackSerialize + MemoryPackDeserialize>(
     write_rust(name, &rust)
 }
 
-fn semantic<T: MemoryPackSerialize + MemoryPackDeserialize + PartialEq + Debug>(
+fn semantic<
+    T: MemoryPackSerialize + for<'input> MemoryPackDeserialize<'input> + PartialEq + Debug
+>(
     name: &str,
     value: &T
 ) -> TestResult {
@@ -544,7 +549,9 @@ fn semantic<T: MemoryPackSerialize + MemoryPackDeserialize + PartialEq + Debug>(
     write_rust(name, &rust)
 }
 
-fn round_trip<T: MemoryPackSerialize + MemoryPackDeserialize>(name: &str) -> TestResult {
+fn round_trip<T: MemoryPackSerialize + for<'input> MemoryPackDeserialize<'input>>(
+    name: &str
+) -> TestResult {
     let bytes = csharp(name)?;
     let decoded = MemoryPackSerializer::deserialize::<T>(&bytes)?;
     let rust = MemoryPackSerializer::serialize(&decoded)?;

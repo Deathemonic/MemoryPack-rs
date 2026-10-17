@@ -11,8 +11,8 @@ impl<T: MemoryPackSerialize> MemoryPackSerialize for Option<T> {
     fn serialized_size_hint(&self) -> usize { T::nullable_size_hint(self.as_ref()) }
 }
 
-impl<T: MemoryPackDeserialize> MemoryPackDeserialize for Option<T> {
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+impl<'de, T: MemoryPackDeserialize<'de>> MemoryPackDeserialize<'de> for Option<T> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         T::deserialize_nullable(reader)
     }
 }

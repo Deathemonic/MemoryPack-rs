@@ -1,3 +1,7 @@
+mod graph;
+mod io;
+mod serialization;
+
 pub mod error;
 pub mod traits;
 pub mod prelude {
@@ -11,10 +15,6 @@ pub mod prelude {
     pub use crate::writer::MemoryPackWriter;
 }
 
-mod graph;
-mod io;
-mod serialization;
-
 pub use error::MemoryPackError;
 pub use graph::{MemoryPackCircular, MemoryPackGraph, MemoryPackReference};
 #[cfg(feature = "derive")]
@@ -24,15 +24,7 @@ pub use serialization::{serializer, serializer_options, state, varint};
 pub use serializer::MemoryPackSerializer;
 pub use serializer_options::{MemoryPackSerializerOptions, StringEncoding};
 pub use state::{MemoryPackReaderOptionalState, MemoryPackWriterOptionalState};
-pub use traits::{
-    Lazy,
-    MemoryPackDeserialize,
-    MemoryPackDeserializeZeroCopy,
-    MemoryPackSerialize,
-    MultiDimArray,
-    Stack,
-    Tuple
-};
+pub use traits::{Lazy, MemoryPackDeserialize, MemoryPackSerialize, MultiDimArray, Stack, Tuple};
 pub use writer::MemoryPackWriter;
 
 use crate::io::{reader, writer};

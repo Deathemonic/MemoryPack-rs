@@ -24,9 +24,9 @@ impl MemoryPackSerialize for SignedDuration {
     }
 }
 
-impl MemoryPackDeserialize for SignedDuration {
+impl<'de> MemoryPackDeserialize<'de> for SignedDuration {
     #[inline(always)]
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         let ticks = reader.read_i64()?;
 
         Ok(Self::from_nanos_i128(i128::from(ticks) * i128::from(NANOSECONDS_PER_TICK)))
@@ -64,14 +64,14 @@ impl MemoryPackSerialize for Timestamp {
     fn nullable_size_hint(_: Option<&Self>) -> usize { 16 }
 }
 
-impl MemoryPackDeserialize for Timestamp {
+impl<'de> MemoryPackDeserialize<'de> for Timestamp {
     #[inline(always)]
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         ticks_to_timestamp(reader.read_i64()? & TICKS_MASK)
     }
 
     fn deserialize_nullable(
-        reader: &mut MemoryPackReader
+        reader: &mut MemoryPackReader<'de>
     ) -> Result<Option<Self>, MemoryPackError> {
         let has_value = reader.read_u8()? != 0;
 
@@ -120,16 +120,16 @@ impl MemoryPackSerialize for DateTime {
     fn nullable_size_hint(_: Option<&Self>) -> usize { 16 }
 }
 
-impl MemoryPackDeserialize for DateTime {
+impl<'de> MemoryPackDeserialize<'de> for DateTime {
     #[inline(always)]
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         let timestamp = ticks_to_timestamp(reader.read_i64()? & TICKS_MASK)?;
 
         Ok(TimeZone::UTC.to_datetime(timestamp))
     }
 
     fn deserialize_nullable(
-        reader: &mut MemoryPackReader
+        reader: &mut MemoryPackReader<'de>
     ) -> Result<Option<Self>, MemoryPackError> {
         let has_value = reader.read_u8()? != 0;
 
@@ -164,9 +164,9 @@ impl MemoryPackSerialize for Zoned {
     }
 }
 
-impl MemoryPackDeserialize for Zoned {
+impl<'de> MemoryPackDeserialize<'de> for Zoned {
     #[inline(always)]
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         let offset_minutes = reader.read_i16()?;
 
         reader.read_fixed_bytes::<6>()?;
@@ -191,9 +191,9 @@ impl MemoryPackSerialize for Time {
     }
 }
 
-impl MemoryPackDeserialize for Time {
+impl<'de> MemoryPackDeserialize<'de> for Time {
     #[inline(always)]
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         let nanos = reader
             .read_i64()?
             .checked_mul(NANOSECONDS_PER_TICK)
@@ -224,9 +224,9 @@ impl MemoryPackSerialize for Date {
     }
 }
 
-impl MemoryPackDeserialize for Date {
+impl<'de> MemoryPackDeserialize<'de> for Date {
     #[inline(always)]
-    fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
+    fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         let days = reader.read_i32()?;
 
         Self::new(1, 1, 1)
