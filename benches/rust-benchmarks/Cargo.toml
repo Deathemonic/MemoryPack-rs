@@ -8,6 +8,7 @@ publish = false
 
 [features]
 dhat-heap = ["dhat"]
+mimalloc = ["memorypack/mimalloc"]
 
 [dependencies]
 memorypack = { workspace = true }

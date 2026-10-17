@@ -9,6 +9,7 @@ const SAMPLE_DOUBLE: f64 = 314_159.0 / 100_000.0;
 
 const SAMPLE_SECOND_DOUBLE: f64 = 271_828.0 / 100_000.0;
 
+#[cfg(not(feature = "mimalloc"))]
 #[global_allocator]
 static ALLOC: divan::AllocProfiler = divan::AllocProfiler::system();
 

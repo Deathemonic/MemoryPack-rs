@@ -4,7 +4,7 @@ use memorypack::prelude::*;
 
 const SAMPLE_DOUBLE: f64 = 314_159.0 / 100_000.0;
 
-#[cfg(feature = "dhat-heap")]
+#[cfg(all(feature = "dhat-heap", not(feature = "mimalloc")))]
 #[global_allocator]
 static ALLOC: dhat::Alloc = dhat::Alloc;
 
@@ -140,7 +140,7 @@ fn create_version_tolerant_data() -> VersionTolerantData {
 }
 
 fn main() -> Result<(), MemoryPackError> {
-    #[cfg(feature = "dhat-heap")]
+    #[cfg(all(feature = "dhat-heap", not(feature = "mimalloc")))]
     let _profiler = dhat::Profiler::new_heap();
 
     let simple_data = create_simple_data();

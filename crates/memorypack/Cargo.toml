@@ -31,12 +31,14 @@ extended_types = [
 hashbrown = ["dep:hashbrown"]
 ahash = ["dep:ahash"]
 fxhash = ["dep:rustc-hash"]
+mimalloc = ["dep:mimalloc"]
 
 [dependencies]
 memorypack-derive = { workspace = true, optional = true }
 
 ahash = { workspace = true, features = ["compile-time-rng"], optional = true }
 jiff = { workspace = true, optional = true }
+mimalloc = { workspace = true, optional = true }
 glam = { workspace = true, optional = true, features = ["serde", "fast-math"] }
 half = { workspace = true, optional = true, features = ["serde"] }
 hashbrown = { workspace = true, features = ["serde"], optional = true }

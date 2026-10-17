@@ -34,3 +34,7 @@ pub use traits::{
 pub use writer::MemoryPackWriter;
 
 use crate::io::{reader, writer};
+
+#[cfg(feature = "mimalloc")]
+#[global_allocator]
+static GLOBAL_ALLOCATOR: mimalloc::MiMalloc = mimalloc::MiMalloc;
