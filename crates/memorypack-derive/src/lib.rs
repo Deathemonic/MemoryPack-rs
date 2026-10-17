@@ -1,30 +1,28 @@
+mod generation;
+
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{Data, DeriveInput, parse_macro_input};
 
-mod attributes;
-mod circular;
-mod enums;
-mod helpers;
-mod regular;
-mod unions;
-mod unmanaged;
-mod version_tolerant;
-
-use attributes::AttributeFlags;
-use circular::{generate_circular_deserialize, generate_circular_serialize};
-use enums::{
+use crate::generation::attributes::AttributeFlags;
+use crate::generation::circular::{generate_circular_deserialize, generate_circular_serialize};
+use crate::generation::enums::{
     generate_enum_deserialize_safe,
-    generate_enum_deserialize_unsafe,
     generate_enum_serialize,
     generate_flags_impls,
     generate_transparent_deserialize,
     generate_transparent_serialize
 };
-use helpers::{generate_size_hint, has_explicit_discriminants, has_repr_c, is_single_field_i32};
-use regular::{generate_deserialize, generate_serialize};
-use unions::{generate_union_deserialize, generate_union_serialize};
-use version_tolerant::{
+use crate::generation::helpers::{
+    generate_size_hint,
+    has_explicit_discriminants,
+    has_repr_c,
+    is_single_field_i32
+};
+use crate::generation::regular::{generate_deserialize, generate_serialize};
+use crate::generation::unions::{generate_union_deserialize, generate_union_serialize};
+use crate::generation::unmanaged;
+use crate::generation::version_tolerant::{
     generate_version_tolerant_deserialize,
     generate_version_tolerant_serialize
 };
@@ -118,10 +116,9 @@ fn generate_impls(
         Data::Struct(data_struct) if attrs.is_transparent && is_single_field_i32(data_struct) => {
             (generate_transparent_serialize(), generate_transparent_deserialize())
         }
-        Data::Struct(_) if attrs.is_circular => (
-            generate_circular_serialize(&input.data, true),
-            generate_circular_deserialize(&input.data, true)
-        ),
+        Data::Struct(_) if attrs.is_circular => {
+            (generate_circular_serialize(&input.data), generate_circular_deserialize(&input.data))
+        }
         Data::Struct(_) if attrs.is_version_tolerant => (
             generate_version_tolerant_serialize(&input.data),
             generate_version_tolerant_deserialize(&input.data)
@@ -142,11 +139,7 @@ fn generate_impls(
                 ));
             }
 
-            let deserialize = if has_explicit {
-                generate_enum_deserialize_safe(data_enum)
-            } else {
-                generate_enum_deserialize_unsafe()
-            };
+            let deserialize = generate_enum_deserialize_safe(data_enum);
 
             (generate_enum_serialize(), deserialize)
         }
@@ -157,5 +150,6 @@ fn generate_impls(
             ));
         }
     };
+
     Ok(impls)
 }

@@ -31,6 +31,7 @@ impl MemoryPackSerialize for rust_decimal::Decimal {
 
         writer.write_u32(flags)?;
         writer.write_u32(unpacked.hi)?;
+
         writer.write_u64(lo64)
     }
 }
@@ -73,8 +74,10 @@ impl MemoryPackSerialize for num_bigint::BigInt {
     #[inline]
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
         let bytes = self.to_signed_bytes_le();
+
         writer.write_i32(bytes.len() as i32)?;
         writer.buffer.extend_from_slice(&bytes);
+
         Ok(())
     }
 }
@@ -84,9 +87,11 @@ impl MemoryPackDeserialize for num_bigint::BigInt {
     #[inline]
     fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
         let len = reader.read_i32()?;
+
         if len < 0 {
             return Err(MemoryPackError::NegativeBigIntegerLength);
         }
+
         Ok(Self::from_signed_bytes_le(reader.read_bytes(len as usize)?))
     }
 }
@@ -96,8 +101,10 @@ impl MemoryPackSerialize for num_bigint::BigUint {
     #[inline]
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
         let bytes = self.to_bytes_le();
+
         writer.write_i32(bytes.len() as i32)?;
         writer.buffer.extend_from_slice(&bytes);
+
         Ok(())
     }
 }
@@ -107,6 +114,7 @@ impl MemoryPackDeserialize for num_bigint::BigUint {
     #[inline]
     fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
         let len = reader.read_i32()?;
+
         if len < 0 {
             return Err(MemoryPackError::NegativeBigUintLength);
         }
@@ -128,6 +136,7 @@ impl MemoryPackDeserialize for url::Url {
     #[inline(always)]
     fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
         let s = String::deserialize(reader)?;
+
         Self::parse(&s).map_err(MemoryPackError::from)
     }
 }

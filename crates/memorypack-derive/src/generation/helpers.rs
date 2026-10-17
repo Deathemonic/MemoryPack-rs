@@ -1,6 +1,12 @@
 use quote::quote;
 use syn::Field;
 
+pub struct OrderedField<'a> {
+    pub order: usize,
+    pub field: &'a Field,
+    pub ident: &'a Option<syn::Ident>
+}
+
 #[inline]
 pub fn is_single_field_i32(data_struct: &syn::DataStruct) -> bool {
     use syn::Fields;
@@ -17,6 +23,7 @@ pub fn has_repr_c(attrs: &[syn::Attribute]) -> bool {
         if !attr.path().is_ident("repr") {
             return false;
         }
+
         attr.meta.require_list().is_ok_and(|list| {
             list.tokens
                 .to_string()
@@ -40,6 +47,7 @@ pub fn should_skip_field(field: &Field) -> bool {
         attr.path().is_ident("memorypack")
             && attr.meta.require_list().is_ok_and(|m| {
                 let tokens = m.tokens.to_string();
+
                 tokens.contains("skip") || tokens.contains("ignore")
             })
     }) || field
@@ -56,16 +64,16 @@ pub fn get_field_order(field: &Field) -> Option<usize> {
 
         let list = attr.meta.require_list().ok()?;
         let tokens = list.tokens.to_string();
-        let order_pos = tokens.find("order")?;
-        let after_order = &tokens[order_pos..];
-        let eq_pos = after_order.find('=')?;
-        let after_eq = after_order[eq_pos + 1..].trim();
+        let order_position = tokens.find("order")?;
+        let after_order = &tokens[order_position..];
+        let equals_position = after_order.find('=')?;
+        let after_equals = after_order[equals_position + 1..].trim();
 
-        let num_str = after_eq
+        let number = after_equals
             .find(|c: char| !c.is_ascii_digit())
-            .map_or(after_eq, |end| &after_eq[..end]);
+            .map_or(after_equals, |end| &after_equals[..end]);
 
-        num_str.parse::<usize>().ok()
+        number.parse::<usize>().ok()
     })
 }
 
@@ -82,66 +90,35 @@ pub fn is_zero_copy_field(field: &Field) -> bool {
 
 #[inline]
 pub fn is_borrowed_str(ty: &syn::Type) -> bool {
-    if let syn::Type::Reference(type_ref) = ty
-        && let syn::Type::Path(inner_path) = &*type_ref.elem
+    if let syn::Type::Reference(type_reference) = ty
+        && let syn::Type::Path(inner_path) = &*type_reference.elem
     {
         return inner_path.path.is_ident("str");
     }
+
     false
 }
 
 #[inline]
 pub fn is_borrowed_slice(ty: &syn::Type) -> bool {
-    if let syn::Type::Reference(type_ref) = ty {
-        return matches!(&*type_ref.elem, syn::Type::Slice(_));
+    if let syn::Type::Reference(type_reference) = ty {
+        return matches!(&*type_reference.elem, syn::Type::Slice(_));
     }
+
     false
-}
-
-pub fn is_option_box(ty: &syn::Type) -> bool {
-    let syn::Type::Path(type_path) = ty else {
-        return false;
-    };
-    let Some(segment) = type_path.path.segments.last() else {
-        return false;
-    };
-
-    if segment.ident != "Option" {
-        return false;
-    }
-
-    let syn::PathArguments::AngleBracketed(args) = &segment.arguments else {
-        return false;
-    };
-    let Some(syn::GenericArgument::Type(inner_ty)) = args.args.first() else {
-        return false;
-    };
-    let syn::Type::Path(inner_path) = inner_ty else {
-        return false;
-    };
-    let Some(inner_segment) = inner_path.path.segments.last() else {
-        return false;
-    };
-
-    inner_segment.ident == "Box"
-}
-
-pub struct OrderedField<'a> {
-    pub order: usize,
-    pub field: &'a Field,
-    pub ident: &'a Option<syn::Ident>
 }
 
 pub fn prepare_ordered_fields<'a>(fields: &'a [&'a Field]) -> Vec<OrderedField<'a>> {
     let mut ordered: Vec<_> = fields
         .iter()
         .enumerate()
-        .map(|(idx, f)| OrderedField {
-            order: get_field_order(f).unwrap_or(idx),
+        .map(|(index, f)| OrderedField {
+            order: get_field_order(f).unwrap_or(index),
             field: f,
             ident: &f.ident
         })
         .collect();
+
     ordered.sort_by_key(|f| f.order);
     ordered
 }
@@ -157,8 +134,6 @@ pub fn generate_field_deserialize(
 
     if should_skip_field(field) {
         return quote! {
-            let mut temp_reader = memorypack::MemoryPackReader::new(&[]);
-            let _: #ty = memorypack::MemoryPackDeserialize::deserialize(&mut temp_reader)?;
             let #name = Default::default();
         };
     }
@@ -169,9 +144,11 @@ pub fn generate_field_deserialize(
         if is_borrowed_str(ty) {
             return quote! { let #name = reader.read_str()?; };
         }
+
         if is_borrowed_slice(ty) {
             return quote! { let #name = reader.read_bytes()?; };
         }
+
         if is_field_zero_copy {
             return quote! { let #name = memorypack::MemoryPackDeserializeZeroCopy::deserialize(reader)?; };
         }
@@ -193,6 +170,7 @@ pub fn generate_size_hint(
     match data {
         syn::Data::Struct(data_struct) => {
             let header_size = 1_usize;
+
             match &data_struct.fields {
                 syn::Fields::Named(fields) => {
                     let fields: Vec<_> = fields
@@ -202,6 +180,7 @@ pub fn generate_size_hint(
                         .filter_map(|field| field.ident.as_ref())
                         .collect();
                     let length_table_size = if is_version_tolerant { fields.len() } else { 0 };
+
                     quote! {
                         #header_size + #length_table_size
                             #( + memorypack::MemoryPackSerialize::serialized_size_hint(&self.#fields) )*
@@ -216,6 +195,7 @@ pub fn generate_size_hint(
                     } else {
                         0
                     };
+
                     quote! {
                         #header_size + #length_table_size
                             #( + memorypack::MemoryPackSerialize::serialized_size_hint(&self.#indices) )*
@@ -227,12 +207,14 @@ pub fn generate_size_hint(
         syn::Data::Enum(data_enum) if is_union => {
             let variants = data_enum.variants.iter().map(|variant| {
                 let variant_name = &variant.ident;
+
                 quote! {
                     Self::#variant_name(inner) => {
                         1 + memorypack::MemoryPackSerialize::serialized_size_hint(inner)
                     }
                 }
             });
+
             quote! { match self { #(#variants),* } }
         }
         syn::Data::Enum(_) => quote! { 4 },

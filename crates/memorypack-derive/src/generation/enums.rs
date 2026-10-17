@@ -7,24 +7,12 @@ pub fn generate_enum_serialize() -> proc_macro2::TokenStream {
     }
 }
 
-pub fn generate_enum_deserialize_unsafe() -> proc_macro2::TokenStream {
-    quote! {
-        let value = reader.read_i32()?;
-        Ok(unsafe { std::mem::transmute(value) })
-    }
-}
-
 pub fn generate_enum_deserialize_safe(data_enum: &syn::DataEnum) -> proc_macro2::TokenStream {
     let variants = data_enum.variants.iter().map(|variant| {
         let variant_name = &variant.ident;
-        let discriminant = &variant
-            .discriminant
-            .as_ref()
-            .expect("safe enum deserialization requires explicit discriminants")
-            .1;
 
         quote! {
-            #discriminant => Ok(Self::#variant_name),
+            value if value == Self::#variant_name as i32 => Ok(Self::#variant_name),
         }
     });
 

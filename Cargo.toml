@@ -12,15 +12,32 @@ version = "2.0.0"
 edition = "2024"
 license = "MIT"
 documentation = "https://docs.rs/memorypack"
-homepage = "https://github.com/Deathemonic/MemoryPack-rs"
 repository = "https://github.com/Deathemonic/MemoryPack-rs"
 authors = ["Zinth"]
 
 [workspace.dependencies]
-memorypack = { path = "crates/memorypack" }
-memorypack-derive = { path = "crates/memorypack-derive" }
-
+memorypack = { version = "2.0.0", path = "crates/memorypack" }
+memorypack-derive = { version = "2.0.0", path = "crates/memorypack-derive" }
+divan = { package = "codspeed-divan-compat", version = "5.0" }
+ahash = "0.8"
+dhat = "0.3"
+glam = "0.33"
+half = "2.7"
+hashbrown = "0.17"
+jiff = "0.2"
+num-bigint = "0.5"
+num-complex = "0.4"
+proc-macro2 = "1.0"
+quote = "1.0"
+rust_decimal = "1.42"
+rust_decimal_macros = "1.40"
+rustc-hash = "2.1"
+serde = "1.0"
+simdutf8 = "0.1.5"
+syn = "3.0"
 thiserror = "2.0"
+url = "2.5"
+uuid = "1.25"
 
 [profile.release]
 lto = true

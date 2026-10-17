@@ -4,16 +4,15 @@ use crate::traits::{MemoryPackDeserialize, MemoryPackSerialize};
 use crate::writer::MemoryPackWriter;
 
 macro_rules! impl_tuple {
-    ($($T:ident),+) => {
+    ($($T:ident : $index:tt),+) => {
         impl<$($T),+> MemoryPackSerialize for ($($T,)+)
         where
             $($T: MemoryPackSerialize,)+
         {
-            #[allow(non_snake_case)]
+
             #[inline]
             fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
-                let ($($T,)+) = self;
-                $($T.serialize(writer)?;)+
+                $(self.$index.serialize(writer)?;)+
                 Ok(())
             }
         }
@@ -30,15 +29,26 @@ macro_rules! impl_tuple {
     };
 }
 
-impl_tuple!(T1);
-impl_tuple!(T1, T2);
-impl_tuple!(T1, T2, T3);
-impl_tuple!(T1, T2, T3, T4);
-impl_tuple!(T1, T2, T3, T4, T5);
-impl_tuple!(T1, T2, T3, T4, T5, T6);
-impl_tuple!(T1, T2, T3, T4, T5, T6, T7);
-impl_tuple!(T1, T2, T3, T4, T5, T6, T7, T8);
-impl_tuple!(T1, T2, T3, T4, T5, T6, T7, T8, T9);
-impl_tuple!(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10);
-impl_tuple!(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11);
-impl_tuple!(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12);
+impl_tuple!(T1: 0);
+
+impl_tuple!(T1: 0, T2: 1);
+
+impl_tuple!(T1: 0, T2: 1, T3: 2);
+
+impl_tuple!(T1: 0, T2: 1, T3: 2, T4: 3);
+
+impl_tuple!(T1: 0, T2: 1, T3: 2, T4: 3, T5: 4);
+
+impl_tuple!(T1: 0, T2: 1, T3: 2, T4: 3, T5: 4, T6: 5);
+
+impl_tuple!(T1: 0, T2: 1, T3: 2, T4: 3, T5: 4, T6: 5, T7: 6);
+
+impl_tuple!(T1: 0, T2: 1, T3: 2, T4: 3, T5: 4, T6: 5, T7: 6, T8: 7);
+
+impl_tuple!(T1: 0, T2: 1, T3: 2, T4: 3, T5: 4, T6: 5, T7: 6, T8: 7, T9: 8);
+
+impl_tuple!(T1: 0, T2: 1, T3: 2, T4: 3, T5: 4, T6: 5, T7: 6, T8: 7, T9: 8, T10: 9);
+
+impl_tuple!(T1: 0, T2: 1, T3: 2, T4: 3, T5: 4, T6: 5, T7: 6, T8: 7, T9: 8, T10: 9, T11: 10);
+
+impl_tuple!(T1: 0, T2: 1, T3: 2, T4: 3, T5: 4, T6: 5, T7: 6, T8: 7, T9: 8, T10: 9, T11: 10, T12: 11);

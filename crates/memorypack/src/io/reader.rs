@@ -3,16 +3,33 @@ use std::{mem, ptr};
 use simdutf8::basic;
 
 use crate::error::MemoryPackError;
+use crate::serialization::format::NULL_COLLECTION_LENGTH;
 use crate::state::MemoryPackReaderOptionalState;
 use crate::traits::MemoryPackUnmanaged;
 
 pub struct MemoryPackReader<'a> {
+    pub optional_state: Option<MemoryPackReaderOptionalState>,
     data: &'a [u8],
-    pos: usize,
-    pub optional_state: Option<MemoryPackReaderOptionalState>
+    position: usize
 }
 
 impl<'a> MemoryPackReader<'a> {
+    pub const fn new(data: &'a [u8]) -> Self {
+        Self {
+            data,
+            position: 0,
+            optional_state: None
+        }
+    }
+
+    pub fn new_with_state(data: &'a [u8]) -> Self {
+        Self {
+            data,
+            position: 0,
+            optional_state: Some(MemoryPackReaderOptionalState::new())
+        }
+    }
+
     #[inline]
     pub(crate) fn read_unmanaged_vec<T: MemoryPackUnmanaged>(
         &mut self,
@@ -23,34 +40,23 @@ impl<'a> MemoryPackReader<'a> {
             .ok_or(MemoryPackError::UnexpectedEndOfBuffer)?;
         let bytes = self.read_bytes(byte_count)?;
         let mut values = Vec::<T>::with_capacity(count);
+        // SAFETY: the unmanaged types have no padding and accept every bit
+        // pattern. The checked byte count fits both the input slice and
+        // the newly allocated vector.
+
         unsafe {
             ptr::copy_nonoverlapping(bytes.as_ptr(), values.as_mut_ptr().cast::<u8>(), byte_count);
             values.set_len(count);
         }
+
         Ok(values)
-    }
-
-    pub const fn new(data: &'a [u8]) -> Self {
-        Self {
-            data,
-            pos: 0,
-            optional_state: None
-        }
-    }
-
-    pub fn new_with_state(data: &'a [u8]) -> Self {
-        Self {
-            data,
-            pos: 0,
-            optional_state: Some(MemoryPackReaderOptionalState::new())
-        }
     }
 
     #[inline]
     pub fn read_string(&mut self) -> Result<String, MemoryPackError> {
         let length_or_marker = self.read_i32()?;
 
-        if length_or_marker == -1 {
+        if length_or_marker == NULL_COLLECTION_LENGTH {
             return Ok(String::new());
         }
 
@@ -58,30 +64,20 @@ impl<'a> MemoryPackReader<'a> {
             return self.read_utf8_string(!length_or_marker as usize);
         }
 
-        let char_count = length_or_marker as usize;
-        if char_count == 0 {
+        let character_count = length_or_marker as usize;
+
+        if character_count == 0 {
             return Ok(String::new());
         }
 
-        self.read_utf16_string(char_count)
-    }
-
-    #[inline]
-    fn read_utf8_string(&mut self, byte_count: usize) -> Result<String, MemoryPackError> {
-        let _char_length = self.read_i32()?;
-        let slice = self.read_bytes(byte_count)?;
-
-        if slice.len() >= 64 || !slice.is_ascii() {
-            basic::from_utf8(slice).map_err(|_| MemoryPackError::InvalidUtf8)?;
-        }
-        Ok(unsafe { String::from_utf8_unchecked(slice.to_vec()) })
+        self.read_utf16_string(character_count)
     }
 
     #[inline]
     pub fn read_str(&mut self) -> Result<&'a str, MemoryPackError> {
         let length_or_marker = self.read_i32()?;
 
-        if length_or_marker == -1 || length_or_marker == 0 {
+        if length_or_marker == NULL_COLLECTION_LENGTH || length_or_marker == 0 {
             return Ok("");
         }
 
@@ -93,26 +89,21 @@ impl<'a> MemoryPackReader<'a> {
     }
 
     #[inline]
-    fn read_utf8_str(&mut self, byte_count: usize) -> Result<&'a str, MemoryPackError> {
-        let _char_length = self.read_i32()?;
-        let slice = self.read_bytes(byte_count)?;
-
-        basic::from_utf8(slice).map_err(|_| MemoryPackError::InvalidUtf8)
-    }
-
-    #[inline]
     pub fn read_bytes(&mut self, length: usize) -> Result<&'a [u8], MemoryPackError> {
-        let pos = self.pos;
+        let position = self.position;
 
-        let end = pos
+        let end = position
             .checked_add(length)
             .ok_or(MemoryPackError::UnexpectedEndOfBuffer)?;
+
         if end > self.data.len() {
             return Err(MemoryPackError::UnexpectedEndOfBuffer);
         }
 
-        let slice = &self.data[pos..end];
-        self.pos = end;
+        let slice = &self.data[position..end];
+
+        self.position = end;
+
         Ok(slice)
     }
 
@@ -124,66 +115,9 @@ impl<'a> MemoryPackReader<'a> {
     #[inline]
     pub fn read_fixed_bytes<const N: usize>(&mut self) -> Result<[u8; N], MemoryPackError> {
         let mut buffer = [0_u8; N];
+
         buffer.copy_from_slice(self.read_bytes(N)?);
         Ok(buffer)
-    }
-
-    #[inline(always)]
-    const fn read_unaligned<T: Copy>(&mut self) -> Result<T, MemoryPackError> {
-        let size = mem::size_of::<T>();
-        let pos = self.pos;
-        if size > self.data.len().saturating_sub(pos) {
-            return Err(MemoryPackError::UnexpectedEndOfBuffer);
-        }
-
-        let value = unsafe { ptr::read_unaligned(self.data.as_ptr().add(pos).cast::<T>()) };
-        self.pos = pos + size;
-        Ok(value)
-    }
-
-    #[cold]
-    #[inline(never)]
-    fn read_utf16_string(&mut self, char_count: usize) -> Result<String, MemoryPackError> {
-        let byte_count = char_count * 2;
-        let slice = self.read_bytes(byte_count)?;
-
-        let mut result = String::with_capacity(char_count * 3);
-        let mut i = 0;
-        while i < byte_count {
-            let code_unit = u16::from_le_bytes([slice[i], slice[i + 1]]);
-            i += 2;
-
-            if !(0xD800..=0xDFFF).contains(&code_unit) {
-                if let Some(c) = char::from_u32(code_unit as u32) {
-                    result.push(c);
-                } else {
-                    return Err(MemoryPackError::InvalidUtf8);
-                }
-            } else if (0xD800..=0xDBFF).contains(&code_unit) {
-                if i + 2 > byte_count {
-                    return Err(MemoryPackError::InvalidUtf8);
-                }
-
-                let low = u16::from_le_bytes([slice[i], slice[i + 1]]);
-
-                i += 2;
-                if !(0xDC00..=0xDFFF).contains(&low) {
-                    return Err(MemoryPackError::InvalidUtf8);
-                }
-
-                let code_point =
-                    0x10000 + ((code_unit as u32 - 0xD800) << 10) + (low as u32 - 0xDC00);
-
-                if let Some(c) = char::from_u32(code_point) {
-                    result.push(c);
-                } else {
-                    return Err(MemoryPackError::InvalidUtf8);
-                }
-            } else {
-                return Err(MemoryPackError::InvalidUtf8);
-            }
-        }
-        Ok(result)
     }
 
     #[inline(always)]
@@ -194,43 +128,45 @@ impl<'a> MemoryPackReader<'a> {
 
     #[inline(always)]
     pub const fn read_u8(&mut self) -> Result<u8, MemoryPackError> {
-        if self.pos >= self.data.len() {
+        if self.position >= self.data.len() {
             return Err(MemoryPackError::UnexpectedEndOfBuffer);
         }
 
-        let value = self.data[self.pos];
-        self.pos += 1;
+        let value = self.data[self.position];
+
+        self.position += 1;
+
         Ok(value)
     }
 
     #[inline(always)]
     pub fn read_i16(&mut self) -> Result<i16, MemoryPackError> {
-        Ok(i16::from_le(self.read_unaligned()?))
+        Ok(i16::from_le_bytes(self.read_fixed_bytes()?))
     }
 
     #[inline(always)]
     pub fn read_u16(&mut self) -> Result<u16, MemoryPackError> {
-        Ok(u16::from_le(self.read_unaligned()?))
+        Ok(u16::from_le_bytes(self.read_fixed_bytes()?))
     }
 
     #[inline(always)]
     pub fn read_i32(&mut self) -> Result<i32, MemoryPackError> {
-        Ok(i32::from_le(self.read_unaligned()?))
+        Ok(i32::from_le_bytes(self.read_fixed_bytes()?))
     }
 
     #[inline(always)]
     pub fn read_u32(&mut self) -> Result<u32, MemoryPackError> {
-        Ok(u32::from_le(self.read_unaligned()?))
+        Ok(u32::from_le_bytes(self.read_fixed_bytes()?))
     }
 
     #[inline(always)]
     pub fn read_i64(&mut self) -> Result<i64, MemoryPackError> {
-        Ok(i64::from_le(self.read_unaligned()?))
+        Ok(i64::from_le_bytes(self.read_fixed_bytes()?))
     }
 
     #[inline(always)]
     pub fn read_u64(&mut self) -> Result<u64, MemoryPackError> {
-        Ok(u64::from_le(self.read_unaligned()?))
+        Ok(u64::from_le_bytes(self.read_fixed_bytes()?))
     }
 
     #[inline(always)]
@@ -245,12 +181,12 @@ impl<'a> MemoryPackReader<'a> {
 
     #[inline(always)]
     pub fn read_i128(&mut self) -> Result<i128, MemoryPackError> {
-        Ok(i128::from_le(self.read_unaligned()?))
+        Ok(i128::from_le_bytes(self.read_fixed_bytes()?))
     }
 
     #[inline(always)]
     pub fn read_u128(&mut self) -> Result<u128, MemoryPackError> {
-        Ok(u128::from_le(self.read_unaligned()?))
+        Ok(u128::from_le_bytes(self.read_fixed_bytes()?))
     }
 
     #[inline(always)]
@@ -267,27 +203,71 @@ impl<'a> MemoryPackReader<'a> {
     #[inline]
     pub fn skip(&mut self, n: usize) -> Result<(), MemoryPackError> {
         let new_pos = self
-            .pos
+            .position
             .checked_add(n)
             .ok_or(MemoryPackError::UnexpectedEndOfBuffer)?;
+
         if new_pos > self.data.len() {
             return Err(MemoryPackError::UnexpectedEndOfBuffer);
         }
 
-        self.pos = new_pos;
+        self.position = new_pos;
+
         Ok(())
     }
 
     #[inline]
     pub const fn rewind(&mut self, n: usize) -> Result<(), MemoryPackError> {
-        if n > self.pos {
+        if n > self.position {
             return Err(MemoryPackError::UnexpectedEndOfBuffer);
         }
 
-        self.pos -= n;
+        self.position -= n;
         Ok(())
     }
 
     #[inline]
-    pub const fn position(&self) -> u64 { self.pos as u64 }
+    pub const fn position(&self) -> u64 { self.position as u64 }
+
+    #[inline]
+    fn read_utf8_string(&mut self, byte_count: usize) -> Result<String, MemoryPackError> {
+        let _char_length = self.read_i32()?;
+        let slice = self.read_bytes(byte_count)?;
+
+        basic::from_utf8(slice)
+            .map(str::to_owned)
+            .map_err(|_| MemoryPackError::InvalidUtf8)
+    }
+
+    #[inline]
+    fn read_utf8_str(&mut self, byte_count: usize) -> Result<&'a str, MemoryPackError> {
+        let _char_length = self.read_i32()?;
+        let slice = self.read_bytes(byte_count)?;
+
+        basic::from_utf8(slice).map_err(|_| MemoryPackError::InvalidUtf8)
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn read_utf16_string(&mut self, character_count: usize) -> Result<String, MemoryPackError> {
+        let byte_count = character_count
+            .checked_mul(size_of::<u16>())
+            .ok_or(MemoryPackError::UnexpectedEndOfBuffer)?;
+        let bytes = self.read_bytes(byte_count)?;
+        let units = bytes
+            .as_chunks::<{ size_of::<u16>() }>()
+            .0
+            .iter()
+            .copied()
+            .map(u16::from_le_bytes);
+
+        char::decode_utf16(units).try_fold(
+            String::with_capacity(character_count),
+            |mut value, character| {
+                value.push(character.map_err(|_| MemoryPackError::InvalidUtf8)?);
+
+                Ok(value)
+            }
+        )
+    }
 }

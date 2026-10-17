@@ -4,11 +4,11 @@ use crate::serializer_options::MemoryPackSerializerOptions;
 use crate::traits::{MemoryPackDeserialize, MemoryPackDeserializeZeroCopy, MemoryPackSerialize};
 use crate::writer::MemoryPackWriter;
 
-/// MemoryPack serializer
+const DEFAULT_BUFFER_CAPACITY: usize = 64;
+
 pub struct MemoryPackSerializer;
 
 impl MemoryPackSerializer {
-    /// Serialize a value to a byte vector
     #[inline]
     pub fn serialize<T: MemoryPackSerialize>(value: &T) -> Result<Vec<u8>, MemoryPackError> {
         Self::serialize_with_options(value, &MemoryPackSerializerOptions::UTF8)
@@ -20,14 +20,16 @@ impl MemoryPackSerializer {
         options: &MemoryPackSerializerOptions
     ) -> Result<Vec<u8>, MemoryPackError> {
         let mut writer = MemoryPackWriter::with_capacity_and_options(
-            value.serialized_size_hint().max(64),
+            value
+                .serialized_size_hint()
+                .max(DEFAULT_BUFFER_CAPACITY),
             *options
         );
+
         value.serialize(&mut writer)?;
         Ok(writer.into_bytes())
     }
 
-    /// Serialize a value to an existing writer
     #[inline]
     pub fn serialize_to<T: MemoryPackSerialize>(
         value: &T,
@@ -36,14 +38,13 @@ impl MemoryPackSerializer {
         value.serialize(writer)
     }
 
-    /// Deserialize a value from bytes
     #[inline]
     pub fn deserialize<T: MemoryPackDeserialize>(data: &[u8]) -> Result<T, MemoryPackError> {
         let mut reader = MemoryPackReader::new(data);
+
         T::deserialize(&mut reader)
     }
 
-    /// Deserialize a value from an existing reader
     #[inline]
     pub fn deserialize_from<T: MemoryPackDeserialize>(
         reader: &mut MemoryPackReader
@@ -51,13 +52,13 @@ impl MemoryPackSerializer {
         T::deserialize(reader)
     }
 
-    /// Deserialize a value with zero-copy
     #[inline]
     pub fn deserialize_zero_copy<'a, T>(data: &'a [u8]) -> Result<T, MemoryPackError>
     where
         T: MemoryPackDeserializeZeroCopy<'a>
     {
         let mut reader = MemoryPackReader::new(data);
+
         T::deserialize(&mut reader)
     }
 }

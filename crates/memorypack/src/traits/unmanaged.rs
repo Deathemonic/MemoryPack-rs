@@ -1,9 +1,14 @@
-#[allow(clippy::missing_safety_doc)]
+/// # Safety
+/// Implementations must have no padding and accept every bit pattern. Raw
+/// copying is necessary to serialize numeric collections without per-element
+/// conversions. Only numeric primitives on little-endian targets implement this
+/// internal trait.
 pub unsafe trait MemoryPackUnmanaged: Copy + Sized + 'static {}
 
 macro_rules! impl_unmanaged {
     ($($ty:ty),+ $(,)?) => {
-        $(unsafe impl MemoryPackUnmanaged for $ty {})+
+        $(// SAFETY: these numeric primitives have no padding and accept every bit pattern.
+        unsafe impl MemoryPackUnmanaged for $ty {})+
     };
 }
 

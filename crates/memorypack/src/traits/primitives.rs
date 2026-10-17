@@ -5,6 +5,7 @@ use crate::writer::MemoryPackWriter;
 
 macro_rules! unmanaged_serialize_many {
     () => {
+        #[cfg(target_endian = "little")]
         #[inline]
         fn serialize_many(
             values: &[Self],
@@ -18,6 +19,7 @@ macro_rules! unmanaged_serialize_many {
 
 macro_rules! unmanaged_deserialize_many {
     () => {
+        #[cfg(target_endian = "little")]
         #[inline]
         fn deserialize_many(
             reader: &mut MemoryPackReader,
@@ -79,6 +81,8 @@ macro_rules! nullable_value_deserialize {
 }
 
 impl MemoryPackSerialize for bool {
+    nullable_value!();
+
     #[inline(always)]
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
         writer.write_bool(*self)
@@ -89,6 +93,8 @@ impl MemoryPackSerialize for bool {
 }
 
 impl MemoryPackDeserialize for bool {
+    nullable_value_deserialize!();
+
     #[inline(always)]
     fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
         reader.read_bool()

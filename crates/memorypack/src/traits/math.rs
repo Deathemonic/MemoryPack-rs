@@ -18,6 +18,7 @@ impl MemoryPackDeserialize for num_complex::Complex<f64> {
     fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
         let re = reader.read_f64()?;
         let im = reader.read_f64()?;
+
         Ok(Self::new(re, im))
     }
 }
@@ -27,6 +28,7 @@ impl MemoryPackSerialize for glam::Vec2 {
     #[inline(always)]
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
         let arr = self.to_array();
+
         writer.write_f32(arr[0])?;
         writer.write_f32(arr[1])
     }
@@ -45,8 +47,10 @@ impl MemoryPackSerialize for glam::Vec3 {
     #[inline(always)]
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
         let arr = self.to_array();
+
         writer.write_f32(arr[0])?;
         writer.write_f32(arr[1])?;
+
         writer.write_f32(arr[2])
     }
 }
@@ -64,9 +68,11 @@ impl MemoryPackSerialize for glam::Vec4 {
     #[inline(always)]
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
         let arr = self.to_array();
+
         writer.write_f32(arr[0])?;
         writer.write_f32(arr[1])?;
         writer.write_f32(arr[2])?;
+
         writer.write_f32(arr[3])
     }
 }
@@ -89,9 +95,11 @@ impl MemoryPackSerialize for glam::Quat {
     #[inline(always)]
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
         let arr = self.to_array();
+
         writer.write_f32(arr[0])?;
         writer.write_f32(arr[1])?;
         writer.write_f32(arr[2])?;
+
         writer.write_f32(arr[3])
     }
 }
@@ -114,11 +122,13 @@ impl MemoryPackSerialize for glam::Mat3A {
     #[inline(always)]
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
         let cols = self.to_cols_array();
+
         writer.write_f32(cols[0])?;
         writer.write_f32(cols[3])?;
         writer.write_f32(cols[1])?;
         writer.write_f32(cols[4])?;
         writer.write_f32(cols[2])?;
+
         writer.write_f32(cols[5])
     }
 }
@@ -133,6 +143,7 @@ impl MemoryPackDeserialize for glam::Mat3A {
         let m22 = reader.read_f32()?;
         let m31 = reader.read_f32()?;
         let m32 = reader.read_f32()?;
+
         Ok(Self::from_cols(
             glam::Vec3A::new(m11, m21, m31),
             glam::Vec3A::new(m12, m22, m32),
@@ -146,9 +157,11 @@ impl MemoryPackSerialize for glam::Mat4 {
     #[inline(always)]
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
         let arr = self.to_cols_array();
+
         for &val in &arr {
             writer.write_f32(val)?;
         }
+
         Ok(())
     }
 }
@@ -158,9 +171,11 @@ impl MemoryPackDeserialize for glam::Mat4 {
     #[inline(always)]
     fn deserialize(reader: &mut MemoryPackReader) -> Result<Self, MemoryPackError> {
         let mut arr = [0.0_f32; 16];
+
         for val in &mut arr {
             *val = reader.read_f32()?;
         }
+
         Ok(Self::from_cols_array(&arr))
     }
 }

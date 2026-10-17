@@ -3,7 +3,11 @@ use std::ptr;
 use quote::quote;
 use syn::{Data, Fields};
 
-use crate::helpers::{generate_field_deserialize, prepare_ordered_fields, should_skip_field};
+use crate::generation::helpers::{
+    generate_field_deserialize,
+    prepare_ordered_fields,
+    should_skip_field
+};
 
 pub fn generate_serialize(data: &Data) -> proc_macro2::TokenStream {
     let Data::Struct(data_struct) = data else {
@@ -14,16 +18,17 @@ pub fn generate_serialize(data: &Data) -> proc_macro2::TokenStream {
 
     match &data_struct.fields {
         Fields::Named(fields) => {
-            let non_skip: Vec<_> = fields
+            let serialized_fields: Vec<_> = fields
                 .named
                 .iter()
                 .filter(|f| !should_skip_field(f))
                 .collect();
-            let ordered = prepare_ordered_fields(&non_skip);
+            let ordered = prepare_ordered_fields(&serialized_fields);
             let field_count = ordered.len() as u8;
 
-            let serialize_fields = ordered.iter().map(|of| {
-                let name = of.ident;
+            let serialize_fields = ordered.iter().map(|ordered_field| {
+                let name = ordered_field.ident;
+
                 quote! { memorypack::MemoryPackSerialize::serialize(&self.#name, writer)?; }
             });
 
@@ -36,6 +41,7 @@ pub fn generate_serialize(data: &Data) -> proc_macro2::TokenStream {
             let field_count = fields.unnamed.len() as u8;
             let serialize_fields = (0..fields.unnamed.len()).map(|i| {
                 let index = syn::Index::from(i);
+
                 quote! { memorypack::MemoryPackSerialize::serialize(&self.#index, writer)?; }
             });
 
@@ -57,12 +63,12 @@ pub fn generate_deserialize(data: &Data, is_zero_copy: bool) -> proc_macro2::Tok
 
     match &data_struct.fields {
         Fields::Named(fields) => {
-            let non_skip: Vec<_> = fields
+            let serialized_fields: Vec<_> = fields
                 .named
                 .iter()
                 .filter(|f| !should_skip_field(f))
                 .collect();
-            let ordered = prepare_ordered_fields(&non_skip);
+            let ordered = prepare_ordered_fields(&serialized_fields);
 
             let all_field_names: Vec<_> = fields.named.iter().map(|f| &f.ident).collect();
 
@@ -87,6 +93,7 @@ pub fn generate_deserialize(data: &Data, is_zero_copy: bool) -> proc_macro2::Tok
                         .iter()
                         .position(|field| ptr::eq(field, ordered[ordered_idx].field))
                         .expect("ordered field must originate from the struct's named fields");
+
                     ordered_deserialize.push(deserialize_stmts[field_idx].clone());
                     ordered_idx += 1;
                 }

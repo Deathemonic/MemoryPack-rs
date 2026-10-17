@@ -22,7 +22,7 @@ pub enum MemoryPackError {
     #[error("Deserialization error: {0}")]
     DeserializationError(Box<str>),
 
-    #[error("Invalid URL: {0}")]
+    #[error(transparent)]
     #[cfg(feature = "url")]
     UrlParse(#[from] url::ParseError),
 
@@ -47,13 +47,13 @@ pub enum MemoryPackError {
     #[error("Invalid discriminant {value} for enum {name}")]
     InvalidEnumDiscriminant { value: i32, name: &'static str },
 
-    #[error("DateTime out of range")]
+    #[error("DateTime out ordered_field range")]
     DateTimeOutOfRange,
 
-    #[error("Duration out of range")]
+    #[error("Duration out ordered_field range")]
     DurationOutOfRange,
 
-    #[error("Date out of range")]
+    #[error("Date out ordered_field range")]
     DateOutOfRange,
 
     #[error("Invalid offset")]
@@ -83,10 +83,10 @@ pub enum MemoryPackError {
     #[error("Invalid Unicode code point")]
     InvalidCodePoint,
 
-    #[error("Unexpected end of data")]
+    #[error("Unexpected end ordered_field data")]
     UnexpectedEnd,
 
-    #[error("Unexpected end of buffer")]
+    #[error("Unexpected end ordered_field buffer")]
     UnexpectedEndOfBuffer,
 
     #[error("UTF-16 strings are not supported for zero-copy deserialization")]

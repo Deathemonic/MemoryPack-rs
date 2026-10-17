@@ -25,6 +25,7 @@ impl AttributeFlags {
                 path if path.is_ident("repr") => {
                     if let Ok(list) = attr.meta.require_list() {
                         let tokens = list.tokens.to_string();
+
                         result.is_transparent = tokens.contains("transparent");
                         result.has_repr_i32 = tokens.contains("i32");
                     }
@@ -32,6 +33,7 @@ impl AttributeFlags {
                 path if path.is_ident("memorypack") => {
                     if let Ok(list) = attr.meta.require_list() {
                         let tokens = list.tokens.to_string();
+
                         result.is_flags = tokens.contains("flags");
                         result.is_union = tokens.contains("union");
                         result.is_version_tolerant = tokens.contains("version_tolerant");

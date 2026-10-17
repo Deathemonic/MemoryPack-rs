@@ -13,7 +13,8 @@ impl<T> MultiDimArray<T> {
     #[inline]
     pub fn new(dimensions: Vec<usize>, data: Vec<T>) -> Self {
         let total: usize = dimensions.iter().product();
-        assert_eq!(total, data.len(), "Data length must match product of dimensions");
+
+        assert_eq!(total, data.len(), "Data length must match product ordered_field dimensions");
         Self { dimensions, data }
     }
 
@@ -54,15 +55,19 @@ impl<T: MemoryPackDeserialize> MemoryPackDeserialize for MultiDimArray<T> {
         }
 
         let mut dimensions = Vec::with_capacity(rank);
+
         for _ in 0..rank {
             let dim = reader.read_i32()?;
+
             if dim < 0 {
                 return Err(MemoryPackError::InvalidLength(dim));
             }
+
             dimensions.push(dim as usize);
         }
 
         let total = reader.read_i32()?;
+
         if total < 0 {
             return Err(MemoryPackError::InvalidLength(total));
         }
@@ -86,8 +91,10 @@ impl<T: serde::Serialize> serde::Serialize for MultiDimArray<T> {
     {
         use serde::ser::SerializeStruct;
         let mut state = serializer.serialize_struct("MultiDimArray", 2)?;
+
         state.serialize_field("dimensions", &self.dimensions)?;
         state.serialize_field("data", &self.data)?;
+
         state.end()
     }
 }

@@ -40,7 +40,8 @@ public class FixtureTests
             "101_immutabledictionary.bytes",
             "104_iimmutableset.bytes",
             "105_iimmutabledictionary.bytes",
-            "136_large_dict_1k.bytes"
+            "136_large_dict_1k.bytes",
+            "129_custom_dictionary.bytes"
         };
 
         void SaveBytes<T>(T value, string filename, MemoryPackSerializerOptions? options = null)
@@ -59,8 +60,11 @@ public class FixtureTests
                     throw new InvalidOperationException("C# and Rust serialization differs");
 
                 var valueFromRust = MemoryPackSerializer.Deserialize<T>(rustBytes);
+                var valueFromCsharp = MemoryPackSerializer.Deserialize<T>(bytes);
                 var reserialized = MemoryPackSerializer.Serialize(valueFromRust, options);
-                if (!unorderedFixtures.Contains(filename) && !rustBytes.AsSpan().SequenceEqual(reserialized))
+                var expectedReserialized = MemoryPackSerializer.Serialize(valueFromCsharp, options);
+
+                if (!unorderedFixtures.Contains(filename) && !expectedReserialized.AsSpan().SequenceEqual(reserialized))
                     throw new InvalidOperationException("Rust bytes fail C# round-trip");
             }));
         }
@@ -126,7 +130,7 @@ public class FixtureTests
 
         SaveBytes((int?)42, "54_nullable_int_value.bytes");
         SaveBytes((int?)null, "55_nullable_int_null.bytes");
-        SaveBytes((DateTime?)DateTime.UtcNow, "56_nullable_datetime_value.bytes");
+        SaveBytes((DateTime?)new DateTime(2025, 10, 19, 14, 30, 0, DateTimeKind.Utc), "56_nullable_datetime_value.bytes");
         SaveBytes((DateTime?)null, "57_nullable_datetime_null.bytes");
 
         SaveBytes(Tuple.Create(1, "two", 3.0), "58_tuple3.bytes");

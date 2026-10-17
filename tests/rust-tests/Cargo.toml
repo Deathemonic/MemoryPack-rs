@@ -9,18 +9,15 @@ publish = false
 [dev-dependencies]
 memorypack = { workspace = true, features = ["extended_types"] }
 
-jiff = "0.2"
-eyre = "0.6"
-glam = { version = "0.33", features = ["serde", "fast-math"] }
-half = { version = "2.7", features = ["serde"] }
-num-bigint = { version = "0.5", features = ["serde"] }
-num-complex = { version = "0.4", features = ["serde"] }
-rust_decimal = { version = "1.42", features = ["serde"] }
-rust_decimal_macros = "1.40"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-url = { version = "2.5", features = ["serde"] }
-uuid = { version = "1.25", features = ["serde"] }
+jiff = { workspace = true }
+glam = { workspace = true, features = ["serde", "fast-math"] }
+half = { workspace = true, features = ["serde"] }
+num-bigint = { workspace = true, features = ["serde"] }
+num-complex = { workspace = true, features = ["serde"] }
+rust_decimal = { workspace = true, features = ["serde"] }
+rust_decimal_macros = { workspace = true }
+url = { workspace = true, features = ["serde"] }
+uuid = { workspace = true, features = ["serde"] }
 
 [lints]
 workspace = true

@@ -4,57 +4,57 @@ use std::ptr;
 
 use crate::error::MemoryPackError;
 
+#[derive(Default)]
 pub struct MemoryPackWriterOptionalState {
     next_id: u32,
-    object_to_ref: HashMap<usize, u32>
+    object_references: HashMap<usize, u32>
+}
+
+#[derive(Default)]
+pub struct MemoryPackReaderOptionalState {
+    referenced_objects: HashMap<u32, Box<dyn Any>>
 }
 
 impl MemoryPackWriterOptionalState {
     pub fn new() -> Self {
         Self {
             next_id: 0,
-            object_to_ref: HashMap::new()
+            object_references: HashMap::new()
         }
     }
 
     pub fn reset(&mut self) {
-        self.object_to_ref.clear();
+        self.object_references.clear();
         self.next_id = 0;
     }
 
     pub fn get_or_add_reference<T: ?Sized>(&mut self, value: &T) -> (bool, u32) {
         let ptr = ptr::from_ref::<T>(value).cast::<()>() as usize;
 
-        if let Some(&id) = self.object_to_ref.get(&ptr) {
+        if let Some(&id) = self.object_references.get(&ptr) {
             (true, id)
         } else {
             let id = self.next_id;
+
             self.next_id += 1;
-            self.object_to_ref.insert(ptr, id);
+            self.object_references.insert(ptr, id);
+
             (false, id)
         }
     }
 }
 
-impl Default for MemoryPackWriterOptionalState {
-    fn default() -> Self { Self::new() }
-}
-
-pub struct MemoryPackReaderOptionalState {
-    ref_to_object: HashMap<u32, Box<dyn Any>>
-}
-
 impl MemoryPackReaderOptionalState {
     pub fn new() -> Self {
         Self {
-            ref_to_object: HashMap::new()
+            referenced_objects: HashMap::new()
         }
     }
 
-    pub fn reset(&mut self) { self.ref_to_object.clear(); }
+    pub fn reset(&mut self) { self.referenced_objects.clear(); }
 
     pub fn get_object_reference<T: 'static + Clone>(&self, id: u32) -> Result<T, MemoryPackError> {
-        self.ref_to_object
+        self.referenced_objects
             .get(&id)
             .and_then(|boxed: &Box<dyn Any>| boxed.downcast_ref::<T>())
             .cloned()
@@ -66,10 +66,12 @@ impl MemoryPackReaderOptionalState {
         id: u32,
         value: T
     ) -> Result<(), MemoryPackError> {
-        if self.ref_to_object.contains_key(&id) {
+        if self.referenced_objects.contains_key(&id) {
             return Err(MemoryPackError::ObjectReferenceAlreadyAdded(id));
         }
-        self.ref_to_object.insert(id, Box::new(value));
+
+        self.referenced_objects
+            .insert(id, Box::new(value));
         Ok(())
     }
 
@@ -78,7 +80,7 @@ impl MemoryPackReaderOptionalState {
         id: u32,
         value: T
     ) -> Result<(), MemoryPackError> {
-        self.ref_to_object.get_mut(&id).map_or_else(
+        self.referenced_objects.get_mut(&id).map_or_else(
             || Err(MemoryPackError::ObjectReferenceUpdateNotFound(id)),
             |entry| {
                 *entry = Box::new(value);
@@ -86,8 +88,4 @@ impl MemoryPackReaderOptionalState {
             }
         )
     }
-}
-
-impl Default for MemoryPackReaderOptionalState {
-    fn default() -> Self { Self::new() }
 }
