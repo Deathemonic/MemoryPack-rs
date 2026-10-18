@@ -89,6 +89,10 @@ pub enum MemoryPackError {
     #[error("Unexpected end of buffer")]
     UnexpectedEndOfBuffer,
 
+    #[cfg(feature = "arena")]
+    #[error("Arena references cannot contain values that require destructors")]
+    ArenaValueRequiresDrop,
+
     #[error("UTF-16 strings are not supported for zero-copy deserialization")]
     Utf16NotSupportedForZeroCopy
 }

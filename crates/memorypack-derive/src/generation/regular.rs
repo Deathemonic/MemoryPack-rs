@@ -4,6 +4,7 @@ use quote::quote;
 use syn::{Data, Fields};
 
 use crate::generation::helpers::{
+    DeserializationMode,
     generate_field_deserialize,
     prepare_ordered_fields,
     should_skip_field
@@ -54,7 +55,7 @@ pub fn generate_serialize(data: &Data) -> proc_macro2::TokenStream {
     }
 }
 
-pub fn generate_deserialize(data: &Data) -> proc_macro2::TokenStream {
+pub fn generate_deserialize(data: &Data, mode: DeserializationMode) -> proc_macro2::TokenStream {
     let Data::Struct(data_struct) = data else {
         return quote! {
             compile_error!("MemoryPackable deserialize can only be derived for structs");
@@ -75,7 +76,7 @@ pub fn generate_deserialize(data: &Data) -> proc_macro2::TokenStream {
             let deserialize_stmts: Vec<_> = fields
                 .named
                 .iter()
-                .map(generate_field_deserialize)
+                .map(|f| generate_field_deserialize(f, mode))
                 .collect();
 
             let mut ordered_deserialize = Vec::new();
@@ -112,7 +113,9 @@ pub fn generate_deserialize(data: &Data) -> proc_macro2::TokenStream {
                 .collect();
 
             let deserialize_stmts = field_vars.iter().map(|var| {
-                quote! { let #var = memorypack::MemoryPackDeserialize::deserialize(reader)?; }
+                let deserialize_value = mode.deserialize_value();
+
+                quote! { let #var = #deserialize_value; }
             });
 
             quote! {

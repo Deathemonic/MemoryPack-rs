@@ -16,6 +16,7 @@ repository = "https://github.com/Deathemonic/MemoryPack-rs"
 authors = ["Zinth"]
 
 [workspace.dependencies]
+bumpalo = { version = "3.19", features = ["collections"] }
 memorypack = { version = "2.0.0", path = "crates/memorypack" }
 memorypack-derive = { version = "2.0.0", path = "crates/memorypack-derive" }
 divan = { package = "codspeed-divan-compat", version = "5.0" }

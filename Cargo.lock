@@ -822,6 +822,7 @@ name = "memorypack"
 version = "2.0.0"
 dependencies = [
  "ahash 0.8.12",
+ "bumpalo",
  "glam",
  "half",
  "hashbrown 0.17.1",
@@ -843,6 +844,7 @@ dependencies = [
 name = "memorypack-benchmark"
 version = "0.0.1"
 dependencies = [
+ "bumpalo",
  "codspeed-divan-compat",
  "dhat",
  "memorypack",

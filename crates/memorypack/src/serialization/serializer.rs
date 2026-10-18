@@ -1,3 +1,5 @@
+#[cfg(feature = "arena")]
+use crate::arena::{MemoryPackArena, MemoryPackDeserializeIn};
 use crate::error::MemoryPackError;
 use crate::reader::MemoryPackReader;
 use crate::serializer_options::MemoryPackSerializerOptions;
@@ -52,5 +54,20 @@ impl MemoryPackSerializer {
         reader: &mut MemoryPackReader<'de>
     ) -> Result<T, MemoryPackError> {
         T::deserialize(reader)
+    }
+
+    #[cfg(feature = "arena")]
+    #[inline]
+    pub fn deserialize_in<
+        'arena,
+        T: MemoryPackDeserializeIn<'arena, Arena>,
+        Arena: MemoryPackArena + ?Sized
+    >(
+        data: &[u8],
+        arena: &'arena Arena
+    ) -> Result<T, MemoryPackError> {
+        let mut reader = MemoryPackReader::new(data);
+
+        T::deserialize_in(&mut reader, arena)
     }
 }

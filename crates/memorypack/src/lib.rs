@@ -2,12 +2,17 @@ mod graph;
 mod io;
 mod serialization;
 
+#[cfg(feature = "arena")]
+pub mod arena;
+
 pub mod error;
 pub mod traits;
 pub mod prelude {
     #[cfg(feature = "derive")]
     pub use memorypack_derive::MemoryPackable;
 
+    #[cfg(feature = "arena")]
+    pub use crate::arena::{MemoryPackArena, MemoryPackDeserializeIn};
     pub use crate::error::MemoryPackError;
     pub use crate::reader::MemoryPackReader;
     pub use crate::serializer::MemoryPackSerializer;
@@ -19,6 +24,8 @@ pub mod prelude {
     pub use crate::writer::MemoryPackWriter;
 }
 
+#[cfg(feature = "arena")]
+pub use arena::{MemoryPackArena, MemoryPackDeserializeIn};
 pub use error::MemoryPackError;
 pub use graph::{MemoryPackCircular, MemoryPackGraph, MemoryPackReference};
 #[cfg(feature = "derive")]

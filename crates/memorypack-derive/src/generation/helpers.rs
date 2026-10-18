@@ -6,18 +6,48 @@ use syn::{
     Field,
     GenericParam,
     Generics,
+    Ident,
     Lifetime,
     LifetimeParam,
     WherePredicate,
     parse_quote
 };
 
-const INPUT_LIFETIME_NAME: &str = "'de";
+#[derive(Clone, Copy)]
+pub enum DeserializationMode {
+    Input,
+    Arena
+}
 
 pub struct OrderedField<'a> {
     pub order: usize,
     pub field: &'a Field,
     pub ident: &'a Option<syn::Ident>
+}
+
+impl DeserializationMode {
+    pub fn deserialize_value(self) -> TokenStream {
+        match self {
+            Self::Input => quote!(memorypack::MemoryPackDeserialize::deserialize(reader)?),
+            Self::Arena => {
+                quote!(memorypack::MemoryPackDeserializeIn::deserialize_in(reader, arena)?)
+            }
+        }
+    }
+
+    pub fn trait_path(self, lifetime: &Lifetime, arena_type: &Ident) -> TokenStream {
+        match self {
+            Self::Input => quote!(memorypack::MemoryPackDeserialize<#lifetime>),
+            Self::Arena => quote!(memorypack::MemoryPackDeserializeIn<#lifetime, #arena_type>)
+        }
+    }
+
+    pub const fn lifetime_name(self) -> &'static str {
+        match self {
+            Self::Input => "'de",
+            Self::Arena => "'arena"
+        }
+    }
 }
 
 #[inline]
@@ -105,14 +135,16 @@ pub fn prepare_ordered_fields<'a>(fields: &'a [&'a Field]) -> Vec<OrderedField<'
     ordered
 }
 
-pub fn generate_field_deserialize(field: &Field) -> TokenStream {
+pub fn generate_field_deserialize(field: &Field, mode: DeserializationMode) -> TokenStream {
     let name = &field.ident;
 
     if should_skip_field(field) {
         return quote! { let #name = Default::default(); };
     }
 
-    quote! { let #name = memorypack::MemoryPackDeserialize::deserialize(reader)?; }
+    let deserialize_value = mode.deserialize_value();
+
+    quote! { let #name = #deserialize_value; }
 }
 
 pub fn generate_size_hint(
@@ -194,31 +226,59 @@ pub fn prepare_serialization_generics(generics: &Generics) -> Generics {
     serialization_generics
 }
 
-pub fn prepare_deserialization_generics(input: &DeriveInput) -> (Generics, Lifetime) {
-    let input_lifetime = prepare_input_lifetime(&input.generics);
+pub fn prepare_deserialization_generics(
+    input: &DeriveInput,
+    mode: DeserializationMode
+) -> (Generics, Lifetime, Ident) {
+    let input_lifetime = prepare_input_lifetime(&input.generics, mode.lifetime_name());
     let lifetime_parameter = LifetimeParam::new(input_lifetime.clone());
+    let arena_type = prepare_arena_type(&input.generics);
+    let trait_path = mode.trait_path(&input_lifetime, &arena_type);
+
     let mut deserialization_generics = input.generics.clone();
     deserialization_generics
         .params
         .insert(0, GenericParam::Lifetime(lifetime_parameter));
 
-    deserialization_generics
-        .type_params_mut()
-        .for_each(|parameter| {
-            parameter
-                .bounds
-                .push(parse_quote!(memorypack::MemoryPackDeserialize<#input_lifetime>));
-        });
+    for parameter in deserialization_generics.type_params_mut() {
+        parameter.bounds.push(parse_quote!(#trait_path));
+    }
 
-    add_field_deserialization_bounds(&mut deserialization_generics, input, &input_lifetime);
+    if matches!(mode, DeserializationMode::Arena) {
+        deserialization_generics.params.push(parse_quote!(
+            #arena_type: memorypack::MemoryPackArena + ?Sized
+        ));
+    }
 
-    (deserialization_generics, input_lifetime)
+    add_field_deserialization_bounds(&mut deserialization_generics, input, &trait_path);
+
+    (deserialization_generics, input_lifetime, arena_type)
+}
+
+pub fn generate_deserialization_method(
+    mode: DeserializationMode,
+    lifetime: &Lifetime,
+    arena_type: &Ident,
+    body: &TokenStream
+) -> TokenStream {
+    match mode {
+        DeserializationMode::Input => quote! {
+            fn deserialize(reader: &mut memorypack::MemoryPackReader<#lifetime>) -> Result<Self, memorypack::MemoryPackError> {
+                #body
+            }
+        },
+        DeserializationMode::Arena => quote! {
+            fn deserialize_in(reader: &mut memorypack::MemoryPackReader<'_>, arena: &#lifetime #arena_type) -> Result<Self, memorypack::MemoryPackError> {
+                #body
+            }
+        }
+    }
 }
 
 fn add_field_deserialization_bounds(
     generics: &mut Generics,
     input: &DeriveInput,
-    input_lifetime: &Lifetime
+    trait_path: &TokenStream
 ) {
     if input.generics.lifetimes().next().is_none() {
         return;
@@ -235,7 +295,7 @@ fn add_field_deserialization_bounds(
     };
     let predicates = fields
         .into_iter()
-        .map(|field| prepare_field_deserialization_bound(field, input_lifetime));
+        .map(|field| prepare_field_deserialization_bound(field, trait_path));
 
     generics
         .make_where_clause()
@@ -243,18 +303,18 @@ fn add_field_deserialization_bounds(
         .extend(predicates);
 }
 
-fn prepare_field_deserialization_bound(field: &Field, input_lifetime: &Lifetime) -> WherePredicate {
+fn prepare_field_deserialization_bound(field: &Field, trait_path: &TokenStream) -> WherePredicate {
     let field_type = &field.ty;
 
     if should_skip_field(field) {
         return parse_quote!(#field_type: Default);
     }
 
-    parse_quote!(#field_type: memorypack::MemoryPackDeserialize<#input_lifetime>)
+    parse_quote!(#field_type: #trait_path)
 }
 
-fn prepare_input_lifetime(generics: &Generics) -> Lifetime {
-    let mut lifetime_name = INPUT_LIFETIME_NAME.to_owned();
+fn prepare_input_lifetime(generics: &Generics, name: &str) -> Lifetime {
+    let mut lifetime_name = name.to_owned();
 
     while generics
         .lifetimes()
@@ -264,4 +324,22 @@ fn prepare_input_lifetime(generics: &Generics) -> Lifetime {
     }
 
     Lifetime::new(&lifetime_name, Span::call_site())
+}
+
+fn prepare_arena_type(generics: &Generics) -> Ident {
+    let mut name = "MemoryPackAllocator".to_owned();
+
+    while generics
+        .params
+        .iter()
+        .any(|parameter| match parameter {
+            GenericParam::Type(parameter) => parameter.ident == name,
+            GenericParam::Const(parameter) => parameter.ident == name,
+            GenericParam::Lifetime(_) => false
+        })
+    {
+        name.push('_');
+    }
+
+    Ident::new(&name, Span::call_site())
 }
