@@ -17,6 +17,8 @@ categories = ["encoding", "parsing"]
 rust_decimal_macros = []
 default = ["derive", "serde"]
 derive = ["memorypack-derive"]
+arena = ["memorypack-derive?/arena"]
+bumpalo = ["arena", "dep:bumpalo"]
 extended_types = [
     "uuid",
     "rust_decimal",
@@ -34,6 +36,7 @@ fxhash = ["dep:rustc-hash"]
 mimalloc = ["dep:mimalloc"]
 
 [dependencies]
+bumpalo = { workspace = true, optional = true }
 memorypack-derive = { workspace = true, optional = true }
 
 ahash = { workspace = true, features = ["compile-time-rng"], optional = true }

@@ -4,6 +4,7 @@ pub struct AttributeFlags {
     pub is_union: bool,
     pub is_version_tolerant: bool,
     pub is_circular: bool,
+    pub is_arena: bool,
     pub has_repr_i32: bool
 }
 
@@ -15,6 +16,7 @@ impl AttributeFlags {
             is_union: false,
             is_version_tolerant: false,
             is_circular: false,
+            is_arena: false,
             has_repr_i32: false
         };
 
@@ -36,6 +38,7 @@ impl AttributeFlags {
                         result.is_union = tokens.contains("union");
                         result.is_version_tolerant = tokens.contains("version_tolerant");
                         result.is_circular = tokens.contains("circular");
+                        result.is_arena = tokens.contains("arena");
                     }
                 }
                 _ => {}

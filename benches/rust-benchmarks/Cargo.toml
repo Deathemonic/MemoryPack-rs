@@ -7,10 +7,12 @@ edition.workspace = true
 publish = false
 
 [features]
+arena = ["memorypack/bumpalo", "dep:bumpalo"]
 dhat-heap = ["dhat"]
 mimalloc = ["memorypack/mimalloc"]
 
 [dependencies]
+bumpalo = { workspace = true, optional = true }
 memorypack = { workspace = true }
 
 dhat = { workspace = true, optional = true }
@@ -24,3 +26,7 @@ harness = false
 
 [lints]
 workspace = true
+
+[[example]]
+name = "memorypack_arena"
+required-features = ["arena"]

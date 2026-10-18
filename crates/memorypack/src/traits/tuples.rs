@@ -1,3 +1,5 @@
+#[cfg(feature = "arena")]
+use crate::arena::{MemoryPackArena, MemoryPackDeserializeIn};
 use crate::error::MemoryPackError;
 use crate::reader::MemoryPackReader;
 use crate::traits::{MemoryPackDeserialize, MemoryPackSerialize};
@@ -24,6 +26,20 @@ macro_rules! impl_tuple {
             #[inline]
             fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
                 Ok(($($T::deserialize(reader)?,)+))
+            }
+        }
+
+        #[cfg(feature = "arena")]
+        impl<'arena, Arena, $($T),+> MemoryPackDeserializeIn<'arena, Arena> for ($($T,)+)
+        where
+            Arena: MemoryPackArena + ?Sized,
+            $($T: MemoryPackDeserializeIn<'arena, Arena>,)+
+        {
+            fn deserialize_in(
+                reader: &mut MemoryPackReader<'_>,
+                arena: &'arena Arena
+            ) -> Result<Self, MemoryPackError> {
+                Ok(($($T::deserialize_in(reader, arena)?,)+))
             }
         }
     };

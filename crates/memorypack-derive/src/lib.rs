@@ -18,6 +18,8 @@ use crate::generation::enums::{
     generate_transparent_serialize
 };
 use crate::generation::helpers::{
+    DeserializationMode,
+    generate_deserialization_method,
     generate_size_hint,
     has_explicit_discriminants,
     has_repr_c,
@@ -39,7 +41,16 @@ pub fn derive_memorypack(input: TokenStream) -> TokenStream {
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
     let attrs = AttributeFlags::parse(&input.attrs);
-    let (serialize_impl, deserialize_impl) = match generate_impls(&input, &attrs) {
+    if let Err(error) = validate_arena_attributes(&input, &attrs) {
+        return error.to_compile_error().into();
+    }
+
+    let mode = if attrs.is_arena {
+        DeserializationMode::Arena
+    } else {
+        DeserializationMode::Input
+    };
+    let (serialize_impl, deserialize_impl) = match generate_impls(&input, &attrs, mode) {
         Ok(impls) => impls,
         Err(error) => return error.to_compile_error().into()
     };
@@ -64,10 +75,14 @@ pub fn derive_memorypack(input: TokenStream) -> TokenStream {
         )
     };
 
-    let (deserialization_generics, input_lifetime) =
-        prepare_deserialization_generics(&input.generics);
+    let (deserialization_generics, input_lifetime, arena_type) =
+        prepare_deserialization_generics(&input.generics, mode);
     let (deserialization_impl_generics, _, deserialization_where_clause) =
         deserialization_generics.split_for_impl();
+    let deserialization_trait = mode.trait_path(&input_lifetime, &arena_type);
+    let deserialization_method =
+        generate_deserialization_method(mode, &input_lifetime, &arena_type, &deserialize_impl);
+
     quote! {
         impl #impl_generics memorypack::MemoryPackSerialize for #name #ty_generics #where_clause {
             #[inline]
@@ -82,11 +97,9 @@ pub fn derive_memorypack(input: TokenStream) -> TokenStream {
             }
         }
 
-        impl #deserialization_impl_generics memorypack::MemoryPackDeserialize<#input_lifetime> for #name #ty_generics #deserialization_where_clause {
+        impl #deserialization_impl_generics #deserialization_trait for #name #ty_generics #deserialization_where_clause {
             #[inline]
-            fn deserialize(reader: &mut memorypack::MemoryPackReader<#input_lifetime>) -> Result<Self, memorypack::MemoryPackError> {
-                #deserialize_impl
-            }
+            #deserialization_method
         }
 
         #flags_impl
@@ -97,7 +110,8 @@ pub fn derive_memorypack(input: TokenStream) -> TokenStream {
 
 fn generate_impls(
     input: &DeriveInput,
-    attrs: &AttributeFlags
+    attrs: &AttributeFlags,
+    mode: DeserializationMode
 ) -> syn::Result<(proc_macro2::TokenStream, proc_macro2::TokenStream)> {
     let name = &input.ident;
     let impls = match &input.data {
@@ -114,7 +128,9 @@ fn generate_impls(
             generate_version_tolerant_serialize(&input.data),
             generate_version_tolerant_deserialize(&input.data)
         ),
-        Data::Struct(_) => (generate_serialize(&input.data), generate_deserialize(&input.data)),
+        Data::Struct(_) => {
+            (generate_serialize(&input.data), generate_deserialize(&input.data, mode))
+        }
         Data::Enum(data_enum) if attrs.is_union => {
             (generate_union_serialize(data_enum), generate_union_deserialize(name, data_enum))
         }
@@ -141,4 +157,31 @@ fn generate_impls(
     };
 
     Ok(impls)
+}
+
+fn validate_arena_attributes(input: &DeriveInput, attributes: &AttributeFlags) -> syn::Result<()> {
+    if !attributes.is_arena {
+        return Ok(());
+    }
+
+    if !cfg!(feature = "arena") {
+        return Err(syn::Error::new_spanned(
+            input,
+            "arena deserialization requires memorypack's arena feature"
+        ));
+    }
+
+    if !matches!(input.data, Data::Struct(_))
+        || attributes.is_circular
+        || attributes.is_version_tolerant
+        || attributes.is_transparent
+        || has_repr_c(&input.attrs)
+    {
+        return Err(syn::Error::new_spanned(
+            input,
+            "arena deserialization supports regular structs"
+        ));
+    }
+
+    Ok(())
 }

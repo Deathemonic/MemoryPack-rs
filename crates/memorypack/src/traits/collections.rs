@@ -683,6 +683,23 @@ impl<T: MemoryPackSerialize> MemoryPackSerialize for &[T] {
     }
 }
 
+impl<T: MemoryPackSerialize> MemoryPackSerialize for &T {
+    fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
+        T::serialize(self, writer)
+    }
+
+    fn serialize_nullable(
+        value: Option<&Self>,
+        writer: &mut MemoryPackWriter
+    ) -> Result<(), MemoryPackError> {
+        T::serialize_nullable(value.copied(), writer)
+    }
+
+    fn nullable_size_hint(value: Option<&Self>) -> usize { T::nullable_size_hint(value.copied()) }
+
+    fn serialized_size_hint(&self) -> usize { T::serialized_size_hint(self) }
+}
+
 impl<'de: 'value, 'value> MemoryPackDeserialize<'de> for &'value [u8] {
     fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         let length = reader.read_i32()?;
