@@ -22,7 +22,8 @@ use crate::generation::helpers::{
     has_explicit_discriminants,
     has_repr_c,
     is_single_field_i32,
-    prepare_deserialization_generics
+    prepare_deserialization_generics,
+    prepare_serialization_generics
 };
 use crate::generation::regular::{generate_deserialize, generate_serialize};
 use crate::generation::unions::{generate_union_deserialize, generate_union_serialize};
@@ -36,7 +37,10 @@ use crate::generation::version_tolerant::{
 pub fn derive_memorypack(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let name = &input.ident;
-    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
+    let (_, ty_generics, _) = input.generics.split_for_impl();
+    let serialization_generics = prepare_serialization_generics(&input.generics);
+    let (serialization_impl_generics, _, serialization_where_clause) =
+        serialization_generics.split_for_impl();
 
     let attrs = AttributeFlags::parse(&input.attrs);
     let (serialize_impl, deserialize_impl) = match generate_impls(&input, &attrs) {
@@ -64,12 +68,12 @@ pub fn derive_memorypack(input: TokenStream) -> TokenStream {
         )
     };
 
-    let (deserialization_generics, input_lifetime) =
-        prepare_deserialization_generics(&input.generics);
+    let (deserialization_generics, input_lifetime) = prepare_deserialization_generics(&input);
     let (deserialization_impl_generics, _, deserialization_where_clause) =
         deserialization_generics.split_for_impl();
+
     quote! {
-        impl #impl_generics memorypack::MemoryPackSerialize for #name #ty_generics #where_clause {
+        impl #serialization_impl_generics memorypack::MemoryPackSerialize for #name #ty_generics #serialization_where_clause {
             #[inline]
             fn serialize(&self, writer: &mut memorypack::MemoryPackWriter) -> Result<(), memorypack::MemoryPackError> {
                 #serialize_impl

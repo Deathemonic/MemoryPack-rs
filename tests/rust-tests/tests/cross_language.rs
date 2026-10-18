@@ -187,7 +187,7 @@ struct Inner {
 }
 
 #[derive(MemoryPackable, Debug, Clone)]
-struct GenericContainer<T: MemoryPackSerialize + for<'input> MemoryPackDeserialize<'input>> {
+struct GenericContainer<T> {
     value: T
 }
 
@@ -500,10 +500,7 @@ fn write_rust(name: &str, bytes: &[u8]) -> TestResult {
     Ok(())
 }
 
-fn exact<T: MemoryPackSerialize + for<'input> MemoryPackDeserialize<'input>>(
-    name: &str,
-    value: &T
-) -> TestResult {
+fn exact<T: MemoryPackSerialize + MemoryPackDeserializeOwned>(name: &str, value: &T) -> TestResult {
     let rust = MemoryPackSerializer::serialize(value)?;
     let csharp_bytes = csharp(name)?;
 
@@ -519,7 +516,7 @@ fn exact<T: MemoryPackSerialize + for<'input> MemoryPackDeserialize<'input>>(
     write_rust(name, &rust)
 }
 
-fn exact_with_options<T: MemoryPackSerialize + for<'input> MemoryPackDeserialize<'input>>(
+fn exact_with_options<T: MemoryPackSerialize + MemoryPackDeserializeOwned>(
     name: &str,
     value: &T,
     options: &memorypack::MemoryPackSerializerOptions
@@ -534,9 +531,7 @@ fn exact_with_options<T: MemoryPackSerialize + for<'input> MemoryPackDeserialize
     write_rust(name, &rust)
 }
 
-fn semantic<
-    T: MemoryPackSerialize + for<'input> MemoryPackDeserialize<'input> + PartialEq + Debug
->(
+fn semantic<T: MemoryPackSerialize + MemoryPackDeserializeOwned + PartialEq + Debug>(
     name: &str,
     value: &T
 ) -> TestResult {
@@ -549,9 +544,7 @@ fn semantic<
     write_rust(name, &rust)
 }
 
-fn round_trip<T: MemoryPackSerialize + for<'input> MemoryPackDeserialize<'input>>(
-    name: &str
-) -> TestResult {
+fn round_trip<T: MemoryPackSerialize + MemoryPackDeserializeOwned>(name: &str) -> TestResult {
     let bytes = csharp(name)?;
     let decoded = MemoryPackSerializer::deserialize::<T>(&bytes)?;
     let rust = MemoryPackSerializer::serialize(&decoded)?;

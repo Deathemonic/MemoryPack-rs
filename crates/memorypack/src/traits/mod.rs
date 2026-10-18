@@ -19,7 +19,7 @@ mod datetime;
 #[cfg(any(feature = "glam", feature = "num-complex"))]
 mod math;
 
-pub use deserialization::MemoryPackDeserialize;
+pub use deserialization::{MemoryPackDeserialize, MemoryPackDeserializeOwned};
 pub use multidim::MultiDimArray;
 pub use serialization::MemoryPackSerialize;
 pub use special::{Lazy, Stack, Tuple, TupleElements};

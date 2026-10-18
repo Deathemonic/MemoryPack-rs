@@ -34,3 +34,7 @@ pub trait MemoryPackDeserialize<'de>: Sized {
         Ok(values)
     }
 }
+
+pub trait MemoryPackDeserializeOwned: for<'de> MemoryPackDeserialize<'de> {}
+
+impl<T> MemoryPackDeserializeOwned for T where T: for<'de> MemoryPackDeserialize<'de> {}

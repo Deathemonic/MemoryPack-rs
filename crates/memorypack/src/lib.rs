@@ -11,7 +11,11 @@ pub mod prelude {
     pub use crate::error::MemoryPackError;
     pub use crate::reader::MemoryPackReader;
     pub use crate::serializer::MemoryPackSerializer;
-    pub use crate::traits::{MemoryPackDeserialize, MemoryPackSerialize};
+    pub use crate::traits::{
+        MemoryPackDeserialize,
+        MemoryPackDeserializeOwned,
+        MemoryPackSerialize
+    };
     pub use crate::writer::MemoryPackWriter;
 }
 
@@ -24,7 +28,15 @@ pub use serialization::{serializer, serializer_options, state, varint};
 pub use serializer::MemoryPackSerializer;
 pub use serializer_options::{MemoryPackSerializerOptions, StringEncoding};
 pub use state::{MemoryPackReaderOptionalState, MemoryPackWriterOptionalState};
-pub use traits::{Lazy, MemoryPackDeserialize, MemoryPackSerialize, MultiDimArray, Stack, Tuple};
+pub use traits::{
+    Lazy,
+    MemoryPackDeserialize,
+    MemoryPackDeserializeOwned,
+    MemoryPackSerialize,
+    MultiDimArray,
+    Stack,
+    Tuple
+};
 pub use writer::MemoryPackWriter;
 
 use crate::io::{reader, writer};

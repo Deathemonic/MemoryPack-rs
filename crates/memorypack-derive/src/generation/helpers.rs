@@ -1,6 +1,16 @@
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
-use syn::{Field, GenericParam, Generics, Lifetime, LifetimeParam, parse_quote};
+use syn::{
+    Data,
+    DeriveInput,
+    Field,
+    GenericParam,
+    Generics,
+    Lifetime,
+    LifetimeParam,
+    WherePredicate,
+    parse_quote
+};
 
 const INPUT_LIFETIME_NAME: &str = "'de";
 
@@ -170,21 +180,77 @@ pub fn generate_size_hint(
     }
 }
 
-pub fn prepare_deserialization_generics(generics: &Generics) -> (Generics, Lifetime) {
-    let input_lifetime = prepare_input_lifetime(generics);
-    let lifetime_parameter = prepare_lifetime_parameter(generics, &input_lifetime);
-    let mut deserialization_generics = generics.clone();
+pub fn prepare_serialization_generics(generics: &Generics) -> Generics {
+    let mut serialization_generics = generics.clone();
+
+    serialization_generics
+        .type_params_mut()
+        .for_each(|parameter| {
+            parameter
+                .bounds
+                .push(parse_quote!(memorypack::MemoryPackSerialize));
+        });
+
+    serialization_generics
+}
+
+pub fn prepare_deserialization_generics(input: &DeriveInput) -> (Generics, Lifetime) {
+    let input_lifetime = prepare_input_lifetime(&input.generics);
+    let lifetime_parameter = LifetimeParam::new(input_lifetime.clone());
+    let mut deserialization_generics = input.generics.clone();
     deserialization_generics
         .params
         .insert(0, GenericParam::Lifetime(lifetime_parameter));
 
-    for parameter in deserialization_generics.type_params_mut() {
-        parameter
-            .bounds
-            .push(parse_quote!(memorypack::MemoryPackDeserialize<#input_lifetime>));
-    }
+    deserialization_generics
+        .type_params_mut()
+        .for_each(|parameter| {
+            parameter
+                .bounds
+                .push(parse_quote!(memorypack::MemoryPackDeserialize<#input_lifetime>));
+        });
+
+    add_field_deserialization_bounds(&mut deserialization_generics, input, &input_lifetime);
 
     (deserialization_generics, input_lifetime)
+}
+
+fn add_field_deserialization_bounds(
+    generics: &mut Generics,
+    input: &DeriveInput,
+    input_lifetime: &Lifetime
+) {
+    if input.generics.lifetimes().next().is_none() {
+        return;
+    }
+
+    let fields: Vec<_> = match &input.data {
+        Data::Struct(data) => data.fields.iter().collect(),
+        Data::Enum(data) => data
+            .variants
+            .iter()
+            .flat_map(|variant| &variant.fields)
+            .collect(),
+        Data::Union(_) => Vec::new()
+    };
+    let predicates = fields
+        .into_iter()
+        .map(|field| prepare_field_deserialization_bound(field, input_lifetime));
+
+    generics
+        .make_where_clause()
+        .predicates
+        .extend(predicates);
+}
+
+fn prepare_field_deserialization_bound(field: &Field, input_lifetime: &Lifetime) -> WherePredicate {
+    let field_type = &field.ty;
+
+    if should_skip_field(field) {
+        return parse_quote!(#field_type: Default);
+    }
+
+    parse_quote!(#field_type: memorypack::MemoryPackDeserialize<#input_lifetime>)
 }
 
 fn prepare_input_lifetime(generics: &Generics) -> Lifetime {
@@ -198,14 +264,4 @@ fn prepare_input_lifetime(generics: &Generics) -> Lifetime {
     }
 
     Lifetime::new(&lifetime_name, Span::call_site())
-}
-
-fn prepare_lifetime_parameter(generics: &Generics, input_lifetime: &Lifetime) -> LifetimeParam {
-    let mut parameter = LifetimeParam::new(input_lifetime.clone());
-    parameter.bounds = generics
-        .lifetimes()
-        .map(|parameter| parameter.lifetime.clone())
-        .collect();
-
-    parameter
 }
