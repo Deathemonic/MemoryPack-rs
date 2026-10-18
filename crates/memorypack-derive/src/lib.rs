@@ -19,12 +19,11 @@ use crate::generation::enums::{
 };
 use crate::generation::helpers::{
     DeserializationMode,
-    generate_deserialization_method,
+    generate_deserialization_impl,
     generate_size_hint,
     has_explicit_discriminants,
     has_repr_c,
     is_single_field_i32,
-    prepare_deserialization_generics,
     prepare_serialization_generics
 };
 use crate::generation::regular::{generate_deserialize, generate_serialize};
@@ -50,16 +49,13 @@ pub fn derive_memorypack(input: TokenStream) -> TokenStream {
         return error.to_compile_error().into();
     }
 
-    let mode = if attrs.is_arena {
-        DeserializationMode::Arena
-    } else {
-        DeserializationMode::Input
-    };
-
-    let (serialize_impl, deserialize_impl) = match generate_impls(&input, &attrs, mode) {
+    let (serialize_impl, deserialize_body) = match generate_impls(&input, &attrs) {
         Ok(impls) => impls,
         Err(error) => return error.to_compile_error().into()
     };
+    let deserialize_impl =
+        generate_deserialization_impl(&input, DeserializationMode::Input, &deserialize_body);
+    let arena_impl = generate_arena_impl(&input, &attrs);
 
     let graph_impl = attrs
         .is_circular
@@ -81,14 +77,6 @@ pub fn derive_memorypack(input: TokenStream) -> TokenStream {
         )
     };
 
-    let (deserialization_generics, input_lifetime, arena_type) =
-        prepare_deserialization_generics(&input, mode);
-    let (deserialization_impl_generics, _, deserialization_where_clause) =
-        deserialization_generics.split_for_impl();
-    let deserialization_trait = mode.trait_path(&input_lifetime, &arena_type);
-    let deserialization_method =
-        generate_deserialization_method(mode, &input_lifetime, &arena_type, &deserialize_impl);
-
     quote! {
         impl #serialization_impl_generics memorypack::MemoryPackSerialize for #name #ty_generics #serialization_where_clause {
             #[inline]
@@ -104,21 +92,31 @@ pub fn derive_memorypack(input: TokenStream) -> TokenStream {
             }
         }
 
-        impl #deserialization_impl_generics #deserialization_trait for #name #ty_generics #deserialization_where_clause {
-            #[inline]
-            #deserialization_method
-        }
-
+        #deserialize_impl
+        #arena_impl
         #flags_impl
         #graph_impl
     }
     .into()
 }
 
+fn generate_arena_impl(
+    input: &DeriveInput,
+    attributes: &AttributeFlags
+) -> proc_macro2::TokenStream {
+    if !attributes.is_arena {
+        return quote! {};
+    }
+
+    let mode = DeserializationMode::Arena;
+    let body = generate_deserialize(&input.data, mode);
+
+    generate_deserialization_impl(input, mode, &body)
+}
+
 fn generate_impls(
     input: &DeriveInput,
-    attrs: &AttributeFlags,
-    mode: DeserializationMode
+    attrs: &AttributeFlags
 ) -> syn::Result<(proc_macro2::TokenStream, proc_macro2::TokenStream)> {
     let name = &input.ident;
     let impls = match &input.data {
@@ -135,9 +133,10 @@ fn generate_impls(
             generate_version_tolerant_serialize(&input.data),
             generate_version_tolerant_deserialize(&input.data)
         ),
-        Data::Struct(_) => {
-            (generate_serialize(&input.data), generate_deserialize(&input.data, mode))
-        }
+        Data::Struct(_) => (
+            generate_serialize(&input.data),
+            generate_deserialize(&input.data, DeserializationMode::Input)
+        ),
         Data::Enum(data_enum) if attrs.is_union => {
             (generate_union_serialize(data_enum), generate_union_deserialize(name, data_enum))
         }
@@ -169,13 +168,6 @@ fn generate_impls(
 fn validate_arena_attributes(input: &DeriveInput, attributes: &AttributeFlags) -> syn::Result<()> {
     if !attributes.is_arena {
         return Ok(());
-    }
-
-    if !cfg!(feature = "arena") {
-        return Err(syn::Error::new_spanned(
-            input,
-            "arena deserialization requires memorypack's arena feature"
-        ));
     }
 
     if !matches!(input.data, Data::Struct(_))

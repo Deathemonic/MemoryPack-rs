@@ -1,4 +1,3 @@
-#[cfg(feature = "arena")]
 use crate::arena::{MemoryPackArena, MemoryPackDeserializeIn};
 use crate::error::MemoryPackError;
 use crate::reader::MemoryPackReader;
@@ -56,7 +55,6 @@ impl MemoryPackSerializer {
         T::deserialize(reader)
     }
 
-    #[cfg(feature = "arena")]
     #[inline]
     pub fn deserialize_in<
         'arena,

@@ -226,7 +226,27 @@ pub fn prepare_serialization_generics(generics: &Generics) -> Generics {
     serialization_generics
 }
 
-pub fn prepare_deserialization_generics(
+pub fn generate_deserialization_impl(
+    input: &DeriveInput,
+    mode: DeserializationMode,
+    body: &TokenStream
+) -> TokenStream {
+    let name = &input.ident;
+    let (_, type_generics, _) = input.generics.split_for_impl();
+    let (generics, lifetime, arena_type) = prepare_deserialization_generics(input, mode);
+    let (impl_generics, _, where_clause) = generics.split_for_impl();
+    let trait_path = mode.trait_path(&lifetime, &arena_type);
+    let method = generate_deserialization_method(mode, &lifetime, &arena_type, body);
+
+    quote! {
+        impl #impl_generics #trait_path for #name #type_generics #where_clause {
+            #[inline]
+            #method
+        }
+    }
+}
+
+fn prepare_deserialization_generics(
     input: &DeriveInput,
     mode: DeserializationMode
 ) -> (Generics, Lifetime, Ident) {
@@ -255,7 +275,7 @@ pub fn prepare_deserialization_generics(
     (deserialization_generics, input_lifetime, arena_type)
 }
 
-pub fn generate_deserialization_method(
+fn generate_deserialization_method(
     mode: DeserializationMode,
     lifetime: &Lifetime,
     arena_type: &Ident,

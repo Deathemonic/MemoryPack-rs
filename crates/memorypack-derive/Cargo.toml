@@ -12,9 +12,6 @@ repository.workspace = true
 [lib]
 proc-macro = true
 
-[features]
-arena = []
-
 [dependencies]
 proc-macro2 = { workspace = true }
 quote = { workspace = true }

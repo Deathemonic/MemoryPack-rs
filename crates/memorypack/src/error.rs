@@ -89,7 +89,6 @@ pub enum MemoryPackError {
     #[error("Unexpected end of buffer")]
     UnexpectedEndOfBuffer,
 
-    #[cfg(feature = "arena")]
     #[error("Arena references cannot contain values that require destructors")]
     ArenaValueRequiresDrop,
 

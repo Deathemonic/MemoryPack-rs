@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-#[cfg(feature = "arena")]
 use bumpalo::Bump;
 use divan::{Bencher, black_box};
 use memorypack::prelude::*;
@@ -11,10 +10,8 @@ const SAMPLE_DOUBLE: f64 = 314_159.0 / 100_000.0;
 
 const SAMPLE_SECOND_DOUBLE: f64 = 271_828.0 / 100_000.0;
 
-#[cfg(feature = "arena")]
 const ARENA_NUMBER_COUNT: i32 = 100;
 
-#[cfg(feature = "arena")]
 const ARENA_FIXTURE_VALID: &str =
     "arena benchmark fixture must serialize and deserialize successfully";
 
@@ -107,7 +104,6 @@ struct ZeroCopyDataLarge<'a> {
     is_active: bool
 }
 
-#[cfg(feature = "arena")]
 #[derive(MemoryPackable)]
 #[memorypack(arena)]
 struct ArenaData<'arena> {
@@ -196,7 +192,6 @@ const fn create_zero_copy_data_large() -> ZeroCopyDataLarge<'static> {
     }
 }
 
-#[cfg(feature = "arena")]
 const fn create_arena_data(numbers: &[i32]) -> ArenaData<'_> {
     let data = create_zero_copy_data();
 
@@ -446,7 +441,6 @@ fn deserialize_zero_copy_large(bencher: Bencher) {
     });
 }
 
-#[cfg(feature = "arena")]
 #[divan::bench]
 fn deserialize_arena(bencher: Bencher) {
     let numbers: Vec<_> = (1..=ARENA_NUMBER_COUNT).collect();
