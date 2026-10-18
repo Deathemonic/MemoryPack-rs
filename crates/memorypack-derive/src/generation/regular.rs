@@ -1,0 +1,138 @@
+use std::ptr;
+
+use quote::quote;
+use syn::{Data, Fields};
+
+use crate::generation::helpers::{
+    DeserializationMode,
+    generate_field_deserialize,
+    generate_field_deserialize_value,
+    generate_field_serialize,
+    prepare_ordered_fields,
+    should_skip_field
+};
+
+pub fn generate_serialize(data: &Data) -> proc_macro2::TokenStream {
+    let Data::Struct(data_struct) = data else {
+        return quote! {
+            compile_error!("MemoryPackable serialize can only be derived for structs");
+        };
+    };
+
+    match &data_struct.fields {
+        Fields::Named(fields) => {
+            let serialized_fields: Vec<_> = fields
+                .named
+                .iter()
+                .filter(|f| !should_skip_field(f))
+                .collect();
+            let ordered = prepare_ordered_fields(&serialized_fields);
+            let field_count = ordered.len() as u8;
+
+            let serialize_fields = ordered.iter().map(|ordered_field| {
+                let name = ordered_field.ident;
+
+                generate_field_serialize(ordered_field.field, &quote! { &self.#name })
+            });
+
+            quote! {
+                writer.write_u8(#field_count)?;
+                #(#serialize_fields)*
+            }
+        }
+        Fields::Unnamed(fields) => {
+            let field_count = fields.unnamed.len() as u8;
+            let serialize_fields = fields
+                .unnamed
+                .iter()
+                .enumerate()
+                .map(|(i, field)| {
+                    let index = syn::Index::from(i);
+
+                    generate_field_serialize(field, &quote! { &self.#index })
+                });
+
+            quote! {
+                writer.write_u8(#field_count)?;
+                #(#serialize_fields)*
+            }
+        }
+        Fields::Unit => quote! {}
+    }
+}
+
+pub fn generate_deserialize(data: &Data, mode: DeserializationMode) -> proc_macro2::TokenStream {
+    let Data::Struct(data_struct) = data else {
+        return quote! {
+            compile_error!("MemoryPackable deserialize can only be derived for structs");
+        };
+    };
+
+    match &data_struct.fields {
+        Fields::Named(fields) => {
+            let serialized_fields: Vec<_> = fields
+                .named
+                .iter()
+                .filter(|f| !should_skip_field(f))
+                .collect();
+            let ordered = prepare_ordered_fields(&serialized_fields);
+
+            let all_field_names: Vec<_> = fields.named.iter().map(|f| &f.ident).collect();
+
+            let deserialize_stmts: Vec<_> = fields
+                .named
+                .iter()
+                .map(|f| generate_field_deserialize(f, mode))
+                .collect();
+
+            let mut ordered_deserialize = Vec::new();
+            let mut skip_field_idx = 0;
+            let mut ordered_idx = 0;
+
+            for f in &fields.named {
+                if should_skip_field(f) {
+                    ordered_deserialize
+                        .push(deserialize_stmts[skip_field_idx + ordered_idx].clone());
+                    skip_field_idx += 1;
+                } else if ordered_idx < ordered.len() {
+                    let field_idx = fields
+                        .named
+                        .iter()
+                        .position(|field| ptr::eq(field, ordered[ordered_idx].field))
+                        .expect("ordered field must originate from the struct's named fields");
+
+                    ordered_deserialize.push(deserialize_stmts[field_idx].clone());
+                    ordered_idx += 1;
+                }
+            }
+
+            quote! {
+                let _header = reader.read_u8()?;
+                #(#ordered_deserialize)*
+                Ok(Self { #(#all_field_names),* })
+            }
+        }
+        Fields::Unnamed(fields) => {
+            let len = fields.unnamed.len();
+            let field_vars: Vec<_> = (0..len)
+                .map(|i| syn::Ident::new(&format!("field_{i}"), proc_macro2::Span::call_site()))
+                .collect();
+
+            let deserialize_stmts = field_vars
+                .iter()
+                .zip(&fields.unnamed)
+                .map(|(var, field)| {
+                    let deserialize_value = generate_field_deserialize_value(field, mode);
+
+                    quote! { let #var = #deserialize_value; }
+                });
+
+            quote! {
+                let _header = reader.read_u8()?;
+                #(#deserialize_stmts)*
+                Ok(Self(#(#field_vars),*))
+            }
+        }
+        Fields::Unit => quote! { Ok(Self) }
+    }
+}

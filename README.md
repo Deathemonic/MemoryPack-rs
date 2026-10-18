@@ -1,2 +1,2 @@
 # MemoryPack.rs
-A rust implementation of [Cysharp/MemoryPack](https://github.com/Cysharp/MemoryPack)
+A binary wire compatible rust implementation of [Cysharp/MemoryPack](https://github.com/Cysharp/MemoryPack)
