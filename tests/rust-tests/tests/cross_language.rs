@@ -3,6 +3,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, LinkedList, VecDeque};
 use std::error::Error;
 use std::fmt::Debug;
+use std::net::Ipv4Addr;
 use std::path::PathBuf;
 use std::{env, fs, iter};
 
@@ -13,6 +14,7 @@ use memorypack::prelude::*;
 use memorypack::{MemoryPackGraph, MemoryPackReference, MultiDimArray};
 
 const SAMPLE_FLOAT: f32 = 314_159.0 / 100_000.0;
+const IPV4_OCTET_COUNT: usize = 4;
 
 type TestResult<T = ()> = Result<T, Box<dyn Error>>;
 
@@ -311,6 +313,27 @@ struct VersionTolerantWithNullable {
     timestamp: Option<DateTime>
 }
 
+#[derive(MemoryPackable, Debug, PartialEq, Eq)]
+struct CustomFormattedEndpoint {
+    id: u32,
+    #[memorypack(formatter = Ipv4Formatter)]
+    address: Ipv4Addr,
+    port: u16
+}
+
+#[derive(MemoryPackable)]
+struct CustomFormattedTuple(u32, #[memorypack(formatter = self::Ipv4Formatter)] Ipv4Addr, u16);
+
+#[derive(MemoryPackable)]
+struct CustomFormattedGeneric<T> {
+    id: u32,
+    #[memorypack(formatter = Ipv4Formatter)]
+    address: T,
+    port: u16
+}
+
+struct Ipv4Formatter;
+
 macro_rules! exact_case {
     ($test:ident, $fixture:literal, $value:expr) => {
         #[test]
@@ -365,6 +388,55 @@ impl<'de> MemoryPackDeserialize<'de> for NullableStringField {
         Ok(Self(Option::<String>::deserialize(reader)?))
     }
 }
+
+impl MemoryPackFormatter<Ipv4Addr> for Ipv4Formatter {
+    fn serialize(value: &Ipv4Addr, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
+        value
+            .octets()
+            .into_iter()
+            .try_for_each(|octet| writer.write_u8(octet))
+    }
+
+    fn deserialize(reader: &mut MemoryPackReader<'_>) -> Result<Ipv4Addr, MemoryPackError> {
+        Ok(Ipv4Addr::new(
+            reader.read_u8()?,
+            reader.read_u8()?,
+            reader.read_u8()?,
+            reader.read_u8()?
+        ))
+    }
+
+    fn serialized_size_hint(_value: &Ipv4Addr) -> usize { IPV4_OCTET_COUNT }
+}
+
+#[test]
+fn custom_formatter() -> TestResult {
+    let fixture = "167_custom_formatter.bytes";
+    let endpoint = CustomFormattedEndpoint {
+        id: 42,
+        address: Ipv4Addr::new(192, 168, 1, 10),
+        port: 8080
+    };
+
+    exact(fixture, &endpoint)?;
+    let decoded = MemoryPackSerializer::deserialize::<CustomFormattedEndpoint>(&csharp(fixture)?)?;
+
+    assert_eq!(decoded, endpoint);
+
+    Ok(())
+}
+
+exact_case!(
+    custom_formatter_tuple,
+    "167_custom_formatter.bytes",
+    CustomFormattedTuple(42, Ipv4Addr::new(192, 168, 1, 10), 8080)
+);
+
+exact_case!(custom_formatter_generic, "167_custom_formatter.bytes", CustomFormattedGeneric {
+    id: 42,
+    address: Ipv4Addr::new(192, 168, 1, 10),
+    port: 8080
+});
 
 #[test]
 fn circular_reference() -> TestResult {

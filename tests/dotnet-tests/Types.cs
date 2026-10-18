@@ -1,3 +1,5 @@
+using System.Net;
+using System.Net.Sockets;
 using MemoryPack;
 
 [MemoryPackable]
@@ -362,4 +364,48 @@ partial class VersionTolerantWithNullable
 
     [MemoryPackOrder(2)]
     public DateTime? NullableDateTime { get; set; }
+}
+
+[MemoryPackable]
+partial class CustomFormattedEndpoint
+{
+    public uint Id { get; set; }
+
+    [Ipv4Formatter]
+    public IPAddress Address { get; set; } = IPAddress.Any;
+
+    public ushort Port { get; set; }
+}
+
+sealed class Ipv4FormatterAttribute : MemoryPackCustomFormatterAttribute<IPAddress>
+{
+    private static readonly Ipv4Formatter Formatter = new();
+
+    public override IMemoryPackFormatter<IPAddress> GetFormatter() => Formatter;
+}
+
+sealed class Ipv4Formatter : MemoryPackFormatter<IPAddress>
+{
+    public override void Serialize<TBufferWriter>(
+        ref MemoryPackWriter<TBufferWriter> writer,
+        scoped ref IPAddress? value)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+
+        if (value.AddressFamily != AddressFamily.InterNetwork)
+            throw new ArgumentException("Expected an IPv4 address", nameof(value));
+
+        foreach (var octet in value.GetAddressBytes())
+            writer.WriteUnmanaged(octet);
+    }
+
+    public override void Deserialize(ref MemoryPackReader reader, scoped ref IPAddress? value)
+    {
+        reader.ReadUnmanaged(out byte first);
+        reader.ReadUnmanaged(out byte second);
+        reader.ReadUnmanaged(out byte third);
+        reader.ReadUnmanaged(out byte fourth);
+
+        value = new IPAddress(new byte[] { first, second, third, fourth });
+    }
 }

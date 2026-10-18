@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.Collections.ObjectModel;
 using System.Globalization;
+using System.Net;
 using System.Numerics;
 using System.Text;
 using MemoryPack;
@@ -400,6 +401,13 @@ public class FixtureTests
         SaveBytes(
             new VersionTolerantWithNullable { NullableInt = null, NullableString = null, NullableDateTime = null },
             "164_version_tolerant_nullable_nulls.bytes");
+
+        SaveBytes(new CustomFormattedEndpoint
+        {
+            Id = 42,
+            Address = IPAddress.Parse("192.168.1.10"),
+            Port = 8080
+        }, "167_custom_formatter.bytes");
 
         return cases.Select(x => new Func<FixtureCase>(() => x));
     }
