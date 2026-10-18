@@ -2,6 +2,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{Data, DeriveInput};
 
+use crate::generation::helpers::add_formatter_bounds;
 use crate::generation::version_tolerant::{
     generate_deserialize,
     generate_graph_deserialize,
@@ -17,7 +18,9 @@ pub fn generate_circular_deserialize(data: &Data) -> TokenStream {
 
 pub fn generate_graph_impl(input: &DeriveInput) -> TokenStream {
     let name = &input.ident;
-    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
+    let mut generics = input.generics.clone();
+    add_formatter_bounds(&mut generics, input);
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
     let serialize = generate_graph_serialize(&input.data);
     let deserialize = generate_graph_deserialize(&input.data);
 

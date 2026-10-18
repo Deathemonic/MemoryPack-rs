@@ -17,6 +17,7 @@ pub mod prelude {
     pub use crate::traits::{
         MemoryPackDeserialize,
         MemoryPackDeserializeOwned,
+        MemoryPackFormatter,
         MemoryPackSerialize
     };
     pub use crate::writer::MemoryPackWriter;
@@ -36,6 +37,7 @@ pub use traits::{
     Lazy,
     MemoryPackDeserialize,
     MemoryPackDeserializeOwned,
+    MemoryPackFormatter,
     MemoryPackSerialize,
     MultiDimArray,
     Stack,

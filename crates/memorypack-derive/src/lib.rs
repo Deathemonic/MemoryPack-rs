@@ -4,7 +4,7 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{Data, DeriveInput, parse_macro_input};
 
-use crate::generation::attributes::AttributeFlags;
+use crate::generation::attributes::{AttributeFlags, FieldAttributes};
 use crate::generation::circular::{
     generate_circular_deserialize,
     generate_circular_serialize,
@@ -24,7 +24,8 @@ use crate::generation::helpers::{
     has_explicit_discriminants,
     has_repr_c,
     is_single_field_i32,
-    prepare_serialization_generics
+    prepare_serialization_generics,
+    should_skip_field
 };
 use crate::generation::regular::{generate_deserialize, generate_serialize};
 use crate::generation::unions::{generate_union_deserialize, generate_union_serialize};
@@ -39,15 +40,19 @@ pub fn derive_memorypack(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let name = &input.ident;
     let (_, ty_generics, _) = input.generics.split_for_impl();
-    let serialization_generics = prepare_serialization_generics(&input.generics);
-    let (serialization_impl_generics, _, serialization_where_clause) =
-        serialization_generics.split_for_impl();
-
     let attrs = AttributeFlags::parse(&input.attrs);
+
+    if let Err(error) = validate_formatter_attributes(&input, &attrs) {
+        return error.to_compile_error().into();
+    }
 
     if let Err(error) = validate_arena_attributes(&input, &attrs) {
         return error.to_compile_error().into();
     }
+
+    let serialization_generics = prepare_serialization_generics(&input);
+    let (serialization_impl_generics, _, serialization_where_clause) =
+        serialization_generics.split_for_impl();
 
     let (serialize_impl, deserialize_body) = match generate_impls(&input, &attrs) {
         Ok(impls) => impls,
@@ -179,6 +184,86 @@ fn validate_arena_attributes(input: &DeriveInput, attributes: &AttributeFlags) -
         return Err(syn::Error::new_spanned(
             input,
             "arena deserialization supports regular structs"
+        ));
+    }
+
+    Ok(())
+}
+
+fn validate_formatter_attributes(
+    input: &DeriveInput,
+    attributes: &AttributeFlags
+) -> syn::Result<()> {
+    if FieldAttributes::parse(&input.attrs)?
+        .formatter
+        .is_some()
+    {
+        return Err(syn::Error::new_spanned(
+            input,
+            "MemoryPack formatters must be applied to fields"
+        ));
+    }
+
+    let fields: Vec<_> = match &input.data {
+        Data::Struct(data) => data.fields.iter().collect(),
+        Data::Enum(data) => {
+            for variant in &data.variants {
+                if FieldAttributes::parse(&variant.attrs)?
+                    .formatter
+                    .is_some()
+                {
+                    return Err(syn::Error::new_spanned(
+                        variant,
+                        "MemoryPack formatters must be applied to struct fields"
+                    ));
+                }
+            }
+
+            data.variants
+                .iter()
+                .flat_map(|variant| &variant.fields)
+                .collect()
+        }
+        Data::Union(data) => data.fields.named.iter().collect()
+    };
+
+    for field in fields {
+        if FieldAttributes::parse(&field.attrs)?
+            .formatter
+            .is_none()
+        {
+            continue;
+        }
+
+        validate_formatter_field(input, attributes, field)?;
+    }
+
+    Ok(())
+}
+
+fn validate_formatter_field(
+    input: &DeriveInput,
+    attributes: &AttributeFlags,
+    field: &syn::Field
+) -> syn::Result<()> {
+    let Data::Struct(structure) = &input.data else {
+        return Err(syn::Error::new_spanned(
+            field,
+            "MemoryPack formatters are supported on struct fields"
+        ));
+    };
+
+    if has_repr_c(&input.attrs) || (attributes.is_transparent && is_single_field_i32(structure)) {
+        return Err(syn::Error::new_spanned(
+            field,
+            "MemoryPack formatters cannot be used with unmanaged layouts"
+        ));
+    }
+
+    if should_skip_field(field) {
+        return Err(syn::Error::new_spanned(
+            field,
+            "MemoryPack formatters cannot be used on skipped fields"
         ));
     }
 

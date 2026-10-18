@@ -6,6 +6,8 @@ use syn::{Data, Fields};
 use crate::generation::helpers::{
     DeserializationMode,
     generate_field_deserialize,
+    generate_field_deserialize_value,
+    generate_field_serialize,
     prepare_ordered_fields,
     should_skip_field
 };
@@ -30,7 +32,7 @@ pub fn generate_serialize(data: &Data) -> proc_macro2::TokenStream {
             let serialize_fields = ordered.iter().map(|ordered_field| {
                 let name = ordered_field.ident;
 
-                quote! { memorypack::MemoryPackSerialize::serialize(&self.#name, writer)?; }
+                generate_field_serialize(ordered_field.field, &quote! { &self.#name })
             });
 
             quote! {
@@ -40,11 +42,15 @@ pub fn generate_serialize(data: &Data) -> proc_macro2::TokenStream {
         }
         Fields::Unnamed(fields) => {
             let field_count = fields.unnamed.len() as u8;
-            let serialize_fields = (0..fields.unnamed.len()).map(|i| {
-                let index = syn::Index::from(i);
+            let serialize_fields = fields
+                .unnamed
+                .iter()
+                .enumerate()
+                .map(|(i, field)| {
+                    let index = syn::Index::from(i);
 
-                quote! { memorypack::MemoryPackSerialize::serialize(&self.#index, writer)?; }
-            });
+                    generate_field_serialize(field, &quote! { &self.#index })
+                });
 
             quote! {
                 writer.write_u8(#field_count)?;
@@ -112,11 +118,14 @@ pub fn generate_deserialize(data: &Data, mode: DeserializationMode) -> proc_macr
                 .map(|i| syn::Ident::new(&format!("field_{i}"), proc_macro2::Span::call_site()))
                 .collect();
 
-            let deserialize_stmts = field_vars.iter().map(|var| {
-                let deserialize_value = mode.deserialize_value();
+            let deserialize_stmts = field_vars
+                .iter()
+                .zip(&fields.unnamed)
+                .map(|(var, field)| {
+                    let deserialize_value = generate_field_deserialize_value(field, mode);
 
-                quote! { let #var = #deserialize_value; }
-            });
+                    quote! { let #var = #deserialize_value; }
+                });
 
             quote! {
                 let _header = reader.read_u8()?;

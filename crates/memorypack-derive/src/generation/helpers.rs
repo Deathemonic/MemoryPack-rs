@@ -1,5 +1,6 @@
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
+use syn::visit::{self, Visit};
 use syn::{
     Data,
     DeriveInput,
@@ -13,6 +14,8 @@ use syn::{
     parse_quote
 };
 
+use crate::generation::attributes::FieldAttributes;
+
 #[derive(Clone, Copy)]
 pub enum DeserializationMode {
     Input,
@@ -23,6 +26,11 @@ pub struct OrderedField<'a> {
     pub order: usize,
     pub field: &'a Field,
     pub ident: &'a Option<syn::Ident>
+}
+
+struct TypeParameterUsage<'a> {
+    parameter: &'a Ident,
+    used: bool
 }
 
 impl DeserializationMode {
@@ -47,6 +55,18 @@ impl DeserializationMode {
             Self::Input => "'de",
             Self::Arena => "'arena"
         }
+    }
+}
+
+impl<'ast> Visit<'ast> for TypeParameterUsage<'_> {
+    fn visit_type_path(&mut self, path: &'ast syn::TypePath) {
+        self.used |= path
+            .path
+            .segments
+            .iter()
+            .any(|segment| segment.ident == *self.parameter);
+
+        visit::visit_type_path(self, path);
     }
 }
 
@@ -86,39 +106,14 @@ pub fn has_explicit_discriminants(data_enum: &syn::DataEnum) -> bool {
 
 #[inline]
 pub fn should_skip_field(field: &Field) -> bool {
-    field.attrs.iter().any(|attr| {
-        attr.path().is_ident("memorypack")
-            && attr.meta.require_list().is_ok_and(|m| {
-                let tokens = m.tokens.to_string();
-
-                tokens.contains("skip") || tokens.contains("ignore")
-            })
-    }) || field
-        .ident
-        .as_ref()
-        .is_some_and(|ident| ident.to_string().starts_with('_'))
+    FieldAttributes::for_field(field).skipped
+        || field
+            .ident
+            .as_ref()
+            .is_some_and(|ident| ident.to_string().starts_with('_'))
 }
 
-pub fn get_field_order(field: &Field) -> Option<usize> {
-    field.attrs.iter().find_map(|attr| {
-        if !attr.path().is_ident("memorypack") {
-            return None;
-        }
-
-        let list = attr.meta.require_list().ok()?;
-        let tokens = list.tokens.to_string();
-        let order_position = tokens.find("order")?;
-        let after_order = &tokens[order_position..];
-        let equals_position = after_order.find('=')?;
-        let after_equals = after_order[equals_position + 1..].trim();
-
-        let number = after_equals
-            .find(|c: char| !c.is_ascii_digit())
-            .map_or(after_equals, |end| &after_equals[..end]);
-
-        number.parse::<usize>().ok()
-    })
-}
+pub fn get_field_order(field: &Field) -> Option<usize> { FieldAttributes::for_field(field).order }
 
 pub fn prepare_ordered_fields<'a>(fields: &'a [&'a Field]) -> Vec<OrderedField<'a>> {
     let mut ordered: Vec<_> = fields
@@ -142,9 +137,42 @@ pub fn generate_field_deserialize(field: &Field, mode: DeserializationMode) -> T
         return quote! { let #name = Default::default(); };
     }
 
-    let deserialize_value = mode.deserialize_value();
+    let deserialize_value = generate_field_deserialize_value(field, mode);
 
     quote! { let #name = #deserialize_value; }
+}
+
+pub fn generate_field_serialize(field: &Field, value: &TokenStream) -> TokenStream {
+    FieldAttributes::for_field(field).formatter.map_or_else(
+        || quote! { memorypack::MemoryPackSerialize::serialize(#value, writer)?; },
+        |formatter| {
+            let field_type = &field.ty;
+
+            quote! { <#formatter as memorypack::MemoryPackFormatter<#field_type>>::serialize(#value, writer)?; }
+        }
+    )
+}
+
+pub fn generate_field_deserialize_value(field: &Field, mode: DeserializationMode) -> TokenStream {
+    FieldAttributes::for_field(field).formatter.map_or_else(
+        || mode.deserialize_value(),
+        |formatter| {
+            let field_type = &field.ty;
+
+            quote! { <#formatter as memorypack::MemoryPackFormatter<#field_type>>::deserialize(reader)? }
+        }
+    )
+}
+
+pub fn generate_field_size_hint(field: &Field, value: &TokenStream) -> TokenStream {
+    FieldAttributes::for_field(field).formatter.map_or_else(
+        || quote! { memorypack::MemoryPackSerialize::serialized_size_hint(#value) },
+        |formatter| {
+            let field_type = &field.ty;
+
+            quote! { <#formatter as memorypack::MemoryPackFormatter<#field_type>>::serialized_size_hint(#value) }
+        }
+    )
 }
 
 pub fn generate_size_hint(
@@ -167,28 +195,35 @@ pub fn generate_size_hint(
                         .named
                         .iter()
                         .filter(|field| !should_skip_field(field))
-                        .filter_map(|field| field.ident.as_ref())
+                        .map(|field| {
+                            let name = &field.ident;
+
+                            generate_field_size_hint(field, &quote! { &self.#name })
+                        })
                         .collect();
                     let length_table_size = if is_version_tolerant { fields.len() } else { 0 };
 
                     quote! {
                         #header_size + #length_table_size
-                            #( + memorypack::MemoryPackSerialize::serialized_size_hint(&self.#fields) )*
+                            #( + #fields )*
                     }
                 }
                 syn::Fields::Unnamed(fields) => {
-                    let indices: Vec<_> = (0..fields.unnamed.len())
-                        .map(syn::Index::from)
+                    let hints: Vec<_> = fields
+                        .unnamed
+                        .iter()
+                        .enumerate()
+                        .map(|(index, field)| {
+                            let index = syn::Index::from(index);
+
+                            generate_field_size_hint(field, &quote! { &self.#index })
+                        })
                         .collect();
-                    let length_table_size = if is_version_tolerant {
-                        indices.len()
-                    } else {
-                        0
-                    };
+                    let length_table_size = if is_version_tolerant { hints.len() } else { 0 };
 
                     quote! {
                         #header_size + #length_table_size
-                            #( + memorypack::MemoryPackSerialize::serialized_size_hint(&self.#indices) )*
+                            #( + #hints )*
                     }
                 }
                 syn::Fields::Unit => quote! { #header_size }
@@ -212,18 +247,36 @@ pub fn generate_size_hint(
     }
 }
 
-pub fn prepare_serialization_generics(generics: &Generics) -> Generics {
-    let mut serialization_generics = generics.clone();
+pub fn prepare_serialization_generics(input: &DeriveInput) -> Generics {
+    let mut serialization_generics = input.generics.clone();
 
     serialization_generics
         .type_params_mut()
+        .filter(|parameter| requires_default_traits(input, &parameter.ident))
         .for_each(|parameter| {
             parameter
                 .bounds
                 .push(parse_quote!(memorypack::MemoryPackSerialize));
         });
 
+    add_formatter_bounds(&mut serialization_generics, input);
+
     serialization_generics
+}
+
+pub fn add_formatter_bounds(generics: &mut Generics, input: &DeriveInput) {
+    for field in input_fields(input) {
+        if let Some(formatter) = FieldAttributes::for_field(field).formatter {
+            let field_type = &field.ty;
+
+            generics
+                .make_where_clause()
+                .predicates
+                .push(parse_quote!(
+                    #formatter: memorypack::MemoryPackFormatter<#field_type>
+                ));
+        }
+    }
 }
 
 pub fn generate_deserialization_impl(
@@ -261,7 +314,9 @@ fn prepare_deserialization_generics(
         .insert(0, GenericParam::Lifetime(lifetime_parameter));
 
     for parameter in deserialization_generics.type_params_mut() {
-        parameter.bounds.push(parse_quote!(#trait_path));
+        if requires_default_traits(input, &parameter.ident) {
+            parameter.bounds.push(parse_quote!(#trait_path));
+        }
     }
 
     if matches!(mode, DeserializationMode::Arena) {
@@ -271,6 +326,7 @@ fn prepare_deserialization_generics(
     }
 
     add_field_deserialization_bounds(&mut deserialization_generics, input, &trait_path);
+    add_formatter_bounds(&mut deserialization_generics, input);
 
     (deserialization_generics, input_lifetime, arena_type)
 }
@@ -304,23 +360,56 @@ fn add_field_deserialization_bounds(
         return;
     }
 
-    let fields: Vec<_> = match &input.data {
-        Data::Struct(data) => data.fields.iter().collect(),
-        Data::Enum(data) => data
-            .variants
-            .iter()
-            .flat_map(|variant| &variant.fields)
-            .collect(),
-        Data::Union(_) => Vec::new()
-    };
-    let predicates = fields
+    let predicates = input_fields(input)
         .into_iter()
+        .filter(|field| {
+            FieldAttributes::for_field(field)
+                .formatter
+                .is_none()
+        })
         .map(|field| prepare_field_deserialization_bound(field, trait_path));
 
     generics
         .make_where_clause()
         .predicates
         .extend(predicates);
+}
+
+fn input_fields(input: &DeriveInput) -> Vec<&Field> {
+    match &input.data {
+        Data::Struct(data) => data.fields.iter().collect(),
+        Data::Enum(data) => data
+            .variants
+            .iter()
+            .flat_map(|variant| &variant.fields)
+            .collect(),
+        Data::Union(data) => data.fields.named.iter().collect()
+    }
+}
+
+fn requires_default_traits(input: &DeriveInput, parameter: &Ident) -> bool {
+    let fields = input_fields(input);
+
+    if fields.iter().all(|field| {
+        FieldAttributes::for_field(field)
+            .formatter
+            .is_none()
+    }) {
+        return true;
+    }
+
+    let mut usage = TypeParameterUsage { parameter, used: false };
+
+    for field in fields.iter().filter(|field| {
+        !should_skip_field(field)
+            && FieldAttributes::for_field(field)
+                .formatter
+                .is_none()
+    }) {
+        usage.visit_type(&field.ty);
+    }
+
+    usage.used
 }
 
 fn prepare_field_deserialization_bound(field: &Field, trait_path: &TokenStream) -> WherePredicate {

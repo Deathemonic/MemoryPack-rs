@@ -1,5 +1,6 @@
 mod collections;
 mod deserialization;
+mod formatter;
 mod multidim;
 mod options;
 mod primitives;
@@ -20,6 +21,7 @@ mod datetime;
 mod math;
 
 pub use deserialization::{MemoryPackDeserialize, MemoryPackDeserializeOwned};
+pub use formatter::MemoryPackFormatter;
 pub use multidim::MultiDimArray;
 pub use serialization::MemoryPackSerialize;
 pub use special::{Lazy, Stack, Tuple, TupleElements};

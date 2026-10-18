@@ -1,13 +1,20 @@
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use syn::{Data, DataStruct, Fields, Member};
+use syn::{Data, DataStruct, Field, Fields, Member};
 
-use crate::generation::helpers::{get_field_order, should_skip_field};
+use crate::generation::helpers::{
+    DeserializationMode,
+    generate_field_deserialize_value,
+    generate_field_serialize,
+    get_field_order,
+    should_skip_field
+};
 const MAX_MEMBER_COUNT: usize = 249;
 const MAX_INLINE_LENGTH: usize = 127;
 const REFERENCE_HEADER: u8 = 250;
 
-struct FieldLayout {
+struct FieldLayout<'a> {
+    field: &'a Field,
     member: Member,
     binding: syn::Ident,
     order: usize,
@@ -76,7 +83,7 @@ pub fn generate_deserialize(data: &Data, circular: bool) -> TokenStream {
     }
 }
 
-fn field_layout(structure: &DataStruct) -> Vec<FieldLayout> {
+fn field_layout(structure: &DataStruct) -> Vec<FieldLayout<'_>> {
     structure
         .fields
         .iter()
@@ -88,6 +95,7 @@ fn field_layout(structure: &DataStruct) -> Vec<FieldLayout> {
                 .map_or_else(|| Member::Unnamed(index.into()), Member::Named);
 
             FieldLayout {
+                field,
                 member,
                 binding: format_ident!("field_{index}"),
                 order: get_field_order(field).unwrap_or(index),
@@ -108,20 +116,22 @@ fn member_count(fields: &[FieldLayout]) -> usize {
 
 fn serialize_field(field: &FieldLayout) -> TokenStream {
     let FieldLayout { member, order, .. } = field;
+    let serialize = generate_field_serialize(field.field, &quote! { &self.#member });
 
     quote! {
         let start = writer.buffer.len();
-        memorypack::MemoryPackSerialize::serialize(&self.#member, writer)?;
+        #serialize
         field_lengths[#order] = writer.buffer.len() - start;
     }
 }
 
 fn deserialize_field(field: &FieldLayout) -> TokenStream {
     let FieldLayout { binding, order, .. } = field;
+    let deserialize = generate_field_deserialize_value(field.field, DeserializationMode::Input);
 
     quote! {
         #order if length > 0 => {
-            #binding = memorypack::MemoryPackDeserialize::deserialize(reader)?;
+            #binding = #deserialize;
         }
     }
 }

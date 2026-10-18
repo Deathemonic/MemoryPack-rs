@@ -1,3 +1,7 @@
+use proc_macro2::TokenStream;
+use syn::token::Paren;
+use syn::{Attribute, Expr, LitInt, Token, Type, parenthesized};
+
 pub struct AttributeFlags {
     pub is_transparent: bool,
     pub is_flags: bool,
@@ -6,6 +10,13 @@ pub struct AttributeFlags {
     pub is_circular: bool,
     pub is_arena: bool,
     pub has_repr_i32: bool
+}
+
+#[derive(Default)]
+pub struct FieldAttributes {
+    pub formatter: Option<Type>,
+    pub order: Option<usize>,
+    pub skipped: bool
 }
 
 impl AttributeFlags {
@@ -46,5 +57,44 @@ impl AttributeFlags {
         }
 
         result
+    }
+}
+
+impl FieldAttributes {
+    pub fn parse(attributes: &[Attribute]) -> syn::Result<Self> {
+        let mut result = Self::default();
+
+        for attribute in attributes
+            .iter()
+            .filter(|attribute| attribute.path().is_ident("memorypack"))
+        {
+            attribute.parse_nested_meta(|meta| {
+                if meta.path.is_ident("formatter") {
+                    if result.formatter.is_some() {
+                        return Err(meta.error("duplicate MemoryPack formatter"));
+                    }
+
+                    result.formatter = Some(meta.value()?.parse()?);
+                } else if meta.path.is_ident("order") {
+                    result.order = Some(meta.value()?.parse::<LitInt>()?.base10_parse()?);
+                } else if meta.path.is_ident("skip") || meta.path.is_ident("ignore") {
+                    result.skipped = true;
+                } else if meta.input.peek(Token![=]) {
+                    let _: Expr = meta.value()?.parse()?;
+                } else if meta.input.peek(Paren) {
+                    let content;
+                    parenthesized!(content in meta.input);
+                    let _: TokenStream = content.parse()?;
+                }
+
+                Ok(())
+            })?;
+        }
+
+        Ok(result)
+    }
+
+    pub fn for_field(field: &syn::Field) -> Self {
+        Self::parse(&field.attrs).expect("MemoryPack field attributes have been validated")
     }
 }
