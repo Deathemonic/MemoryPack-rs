@@ -1,6 +1,6 @@
 use crate::error::MemoryPackError;
 use crate::reader::MemoryPackReader;
-use crate::traits::{MemoryPackDeserialize, MemoryPackSerialize};
+use crate::traits::{MemoryPackDeserialize, MemoryPackFixedSize, MemoryPackSerialize};
 use crate::writer::MemoryPackWriter;
 
 macro_rules! unmanaged_serialize_many {
@@ -36,29 +36,10 @@ macro_rules! nullable_value {
             value: Option<&Self>,
             writer: &mut MemoryPackWriter
         ) -> Result<(), MemoryPackError> {
-            let alignment = std::mem::align_of::<Self>();
-            let value_offset = (1 + alignment - 1) & !(alignment - 1);
-            let size =
-                (value_offset + std::mem::size_of::<Self>() + alignment - 1) & !(alignment - 1);
-            writer.write_u8(u8::from(value.is_some()))?;
-            for _ in 1..value_offset {
-                writer.write_u8(0)?;
-            }
-            value
-                .copied()
-                .unwrap_or_default()
-                .serialize(writer)?;
-            for _ in value_offset + std::mem::size_of::<Self>()..size {
-                writer.write_u8(0)?;
-            }
-            Ok(())
+            Self::serialize_nullable_value(value, writer)
         }
 
-        fn nullable_size_hint(_: Option<&Self>) -> usize {
-            let alignment = std::mem::align_of::<Self>();
-            let value_offset = (1 + alignment - 1) & !(alignment - 1);
-            (value_offset + std::mem::size_of::<Self>() + alignment - 1) & !(alignment - 1)
-        }
+        fn nullable_size_hint(_: Option<&Self>) -> usize { Self::NULLABLE_SIZE }
     };
 }
 
@@ -67,15 +48,7 @@ macro_rules! nullable_value_deserialize {
         fn deserialize_nullable(
             reader: &mut MemoryPackReader<'de>
         ) -> Result<Option<Self>, MemoryPackError> {
-            let alignment = std::mem::align_of::<Self>();
-            let value_offset = (1 + alignment - 1) & !(alignment - 1);
-            let size =
-                (value_offset + std::mem::size_of::<Self>() + alignment - 1) & !(alignment - 1);
-            let has_value = reader.read_u8()? != 0;
-            reader.skip(value_offset - 1)?;
-            let value = Self::deserialize(reader)?;
-            reader.skip(size - value_offset - std::mem::size_of::<Self>())?;
-            Ok(has_value.then_some(value))
+            Self::deserialize_nullable_value(reader)
         }
     };
 }
@@ -402,6 +375,8 @@ impl<'de> MemoryPackDeserialize<'de> for u128 {
 }
 
 impl MemoryPackSerialize for char {
+    nullable_value!();
+
     #[inline(always)]
     fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
         writer.write_char(*self)
@@ -412,6 +387,8 @@ impl MemoryPackSerialize for char {
 }
 
 impl<'de> MemoryPackDeserialize<'de> for char {
+    nullable_value_deserialize!();
+
     #[inline(always)]
     fn deserialize(reader: &mut MemoryPackReader<'de>) -> Result<Self, MemoryPackError> {
         reader.read_char()

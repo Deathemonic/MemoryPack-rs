@@ -1,5 +1,6 @@
 mod collections;
 mod deserialization;
+mod fixed_size;
 mod formatter;
 mod multidim;
 mod options;
@@ -21,6 +22,7 @@ mod datetime;
 mod math;
 
 pub use deserialization::{MemoryPackDeserialize, MemoryPackDeserializeOwned};
+pub use fixed_size::{MemoryPackFixedSize, MemoryPackNonNullableValue};
 pub use formatter::MemoryPackFormatter;
 pub use multidim::MultiDimArray;
 pub use serialization::MemoryPackSerialize;

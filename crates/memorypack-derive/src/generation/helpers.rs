@@ -260,6 +260,7 @@ pub fn prepare_serialization_generics(input: &DeriveInput) -> Generics {
         });
 
     add_formatter_bounds(&mut serialization_generics, input);
+    add_unmanaged_bounds(&mut serialization_generics, input);
 
     serialization_generics
 }
@@ -279,10 +280,28 @@ pub fn add_formatter_bounds(generics: &mut Generics, input: &DeriveInput) {
     }
 }
 
+pub fn add_unmanaged_bounds(generics: &mut Generics, input: &DeriveInput) {
+    if !has_repr_c(&input.attrs) {
+        return;
+    }
+
+    for field in input_fields(input) {
+        let field_type = &field.ty;
+
+        generics
+            .make_where_clause()
+            .predicates
+            .push(parse_quote!(
+                #field_type: memorypack::MemoryPackFixedSize
+            ));
+    }
+}
+
 pub fn generate_deserialization_impl(
     input: &DeriveInput,
     mode: DeserializationMode,
-    body: &TokenStream
+    body: &TokenStream,
+    is_value_type: bool
 ) -> TokenStream {
     let name = &input.ident;
     let (_, type_generics, _) = input.generics.split_for_impl();
@@ -290,11 +309,18 @@ pub fn generate_deserialization_impl(
     let (impl_generics, _, where_clause) = generics.split_for_impl();
     let trait_path = mode.trait_path(&lifetime, &arena_type);
     let method = generate_deserialization_method(mode, &lifetime, &arena_type, body);
+    let nullable_method = is_value_type.then(|| quote! {
+        fn deserialize_nullable(reader: &mut memorypack::MemoryPackReader<#lifetime>) -> Result<Option<Self>, memorypack::MemoryPackError> {
+            <Self as memorypack::MemoryPackFixedSize>::deserialize_nullable_value(reader)
+        }
+    });
 
     quote! {
         impl #impl_generics #trait_path for #name #type_generics #where_clause {
             #[inline]
             #method
+
+            #nullable_method
         }
     }
 }
@@ -327,6 +353,7 @@ fn prepare_deserialization_generics(
 
     add_field_deserialization_bounds(&mut deserialization_generics, input, &trait_path);
     add_formatter_bounds(&mut deserialization_generics, input);
+    add_unmanaged_bounds(&mut deserialization_generics, input);
 
     (deserialization_generics, input_lifetime, arena_type)
 }

@@ -1,6 +1,7 @@
 pub mod attributes;
 pub mod circular;
 pub mod enums;
+pub mod fixed_size;
 pub mod helpers;
 pub mod regular;
 pub mod unions;

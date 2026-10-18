@@ -29,11 +29,11 @@ use crate::generation::helpers::{
 };
 use crate::generation::regular::{generate_deserialize, generate_serialize};
 use crate::generation::unions::{generate_union_deserialize, generate_union_serialize};
-use crate::generation::unmanaged;
 use crate::generation::version_tolerant::{
     generate_version_tolerant_deserialize,
     generate_version_tolerant_serialize
 };
+use crate::generation::{fixed_size, unmanaged};
 
 #[proc_macro_derive(MemoryPackable, attributes(memorypack, tag))]
 pub fn derive_memorypack(input: TokenStream) -> TokenStream {
@@ -58,9 +58,16 @@ pub fn derive_memorypack(input: TokenStream) -> TokenStream {
         Ok(impls) => impls,
         Err(error) => return error.to_compile_error().into()
     };
-    let deserialize_impl =
-        generate_deserialization_impl(&input, DeserializationMode::Input, &deserialize_body);
+    let is_value_type = is_value_type(&input, &attrs);
+    let deserialize_impl = generate_deserialization_impl(
+        &input,
+        DeserializationMode::Input,
+        &deserialize_body,
+        is_value_type
+    );
     let arena_impl = generate_arena_impl(&input, &attrs);
+    let fixed_size_impl = is_value_type.then(|| fixed_size::generate_impl(&input));
+    let nullable_serialize = is_value_type.then(fixed_size::generate_nullable_serialize);
 
     let graph_impl = attrs
         .is_circular
@@ -72,9 +79,10 @@ pub fn derive_memorypack(input: TokenStream) -> TokenStream {
         quote! {}
     };
 
-    let size_hint_impl = match &input.data {
-        Data::Struct(data) if has_repr_c(&input.attrs) => unmanaged::size_hint(data),
-        _ => generate_size_hint(
+    let size_hint_impl = if is_value_type {
+        quote! { <Self as memorypack::MemoryPackFixedSize>::SIZE }
+    } else {
+        generate_size_hint(
             &input.data,
             attrs.is_union,
             attrs.is_version_tolerant,
@@ -95,12 +103,15 @@ pub fn derive_memorypack(input: TokenStream) -> TokenStream {
             fn serialized_size_hint(&self) -> usize {
                 #size_hint_impl
             }
+
+            #nullable_serialize
         }
 
         #deserialize_impl
         #arena_impl
         #flags_impl
         #graph_impl
+        #fixed_size_impl
     }
     .into()
 }
@@ -116,7 +127,17 @@ fn generate_arena_impl(
     let mode = DeserializationMode::Arena;
     let body = generate_deserialize(&input.data, mode);
 
-    generate_deserialization_impl(input, mode, &body)
+    generate_deserialization_impl(input, mode, &body, false)
+}
+
+fn is_value_type(input: &DeriveInput, attributes: &AttributeFlags) -> bool {
+    match &input.data {
+        Data::Struct(data) => {
+            has_repr_c(&input.attrs) || (attributes.is_transparent && is_single_field_i32(data))
+        }
+        Data::Enum(_) => !attributes.is_union,
+        Data::Union(_) => false
+    }
 }
 
 fn generate_impls(

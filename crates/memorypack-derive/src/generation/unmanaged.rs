@@ -5,21 +5,19 @@ pub fn serialize(data: &DataStruct) -> proc_macro2::TokenStream {
     let fields = field_layout(&data.fields);
     let writes = fields.iter().map(|(ty, access)| {
         quote! {
-            let alignment = std::mem::align_of::<#ty>();
+            let alignment = <#ty as memorypack::MemoryPackFixedSize>::ALIGNMENT;
             offset = (offset + alignment - 1) & !(alignment - 1);
             while writer.len() < start + offset { writer.write_u8(0)?; }
             memorypack::MemoryPackSerialize::serialize(&self.#access, writer)?;
-            offset += std::mem::size_of::<#ty>();
-            max_alignment = max_alignment.max(alignment);
+            offset += <#ty as memorypack::MemoryPackFixedSize>::SIZE;
         }
     });
 
     quote! {
         let start = writer.len();
         let mut offset = 0_usize;
-        let mut max_alignment = 1_usize;
         #(#writes)*
-        let size = (offset + max_alignment - 1) & !(max_alignment - 1);
+        let size = <Self as memorypack::MemoryPackFixedSize>::SIZE;
         while writer.len() < start + size { writer.write_u8(0)?; }
     }
 }
@@ -30,13 +28,12 @@ pub fn deserialize(data: &DataStruct) -> proc_macro2::TokenStream {
         let var = syn::Ident::new(&format!("field_{index}"), proc_macro2::Span::call_site());
 
         quote! {
-            let alignment = std::mem::align_of::<#ty>();
+            let alignment = <#ty as memorypack::MemoryPackFixedSize>::ALIGNMENT;
             offset = (offset + alignment - 1) & !(alignment - 1);
             if offset > consumed { reader.skip(offset - consumed)?; }
             let #var = memorypack::MemoryPackDeserialize::deserialize(reader)?;
-            offset += std::mem::size_of::<#ty>();
+            offset += <#ty as memorypack::MemoryPackFixedSize>::SIZE;
             consumed = offset;
-            max_alignment = max_alignment.max(alignment);
         }
     });
     let values: Vec<_> = (0..fields.len())
@@ -61,9 +58,8 @@ pub fn deserialize(data: &DataStruct) -> proc_macro2::TokenStream {
     quote! {
         let mut offset = 0_usize;
         let mut consumed = 0_usize;
-        let mut max_alignment = 1_usize;
         #(#reads)*
-        let size = (offset + max_alignment - 1) & !(max_alignment - 1);
+        let size = <Self as memorypack::MemoryPackFixedSize>::SIZE;
         if size > consumed { reader.skip(size - consumed)?; }
         Ok(#result)
     }
@@ -77,8 +73,35 @@ pub fn size_hint(data: &DataStruct) -> proc_macro2::TokenStream {
     quote! {{
         let mut offset = 0_usize;
         let mut max_alignment = 1_usize;
-        #(let alignment = std::mem::align_of::<#types>(); offset = (offset + alignment - 1) & !(alignment - 1); offset += std::mem::size_of::<#types>(); max_alignment = max_alignment.max(alignment);)*
-        (offset + max_alignment - 1) & !(max_alignment - 1)
+        #(
+            let alignment = <#types as memorypack::MemoryPackFixedSize>::ALIGNMENT;
+            offset = offset.next_multiple_of(alignment);
+            offset += <#types as memorypack::MemoryPackFixedSize>::SIZE;
+
+            if alignment > max_alignment {
+                max_alignment = alignment;
+            }
+        )*
+
+        if offset == 0 { 1 } else { offset.next_multiple_of(max_alignment) }
+    }}
+}
+
+pub fn alignment(data: &DataStruct) -> proc_macro2::TokenStream {
+    let types = field_layout(&data.fields)
+        .into_iter()
+        .map(|(ty, _)| ty);
+
+    quote! {{
+        let mut alignment = 1_usize;
+
+        #(
+            if <#types as memorypack::MemoryPackFixedSize>::ALIGNMENT > alignment {
+                alignment = <#types as memorypack::MemoryPackFixedSize>::ALIGNMENT;
+            }
+        )*
+
+        alignment
     }}
 }
 
