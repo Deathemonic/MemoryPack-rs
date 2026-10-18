@@ -1,10 +1,10 @@
 use simdutf8::basic;
 
+use super::deserialization::deserialize_nullable_collection_in;
 use super::{MemoryPackArena, MemoryPackDeserializeIn};
-use crate::serialization::format::{COLLECTION_HEADER_SIZE, NULL_COLLECTION_LENGTH};
+use crate::serialization::format::NULL_COLLECTION_LENGTH;
 use crate::{MemoryPackError, MemoryPackReader};
 
-const NULL_STRING_MARKER: i32 = -1;
 const EMPTY_STRING_MARKER: i32 = 0;
 const MAX_UTF8_BYTES_PER_UTF16_UNIT: usize = 3;
 
@@ -19,7 +19,7 @@ impl<'arena: 'value, 'value, Arena: MemoryPackArena + ?Sized> MemoryPackDeserial
         let marker = reader.read_i32()?;
 
         match marker {
-            NULL_STRING_MARKER | EMPTY_STRING_MARKER => Ok(""),
+            NULL_COLLECTION_LENGTH | EMPTY_STRING_MARKER => Ok(""),
             length if length < 0 => read_utf8_in(reader, (!length) as usize, arena),
             length => read_utf16_in(reader, length, arena)
         }
@@ -30,15 +30,7 @@ impl<'arena: 'value, 'value, Arena: MemoryPackArena + ?Sized> MemoryPackDeserial
         reader: &mut MemoryPackReader<'_>,
         arena: &'arena Arena
     ) -> Result<Option<Self>, MemoryPackError> {
-        let marker = reader.read_i32()?;
-
-        if marker == NULL_COLLECTION_LENGTH {
-            return Ok(None);
-        }
-
-        reader.rewind(COLLECTION_HEADER_SIZE)?;
-
-        Self::deserialize_in(reader, arena).map(Some)
+        deserialize_nullable_collection_in(reader, arena)
     }
 }
 
@@ -48,6 +40,7 @@ fn read_utf8_in<'arena, Arena: MemoryPackArena + ?Sized>(
     arena: &'arena Arena
 ) -> Result<&'arena str, MemoryPackError> {
     reader.read_i32()?;
+
     let bytes = reader.read_bytes(byte_count)?;
     let value = basic::from_utf8(bytes).map_err(|_| MemoryPackError::InvalidUtf8)?;
 
@@ -60,10 +53,14 @@ fn read_utf16_in<'arena, Arena: MemoryPackArena + ?Sized>(
     arena: &'arena Arena
 ) -> Result<&'arena str, MemoryPackError> {
     let count = character_count as usize;
-    let bytes = reader.read_bytes(count * size_of::<u16>())?;
+    let byte_count = count
+        .checked_mul(size_of::<u16>())
+        .ok_or(MemoryPackError::InvalidLength(character_count))?;
     let capacity = count
         .checked_mul(MAX_UTF8_BYTES_PER_UTF16_UNIT)
         .ok_or(MemoryPackError::InvalidLength(character_count))?;
+
+    let bytes = reader.read_bytes(byte_count)?;
     let units = bytes
         .as_chunks::<{ size_of::<u16>() }>()
         .0

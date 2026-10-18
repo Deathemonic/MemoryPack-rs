@@ -41,6 +41,7 @@ pub fn derive_memorypack(input: TokenStream) -> TokenStream {
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
     let attrs = AttributeFlags::parse(&input.attrs);
+
     if let Err(error) = validate_arena_attributes(&input, &attrs) {
         return error.to_compile_error().into();
     }
@@ -50,6 +51,7 @@ pub fn derive_memorypack(input: TokenStream) -> TokenStream {
     } else {
         DeserializationMode::Input
     };
+
     let (serialize_impl, deserialize_impl) = match generate_impls(&input, &attrs, mode) {
         Ok(impls) => impls,
         Err(error) => return error.to_compile_error().into()
@@ -88,6 +90,7 @@ pub fn derive_memorypack(input: TokenStream) -> TokenStream {
             #[inline]
             fn serialize(&self, writer: &mut memorypack::MemoryPackWriter) -> Result<(), memorypack::MemoryPackError> {
                 #serialize_impl
+
                 Ok(())
             }
 

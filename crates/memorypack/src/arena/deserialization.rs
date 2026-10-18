@@ -1,5 +1,9 @@
 use super::MemoryPackArena;
-use crate::serialization::format::NULL_OBJECT_HEADER;
+use crate::serialization::format::{
+    COLLECTION_HEADER_SIZE,
+    NULL_COLLECTION_LENGTH,
+    NULL_OBJECT_HEADER
+};
 use crate::{MemoryPackError, MemoryPackReader};
 
 pub trait MemoryPackDeserializeIn<'arena, Arena: MemoryPackArena + ?Sized>: Sized {
@@ -22,4 +26,24 @@ pub trait MemoryPackDeserializeIn<'arena, Arena: MemoryPackArena + ?Sized>: Size
 
         Self::deserialize_in(reader, arena).map(Some)
     }
+}
+
+#[inline]
+pub fn deserialize_nullable_collection_in<
+    'arena,
+    Arena: MemoryPackArena + ?Sized,
+    T: MemoryPackDeserializeIn<'arena, Arena>
+>(
+    reader: &mut MemoryPackReader<'_>,
+    arena: &'arena Arena
+) -> Result<Option<T>, MemoryPackError> {
+    let marker = reader.read_i32()?;
+
+    if marker == NULL_COLLECTION_LENGTH {
+        return Ok(None);
+    }
+
+    reader.rewind(COLLECTION_HEADER_SIZE)?;
+
+    T::deserialize_in(reader, arena).map(Some)
 }

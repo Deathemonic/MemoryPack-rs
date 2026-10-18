@@ -2,8 +2,9 @@ use std::mem::needs_drop;
 use std::rc::Rc;
 use std::sync::Arc;
 
+use super::deserialization::deserialize_nullable_collection_in;
 use super::{MemoryPackArena, MemoryPackDeserializeIn};
-use crate::serialization::format::{COLLECTION_HEADER_SIZE, NULL_COLLECTION_LENGTH};
+use crate::serialization::format::NULL_COLLECTION_LENGTH;
 use crate::{MemoryPackError, MemoryPackReader};
 
 const EMPTY_COLLECTION_LENGTH: i32 = 0;
@@ -31,15 +32,7 @@ impl<
         reader: &mut MemoryPackReader<'_>,
         arena: &'arena Arena
     ) -> Result<Option<Self>, MemoryPackError> {
-        let marker = reader.read_i32()?;
-
-        if marker == NULL_COLLECTION_LENGTH {
-            return Ok(None);
-        }
-
-        reader.rewind(COLLECTION_HEADER_SIZE)?;
-
-        Self::deserialize_in(reader, arena).map(Some)
+        deserialize_nullable_collection_in(reader, arena)
     }
 }
 
@@ -96,15 +89,7 @@ impl<'arena, Arena: MemoryPackArena + ?Sized, T: MemoryPackDeserializeIn<'arena,
         reader: &mut MemoryPackReader<'_>,
         arena: &'arena Arena
     ) -> Result<Option<Self>, MemoryPackError> {
-        let marker = reader.read_i32()?;
-
-        if marker == NULL_COLLECTION_LENGTH {
-            return Ok(None);
-        }
-
-        reader.rewind(COLLECTION_HEADER_SIZE)?;
-
-        Self::deserialize_in(reader, arena).map(Some)
+        deserialize_nullable_collection_in(reader, arena)
     }
 }
 

@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+#[cfg(feature = "arena")]
+use bumpalo::Bump;
 use divan::{Bencher, black_box};
 use memorypack::prelude::*;
 
@@ -8,6 +10,13 @@ const LARGE_TEXT: &str = "Lorem ipsum dolor sit amet, consectetur adipiscing eli
 const SAMPLE_DOUBLE: f64 = 314_159.0 / 100_000.0;
 
 const SAMPLE_SECOND_DOUBLE: f64 = 271_828.0 / 100_000.0;
+
+#[cfg(feature = "arena")]
+const ARENA_NUMBER_COUNT: i32 = 100;
+
+#[cfg(feature = "arena")]
+const ARENA_FIXTURE_VALID: &str =
+    "arena benchmark fixture must serialize and deserialize successfully";
 
 #[cfg(not(feature = "mimalloc"))]
 #[global_allocator]
@@ -98,6 +107,17 @@ struct ZeroCopyDataLarge<'a> {
     is_active: bool
 }
 
+#[cfg(feature = "arena")]
+#[derive(MemoryPackable)]
+#[memorypack(arena)]
+struct ArenaData<'arena> {
+    id: i32,
+    name: &'arena str,
+    numbers: &'arena [i32],
+    value: f64,
+    is_active: bool
+}
+
 fn main() { divan::main(); }
 
 fn create_simple_data() -> SimpleData {
@@ -173,6 +193,19 @@ const fn create_zero_copy_data_large() -> ZeroCopyDataLarge<'static> {
         description: LARGE_TEXT,
         value: SAMPLE_SECOND_DOUBLE,
         is_active: true
+    }
+}
+
+#[cfg(feature = "arena")]
+const fn create_arena_data(numbers: &[i32]) -> ArenaData<'_> {
+    let data = create_zero_copy_data();
+
+    ArenaData {
+        id: data.id,
+        name: data.name,
+        numbers,
+        value: data.value,
+        is_active: data.is_active
     }
 }
 
@@ -410,5 +443,24 @@ fn deserialize_zero_copy_large(bencher: Bencher) {
     bencher.bench_local(|| {
         MemoryPackSerializer::deserialize::<ZeroCopyDataLarge>(black_box(&bytes))
             .expect("benchmark fixture must serialize and deserialize successfully")
+    });
+}
+
+#[cfg(feature = "arena")]
+#[divan::bench]
+fn deserialize_arena(bencher: Bencher) {
+    let numbers: Vec<_> = (1..=ARENA_NUMBER_COUNT).collect();
+    let bytes =
+        MemoryPackSerializer::serialize(&create_arena_data(&numbers)).expect(ARENA_FIXTURE_VALID);
+    let mut arena = Bump::with_capacity(bytes.len());
+
+    bencher.bench_local(|| {
+        arena.reset();
+
+        let value =
+            MemoryPackSerializer::deserialize_in::<ArenaData<'_>, _>(black_box(&bytes), &arena)
+                .expect(ARENA_FIXTURE_VALID);
+
+        black_box(value);
     });
 }
