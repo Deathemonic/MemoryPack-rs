@@ -1,0 +1,27 @@
+[package]
+name = "memorypack-benchmark"
+
+version = "0.0.1"
+edition.workspace = true
+
+publish = false
+
+[features]
+dhat-heap = ["dhat"]
+mimalloc = ["memorypack/mimalloc"]
+
+[dependencies]
+bumpalo = { workspace = true }
+memorypack = { workspace = true, features = ["bumpalo"] }
+
+dhat = { workspace = true, optional = true }
+
+[dev-dependencies]
+divan = { workspace = true }
+
+[[bench]]
+name = "memorypack_bench"
+harness = false
+
+[lints]
+workspace = true

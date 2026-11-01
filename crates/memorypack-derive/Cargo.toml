@@ -1,0 +1,21 @@
+[package]
+name = "memorypack-derive"
+description = "Derive macros for memorypack serialization"
+
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+documentation.workspace = true
+repository.workspace = true
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = { workspace = true }
+quote = { workspace = true }
+syn = { workspace = true, features = ["full", "visit"] }
+
+[lints]
+workspace = true

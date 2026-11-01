@@ -1,0 +1,58 @@
+[package]
+name = "memorypack"
+description = "A binary wire compatible rust implementation of Cysharp/MemoryPack"
+
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+documentation.workspace = true
+repository.workspace = true
+
+readme = "../../README.md"
+keywords = ["serialize", "deserialize", "binary", "memorypack"]
+categories = ["encoding", "parsing"]
+
+[features]
+rust_decimal_macros = []
+default = ["derive", "serde"]
+derive = ["memorypack-derive"]
+bumpalo = ["dep:bumpalo"]
+extended_types = [
+    "uuid",
+    "rust_decimal",
+    "rust_decimal_macros",
+    "half",
+    "num-bigint",
+    "jiff",
+    "glam",
+    "num-complex",
+    "url",
+]
+hashbrown = ["dep:hashbrown"]
+ahash = ["dep:ahash"]
+fxhash = ["dep:rustc-hash"]
+mimalloc = ["dep:mimalloc"]
+
+[dependencies]
+bumpalo = { workspace = true, optional = true }
+memorypack-derive = { workspace = true, optional = true }
+
+ahash = { workspace = true, features = ["compile-time-rng"], optional = true }
+jiff = { workspace = true, optional = true }
+mimalloc = { workspace = true, optional = true }
+glam = { workspace = true, optional = true, features = ["serde", "fast-math"] }
+half = { workspace = true, optional = true, features = ["serde"] }
+hashbrown = { workspace = true, features = ["serde"], optional = true }
+num-bigint = { workspace = true, optional = true, features = ["serde"] }
+num-complex = { workspace = true, optional = true, features = ["serde"] }
+rust_decimal = { workspace = true, optional = true, features = ["serde"] }
+rustc-hash = { workspace = true, optional = true }
+serde = { workspace = true, features = ["derive"], optional = true }
+simdutf8 = { workspace = true }
+thiserror = { workspace = true }
+url = { workspace = true, optional = true, features = ["serde"] }
+uuid = { workspace = true, optional = true, features = ["serde"] }
+
+[lints]
+workspace = true

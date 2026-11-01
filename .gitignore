@@ -38,11 +38,12 @@ bin/
 # ASM
 *.asm
 
-# Profiling
-results/
+# Dev
+.serena/
 
-# Tests
-.NETGenerateMemoryPack/
-.NETMemoryPack/
-memorypack/examples/
-memorypack-benchmarks/profile/
+# Artifacts
+**/BenchmarkDotNet.Artifacts/
+**/results/
+**/profile/
+**/ref/
+**/fixtures/

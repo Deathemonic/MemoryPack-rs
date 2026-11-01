@@ -1,0 +1,23 @@
+[package]
+name = "memorypack-test"
+
+version.workspace = true
+edition.workspace = true
+
+publish = false
+
+[dev-dependencies]
+memorypack = { workspace = true, features = ["extended_types"] }
+
+jiff = { workspace = true }
+glam = { workspace = true, features = ["serde", "fast-math"] }
+half = { workspace = true, features = ["serde"] }
+num-bigint = { workspace = true, features = ["serde"] }
+num-complex = { workspace = true, features = ["serde"] }
+rust_decimal = { workspace = true, features = ["serde"] }
+rust_decimal_macros = { workspace = true }
+url = { workspace = true, features = ["serde"] }
+uuid = { workspace = true, features = ["serde"] }
+
+[lints]
+workspace = true
