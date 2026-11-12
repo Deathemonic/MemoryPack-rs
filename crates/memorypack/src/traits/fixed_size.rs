@@ -43,7 +43,7 @@ pub trait MemoryPackFixedSize: Sized {
     where
         Self: MemoryPackDeserialize<'de>
     {
-        let has_value = reader.read_u8()? != 0;
+        let has_value = reader.read_bool()?;
         reader.skip(Self::ALIGNMENT - 1)?;
 
         let value = if has_value {
@@ -76,6 +76,12 @@ macro_rules! impl_fixed_size {
 }
 
 impl_fixed_size!(bool, i8, u8, i16, u16, i32, u32, i64, u64, i128, u128, f32, f64);
+
+#[cfg(feature = "glam")]
+impl MemoryPackFixedSize for glam::Vec2 {
+    const ALIGNMENT: usize = 4;
+    const SIZE: usize = 8;
+}
 
 impl MemoryPackFixedSize for char {
     const ALIGNMENT: usize = align_of::<u16>();
