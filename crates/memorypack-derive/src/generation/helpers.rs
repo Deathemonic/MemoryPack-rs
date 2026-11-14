@@ -14,7 +14,7 @@ use syn::{
     parse_quote
 };
 
-use crate::generation::attributes::FieldAttributes;
+use crate::generation::attributes::{AttributeFlags, FieldAttributes};
 
 #[derive(Clone, Copy)]
 pub enum DeserializationMode {
@@ -128,18 +128,6 @@ pub fn prepare_ordered_fields<'a>(fields: &'a [&'a Field]) -> Vec<OrderedField<'
 
     ordered.sort_by_key(|f| f.order);
     ordered
-}
-
-pub fn generate_field_deserialize(field: &Field, mode: DeserializationMode) -> TokenStream {
-    let name = &field.ident;
-
-    if should_skip_field(field) {
-        return quote! { let #name = Default::default(); };
-    }
-
-    let deserialize_value = generate_field_deserialize_value(field, mode);
-
-    quote! { let #name = #deserialize_value; }
 }
 
 pub fn generate_field_serialize(field: &Field, value: &TokenStream) -> TokenStream {
@@ -269,6 +257,20 @@ pub fn add_formatter_bounds(generics: &mut Generics, input: &DeriveInput) {
     for field in input_fields(input) {
         if let Some(formatter) = FieldAttributes::for_field(field).formatter {
             let field_type = &field.ty;
+            let depends_on_parameter = input.generics.type_params().any(|parameter| {
+                let mut usage = TypeParameterUsage {
+                    parameter: &parameter.ident,
+                    used: false
+                };
+                usage.visit_type(field_type);
+                usage.visit_type(&formatter);
+
+                usage.used
+            });
+
+            if !depends_on_parameter {
+                continue;
+            }
 
             generics
                 .make_where_clause()
@@ -354,6 +356,22 @@ fn prepare_deserialization_generics(
     add_field_deserialization_bounds(&mut deserialization_generics, input, &trait_path);
     add_formatter_bounds(&mut deserialization_generics, input);
     add_unmanaged_bounds(&mut deserialization_generics, input);
+
+    let attributes = AttributeFlags::parse(&input.attrs);
+    if let Data::Struct(data) = &input.data
+        && !has_repr_c(&input.attrs)
+        && !(attributes.is_transparent && is_single_field_i32(data))
+        && !attributes.is_circular
+        && !attributes.is_version_tolerant
+    {
+        for field in &data.fields {
+            let field_type = &field.ty;
+            deserialization_generics
+                .make_where_clause()
+                .predicates
+                .push(parse_quote!(#field_type: Default));
+        }
+    }
 
     (deserialization_generics, input_lifetime, arena_type)
 }

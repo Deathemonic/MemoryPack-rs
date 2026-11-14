@@ -104,8 +104,8 @@ impl MemoryPackReaderOptionalState {
         id: u32,
         value: T
     ) -> Result<(), MemoryPackError> {
-        self.referenced_objects.get_mut(&id).map_or_else(
-            || Err(MemoryPackError::ObjectReferenceUpdateNotFound(id)),
+        self.referenced_objects.get_mut(&id).map_or(
+            Err(MemoryPackError::ObjectReferenceUpdateNotFound(id)),
             |entry| {
                 *entry = Box::new(value);
                 Ok(())

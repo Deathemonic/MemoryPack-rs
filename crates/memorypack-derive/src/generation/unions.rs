@@ -1,5 +1,7 @@
+use std::collections::BTreeSet;
+
 use quote::quote;
-use syn::Fields;
+use syn::{DataEnum, Fields, LitInt};
 
 pub fn generate_union_serialize(data_enum: &syn::DataEnum) -> proc_macro2::TokenStream {
     for variant in &data_enum.variants {
@@ -13,17 +15,26 @@ pub fn generate_union_serialize(data_enum: &syn::DataEnum) -> proc_macro2::Token
         }
     }
 
+    let tags = match union_tags(data_enum) {
+        Ok(tags) => tags,
+        Err(error) => return error.to_compile_error()
+    };
     let variants = data_enum
         .variants
         .iter()
-        .enumerate()
-        .map(|(tag, variant)| {
+        .zip(tags)
+        .map(|(variant, tag)| {
             let variant_name = &variant.ident;
-            let tag_value = tag as u8;
+            let header = if tag < 250 {
+                let tag = tag as u8;
+                quote! { writer.write_u8(#tag)?; }
+            } else {
+                quote! { writer.write_u8(250)?; writer.write_u16(#tag)?; }
+            };
 
             quote! {
                 Self::#variant_name(inner) => {
-                    writer.write_u8(#tag_value)?;
+                    #header
                     memorypack::MemoryPackSerialize::serialize(inner, writer)?;
                 }
             }
@@ -40,13 +51,16 @@ pub fn generate_union_deserialize(
     name: &syn::Ident,
     data_enum: &syn::DataEnum
 ) -> proc_macro2::TokenStream {
+    let tags = match union_tags(data_enum) {
+        Ok(tags) => tags,
+        Err(error) => return error.to_compile_error()
+    };
     let variants = data_enum
         .variants
         .iter()
-        .enumerate()
-        .map(|(tag, variant)| {
+        .zip(tags)
+        .map(|(variant, tag_value)| {
             let variant_name = &variant.ident;
-            let tag_value = tag as u8;
 
             quote! {
                 #tag_value => {
@@ -57,7 +71,13 @@ pub fn generate_union_deserialize(
         });
 
     quote! {
-        let tag = reader.read_u8()?;
+        let marker = reader.read_u8()?;
+        if marker > 250 {
+            return Err(memorypack::MemoryPackError::UnknownUnionTag {
+                tag: u16::from(marker), name: stringify!(#name)
+            });
+        }
+        let tag = if marker == 250 { reader.read_u16()? } else { u16::from(marker) };
         match tag {
             #(#variants)*
             _ => Err(memorypack::MemoryPackError::UnknownUnionTag {
@@ -66,4 +86,31 @@ pub fn generate_union_deserialize(
             })
         }
     }
+}
+
+fn union_tags(data: &DataEnum) -> syn::Result<Vec<u16>> {
+    let mut tags = Vec::new();
+    let mut seen = BTreeSet::new();
+
+    for (index, variant) in data.variants.iter().enumerate() {
+        let attributes: Vec<_> = variant
+            .attrs
+            .iter()
+            .filter(|attribute| attribute.path().is_ident("tag"))
+            .collect();
+        let tag = match attributes.as_slice() {
+            [] => u16::try_from(index)
+                .map_err(|_| syn::Error::new_spanned(variant, "Too many union variants"))?,
+            [attribute] => attribute.parse_args::<LitInt>()?.base10_parse()?,
+            _ => return Err(syn::Error::new_spanned(variant, "Duplicate union tag attribute"))
+        };
+
+        if !seen.insert(tag) {
+            return Err(syn::Error::new_spanned(variant, "Duplicate union tag"));
+        }
+
+        tags.push(tag);
+    }
+
+    Ok(tags)
 }

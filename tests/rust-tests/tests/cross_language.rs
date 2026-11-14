@@ -18,9 +18,10 @@ const IPV4_OCTET_COUNT: usize = 4;
 
 type TestResult<T = ()> = Result<T, Box<dyn Error>>;
 
-#[derive(MemoryPackable, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(MemoryPackable, Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[repr(i32)]
 enum Color {
+    #[default]
     Red,
     Green,
     Blue
@@ -40,7 +41,7 @@ enum AbstractUnion {
     ConcreteB(ConcreteB)
 }
 
-#[derive(MemoryPackable, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(MemoryPackable, Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[memorypack(flags)]
 #[repr(transparent)]
 struct Permissions(i32);
@@ -183,7 +184,7 @@ struct Outer {
     inner_object: Inner
 }
 
-#[derive(MemoryPackable, Debug, Clone)]
+#[derive(MemoryPackable, Debug, Clone, Default)]
 struct Inner {
     inner_name: String
 }
@@ -265,8 +266,8 @@ struct ReadOnlyPoint {
 
 #[derive(MemoryPackable, Debug, Clone)]
 struct MultiDimensionalData {
-    matrix_2d: MultiDimArray<i32>,
-    matrix_3d: MultiDimArray<i32>
+    matrix_2d: Option<MultiDimArray<i32>>,
+    matrix_3d: Option<MultiDimArray<i32>>
 }
 
 #[derive(MemoryPackable, Debug, Clone)]
@@ -317,12 +318,16 @@ struct VersionTolerantWithNullable {
 struct CustomFormattedEndpoint {
     id: u32,
     #[memorypack(formatter = Ipv4Formatter)]
-    address: Ipv4Addr,
+    address: Option<Ipv4Addr>,
     port: u16
 }
 
 #[derive(MemoryPackable)]
-struct CustomFormattedTuple(u32, #[memorypack(formatter = self::Ipv4Formatter)] Ipv4Addr, u16);
+struct CustomFormattedTuple(
+    u32,
+    #[memorypack(formatter = self::Ipv4Formatter)] Option<Ipv4Addr>,
+    u16
+);
 
 #[derive(MemoryPackable)]
 struct CustomFormattedGeneric<T> {
@@ -389,24 +394,31 @@ impl<'de> MemoryPackDeserialize<'de> for NullableStringField {
     }
 }
 
-impl MemoryPackFormatter<Ipv4Addr> for Ipv4Formatter {
-    fn serialize(value: &Ipv4Addr, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
+impl MemoryPackFormatter<Option<Ipv4Addr>> for Ipv4Formatter {
+    fn serialize(
+        value: &Option<Ipv4Addr>,
+        writer: &mut MemoryPackWriter
+    ) -> Result<(), MemoryPackError> {
+        let value = value.ok_or_else(|| {
+            MemoryPackError::SerializationError("IPv4 address cannot be null".into())
+        })?;
+
         value
             .octets()
             .into_iter()
             .try_for_each(|octet| writer.write_u8(octet))
     }
 
-    fn deserialize(reader: &mut MemoryPackReader<'_>) -> Result<Ipv4Addr, MemoryPackError> {
-        Ok(Ipv4Addr::new(
+    fn deserialize(reader: &mut MemoryPackReader<'_>) -> Result<Option<Ipv4Addr>, MemoryPackError> {
+        Ok(Some(Ipv4Addr::new(
             reader.read_u8()?,
             reader.read_u8()?,
             reader.read_u8()?,
             reader.read_u8()?
-        ))
+        )))
     }
 
-    fn serialized_size_hint(_value: &Ipv4Addr) -> usize { IPV4_OCTET_COUNT }
+    fn serialized_size_hint(_value: &Option<Ipv4Addr>) -> usize { IPV4_OCTET_COUNT }
 }
 
 #[test]
@@ -414,7 +426,7 @@ fn custom_formatter() -> TestResult {
     let fixture = "167_custom_formatter.bytes";
     let endpoint = CustomFormattedEndpoint {
         id: 42,
-        address: Ipv4Addr::new(192, 168, 1, 10),
+        address: Some(Ipv4Addr::new(192, 168, 1, 10)),
         port: 8080
     };
 
@@ -429,12 +441,12 @@ fn custom_formatter() -> TestResult {
 exact_case!(
     custom_formatter_tuple,
     "167_custom_formatter.bytes",
-    CustomFormattedTuple(42, Ipv4Addr::new(192, 168, 1, 10), 8080)
+    CustomFormattedTuple(42, Some(Ipv4Addr::new(192, 168, 1, 10)), 8080)
 );
 
 exact_case!(custom_formatter_generic, "167_custom_formatter.bytes", CustomFormattedGeneric {
     id: 42,
-    address: Ipv4Addr::new(192, 168, 1, 10),
+    address: Some(Ipv4Addr::new(192, 168, 1, 10)),
     port: 8080
 });
 
@@ -974,8 +986,8 @@ exact_case!(required_members, "153_required_members.bytes", RequiredMembersSampl
 exact_case!(readonly_struct, "154_readonly_struct.bytes", ReadOnlyPoint { x: 50, y: 60 });
 
 exact_case!(multidimensional_arrays, "155_multidimensional_arrays.bytes", MultiDimensionalData {
-    matrix_2d: MultiDimArray::new(vec![2, 3], vec![1, 2, 3, 4, 5, 6]),
-    matrix_3d: MultiDimArray::new(vec![2, 2, 2], vec![1, 2, 3, 4, 5, 6, 7, 8])
+    matrix_2d: Some(MultiDimArray::new(vec![2, 3], vec![1, 2, 3, 4, 5, 6])),
+    matrix_3d: Some(MultiDimArray::new(vec![2, 2, 2], vec![1, 2, 3, 4, 5, 6, 7, 8]))
 });
 
 exact_case!(

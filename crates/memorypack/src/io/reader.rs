@@ -121,7 +121,13 @@ impl<'a> MemoryPackReader<'a> {
     }
 
     #[inline(always)]
-    pub fn read_bool(&mut self) -> Result<bool, MemoryPackError> { Ok(self.read_u8()? == 1) }
+    pub fn read_bool(&mut self) -> Result<bool, MemoryPackError> {
+        match self.read_u8()? {
+            0 => Ok(false),
+            1 => Ok(true),
+            value => Err(MemoryPackError::InvalidBoolean(value))
+        }
+    }
 
     #[inline(always)]
     pub fn read_i8(&mut self) -> Result<i8, MemoryPackError> { Ok(self.read_u8()? as i8) }
@@ -231,20 +237,21 @@ impl<'a> MemoryPackReader<'a> {
 
     #[inline]
     fn read_utf8_string(&mut self, byte_count: usize) -> Result<String, MemoryPackError> {
-        let _char_length = self.read_i32()?;
-        let slice = self.read_bytes(byte_count)?;
-
-        basic::from_utf8(slice)
-            .map(str::to_owned)
-            .map_err(|_| MemoryPackError::InvalidUtf8)
+        self.read_utf8_str(byte_count).map(str::to_owned)
     }
 
     #[inline]
     fn read_utf8_str(&mut self, byte_count: usize) -> Result<&'a str, MemoryPackError> {
-        let _char_length = self.read_i32()?;
+        let expected = self.read_i32()?;
         let slice = self.read_bytes(byte_count)?;
+        let value = basic::from_utf8(slice).map_err(|_| MemoryPackError::InvalidUtf8)?;
+        let actual = value.encode_utf16().count();
 
-        basic::from_utf8(slice).map_err(|_| MemoryPackError::InvalidUtf8)
+        if expected < -1 || (expected >= 0 && expected as usize != actual) {
+            return Err(MemoryPackError::InvalidStringCharacterCount { expected, actual });
+        }
+
+        Ok(value)
     }
 
     #[cold]

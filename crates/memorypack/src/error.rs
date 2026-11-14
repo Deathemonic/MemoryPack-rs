@@ -4,6 +4,12 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum MemoryPackError {
+    #[error("Invalid object member count for {name}: expected {expected}, got {actual}")]
+    InvalidObjectMemberCount { name: &'static str, expected: u8, actual: u8 },
+    #[error("Invalid boolean: {0}")]
+    InvalidBoolean(u8),
+    #[error("Invalid UTF-8 string character count: expected {expected}, got {actual}")]
+    InvalidStringCharacterCount { expected: i32, actual: usize },
     #[error(transparent)]
     Io(#[from] io::Error),
 
@@ -42,7 +48,7 @@ pub enum MemoryPackError {
     InvalidTupleFieldCount { expected: u8, got: u8 },
 
     #[error("Unknown union tag {tag} for {name}")]
-    UnknownUnionTag { tag: u8, name: &'static str },
+    UnknownUnionTag { tag: u16, name: &'static str },
 
     #[error("Invalid discriminant {value} for enum {name}")]
     InvalidEnumDiscriminant { value: i32, name: &'static str },

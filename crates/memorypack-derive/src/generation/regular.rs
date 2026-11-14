@@ -1,11 +1,8 @@
-use std::ptr;
-
 use quote::quote;
 use syn::{Data, Fields};
 
 use crate::generation::helpers::{
     DeserializationMode,
-    generate_field_deserialize,
     generate_field_deserialize_value,
     generate_field_serialize,
     prepare_ordered_fields,
@@ -57,7 +54,7 @@ pub fn generate_serialize(data: &Data) -> proc_macro2::TokenStream {
                 #(#serialize_fields)*
             }
         }
-        Fields::Unit => quote! {}
+        Fields::Unit => quote! { writer.write_u8(0)?; }
     }
 }
 
@@ -76,44 +73,45 @@ pub fn generate_deserialize(data: &Data, mode: DeserializationMode) -> proc_macr
                 .filter(|f| !should_skip_field(f))
                 .collect();
             let ordered = prepare_ordered_fields(&serialized_fields);
+            let field_count = ordered.len() as u8;
 
             let all_field_names: Vec<_> = fields.named.iter().map(|f| &f.ident).collect();
 
-            let deserialize_stmts: Vec<_> = fields
+            let skipped = fields
                 .named
                 .iter()
-                .map(|f| generate_field_deserialize(f, mode))
-                .collect();
-
-            let mut ordered_deserialize = Vec::new();
-            let mut skip_field_idx = 0;
-            let mut ordered_idx = 0;
-
-            for f in &fields.named {
-                if should_skip_field(f) {
-                    ordered_deserialize
-                        .push(deserialize_stmts[skip_field_idx + ordered_idx].clone());
-                    skip_field_idx += 1;
-                } else if ordered_idx < ordered.len() {
-                    let field_idx = fields
-                        .named
-                        .iter()
-                        .position(|field| ptr::eq(field, ordered[ordered_idx].field))
-                        .expect("ordered field must originate from the struct's named fields");
-
-                    ordered_deserialize.push(deserialize_stmts[field_idx].clone());
-                    ordered_idx += 1;
-                }
-            }
+                .filter(|field| should_skip_field(field))
+                .map(|field| {
+                    let name = &field.ident;
+                    quote! { let #name = Default::default(); }
+                });
+            let reads = ordered
+                .iter()
+                .enumerate()
+                .map(|(index, ordered)| {
+                    let name = ordered.ident;
+                    let read = generate_field_deserialize_value(ordered.field, mode);
+                    let position = index as u8;
+                    quote! {
+                        let #name = if header > #position { #read } else { Default::default() };
+                    }
+                });
 
             quote! {
-                let _header = reader.read_u8()?;
-                #(#ordered_deserialize)*
+                let header = reader.read_u8()?;
+                if header > #field_count {
+                    return Err(memorypack::MemoryPackError::InvalidObjectMemberCount {
+                        name: std::any::type_name::<Self>(), expected: #field_count, actual: header
+                    });
+                }
+                #(#skipped)*
+                #(#reads)*
                 Ok(Self { #(#all_field_names),* })
             }
         }
         Fields::Unnamed(fields) => {
             let len = fields.unnamed.len();
+            let field_count = len as u8;
             let field_vars: Vec<_> = (0..len)
                 .map(|i| syn::Ident::new(&format!("field_{i}"), proc_macro2::Span::call_site()))
                 .collect();
@@ -121,18 +119,33 @@ pub fn generate_deserialize(data: &Data, mode: DeserializationMode) -> proc_macr
             let deserialize_stmts = field_vars
                 .iter()
                 .zip(&fields.unnamed)
-                .map(|(var, field)| {
+                .enumerate()
+                .map(|(index, (var, field))| {
                     let deserialize_value = generate_field_deserialize_value(field, mode);
 
-                    quote! { let #var = #deserialize_value; }
+                    let position = index as u8;
+                    quote! { let #var = if header > #position { #deserialize_value } else { Default::default() }; }
                 });
 
             quote! {
-                let _header = reader.read_u8()?;
+                let header = reader.read_u8()?;
+                if header > #field_count {
+                    return Err(memorypack::MemoryPackError::InvalidObjectMemberCount {
+                        name: std::any::type_name::<Self>(), expected: #field_count, actual: header
+                    });
+                }
                 #(#deserialize_stmts)*
                 Ok(Self(#(#field_vars),*))
             }
         }
-        Fields::Unit => quote! { Ok(Self) }
+        Fields::Unit => quote! {
+            let header = reader.read_u8()?;
+            if header != 0 {
+                return Err(memorypack::MemoryPackError::InvalidObjectMemberCount {
+                    name: std::any::type_name::<Self>(), expected: 0, actual: header
+                });
+            }
+            Ok(Self)
+        }
     }
 }

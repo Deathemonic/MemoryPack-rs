@@ -145,6 +145,22 @@ fn generate_impls(
     attrs: &AttributeFlags
 ) -> syn::Result<(proc_macro2::TokenStream, proc_macro2::TokenStream)> {
     let name = &input.ident;
+
+    if let Data::Struct(data) = &input.data
+        && !is_value_type(input, attrs)
+        && data
+            .fields
+            .iter()
+            .filter(|field| !should_skip_field(field))
+            .count()
+            >= 250
+    {
+        return Err(syn::Error::new_spanned(
+            input,
+            "MemoryPack objects support at most 249 members"
+        ));
+    }
+
     let impls = match &input.data {
         Data::Struct(data_struct) if has_repr_c(&input.attrs) => {
             (unmanaged::serialize(data_struct), unmanaged::deserialize(data_struct))
