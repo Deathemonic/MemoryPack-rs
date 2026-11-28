@@ -718,7 +718,7 @@ checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 
 [[package]]
 name = "memorypack"
-version = "2.1.0"
+version = "2.2.0"
 dependencies = [
  "ahash",
  "bumpalo",
@@ -751,7 +751,7 @@ dependencies = [
 
 [[package]]
 name = "memorypack-derive"
-version = "2.1.0"
+version = "2.2.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -760,7 +760,7 @@ dependencies = [
 
 [[package]]
 name = "memorypack-test"
-version = "2.1.0"
+version = "2.2.0"
 dependencies = [
  "glam",
  "half",
