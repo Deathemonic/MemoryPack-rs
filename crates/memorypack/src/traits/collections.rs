@@ -17,8 +17,8 @@ use crate::traits::{MemoryPackDeserialize, MemoryPackSerialize};
 use crate::writer::MemoryPackWriter;
 
 macro_rules! impl_std_hashmap {
-    ($key_type:ty) => {
-        impl<'de, V: MemoryPackDeserialize<'de> + Default> MemoryPackDeserialize<'de>
+    ($key_type:ty $(, $key_lifetime:lifetime)?) => {
+        impl<'de $(: $key_lifetime, $key_lifetime)?, V: MemoryPackDeserialize<'de> + Default> MemoryPackDeserialize<'de>
             for HashMap<$key_type, V>
         {
             #[inline(always)]
@@ -37,7 +37,7 @@ macro_rules! impl_std_hashmap {
             }
         }
 
-        impl<V: MemoryPackSerialize> MemoryPackSerialize for HashMap<$key_type, V> {
+        impl<$($key_lifetime,)? V: MemoryPackSerialize> MemoryPackSerialize for HashMap<$key_type, V> {
             #[inline(always)]
             fn serialize(&self, writer: &mut MemoryPackWriter) -> Result<(), MemoryPackError> {
                 write_collection_header(writer, self.len())?;
@@ -510,6 +510,8 @@ impl<'de, T: MemoryPackDeserialize<'de> + Eq + Hash> MemoryPackDeserialize<'de> 
 }
 
 impl_std_hashmap!(String);
+
+impl_std_hashmap!(&'key str, 'key);
 
 impl_std_hashmap!(i8);
 

@@ -1,10 +1,13 @@
 #![cfg(test)]
 
+use std::collections::HashMap;
+
 use memorypack::{
     MemoryPackError,
     MemoryPackReader,
     MemoryPackSerializer,
-    MemoryPackSerializerOptions
+    MemoryPackSerializerOptions,
+    MemoryPackable
 };
 
 fn utf8_wire(bytes: &[u8]) -> Vec<u8> {
@@ -111,7 +114,7 @@ fn rejects_invalid_utf8_and_surrogates() {
 }
 
 #[test]
-fn utf8_strings_validate_the_declared_utf16_length() -> Result<(), MemoryPackError> {
+fn utf8_strings_ignore_the_declared_utf16_length() -> Result<(), MemoryPackError> {
     for value in ["ascii", "prefix!é🦀𐀀"] {
         let actual = value.encode_utf16().count();
         let mut bytes = utf8_wire(value.as_bytes());
@@ -120,19 +123,47 @@ fn utf8_strings_validate_the_declared_utf16_length() -> Result<(), MemoryPackErr
         assert_eq!(MemoryPackSerializer::serialize(&value)?, bytes);
         assert_eq!(MemoryPackReader::new(&bytes).read_str()?, value);
 
-        bytes[4..8].copy_from_slice(&(-1_i32).to_le_bytes());
-        assert_eq!(MemoryPackReader::new(&bytes).read_string()?, value);
-
-        let expected = actual as i32 + 1;
-        bytes[4..8].copy_from_slice(&expected.to_le_bytes());
-        assert!(matches!(
-            MemoryPackReader::new(&bytes).read_string(),
-            Err(MemoryPackError::InvalidStringCharacterCount {
-                expected: declared,
-                actual: measured
-            }) if declared == expected && measured == actual
-        ));
+        for hint in [-1, 0, actual as i32 + 1] {
+            bytes[4..8].copy_from_slice(&hint.to_le_bytes());
+            assert_eq!(MemoryPackReader::new(&bytes).read_string()?, value);
+            assert_eq!(MemoryPackReader::new(&bytes).read_str()?, value);
+        }
     }
+
+    Ok(())
+}
+
+#[test]
+fn hashmap_string_keys_borrow_from_the_input() -> Result<(), MemoryPackError> {
+    #[derive(MemoryPackable)]
+    struct Catalog<'a> {
+        entries: HashMap<&'a str, i32>
+    }
+
+    let owned = HashMap::from([("鍵🦀".to_owned(), 42)]);
+    let original = Catalog {
+        entries: HashMap::from([("鍵🦀", 42)])
+    };
+    let bytes = MemoryPackSerializer::serialize(&original)?;
+    let decoded: Catalog<'_> = MemoryPackSerializer::deserialize(&bytes)?;
+    let (key, value) = decoded
+        .entries
+        .iter()
+        .next()
+        .expect("one catalog entry");
+
+    assert_eq!((*key, *value), ("鍵🦀", 42));
+    assert_eq!(key.as_ptr(), bytes[13..].as_ptr());
+    assert_eq!(bytes[1..], MemoryPackSerializer::serialize(&owned)?);
+
+    let utf16 = MemoryPackSerializer::serialize_with_options(
+        &original,
+        &MemoryPackSerializerOptions::UTF16
+    )?;
+    assert!(matches!(
+        MemoryPackSerializer::deserialize::<Catalog<'_>>(&utf16),
+        Err(MemoryPackError::Utf16NotSupportedForZeroCopy)
+    ));
 
     Ok(())
 }
