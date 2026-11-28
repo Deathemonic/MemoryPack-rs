@@ -285,15 +285,21 @@ impl<'a> MemoryPackReader<'a> {
             .checked_mul(size_of::<u16>())
             .ok_or(MemoryPackError::UnexpectedEndOfBuffer)?;
         let bytes = self.read_bytes(byte_count)?;
-        let units = bytes
-            .as_chunks::<{ size_of::<u16>() }>()
-            .0
-            .iter()
-            .copied()
-            .map(u16::from_le_bytes);
+        let (units, _) = bytes.as_chunks::<{ size_of::<u16>() }>();
 
-        char::decode_utf16(units).try_fold(
-            String::with_capacity(character_count),
+        if units
+            .iter()
+            .all(|&[lo, hi]| hi == 0 && lo.is_ascii())
+        {
+            let value = units.iter().map(|unit| unit[0]).collect();
+            return Ok(unsafe { String::from_utf8_unchecked(value) });
+        }
+
+        let capacity = character_count
+            .saturating_mul(3)
+            .min(isize::MAX as usize);
+        char::decode_utf16(units.iter().copied().map(u16::from_le_bytes)).try_fold(
+            String::with_capacity(capacity),
             |mut value, character| {
                 value.push(character.map_err(|_| MemoryPackError::InvalidUtf8)?);
 

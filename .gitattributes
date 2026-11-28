@@ -1,0 +1,2 @@
+benches/dotnet-benchmarks/**/*.cs linguist-detectable=false
+tests/dotnet-tests/**/*.cs linguist-detectable=false
