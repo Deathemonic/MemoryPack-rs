@@ -111,6 +111,33 @@ fn rejects_invalid_utf8_and_surrogates() {
 }
 
 #[test]
+fn utf8_strings_validate_the_declared_utf16_length() -> Result<(), MemoryPackError> {
+    for value in ["ascii", "prefix!é🦀𐀀"] {
+        let actual = value.encode_utf16().count();
+        let mut bytes = utf8_wire(value.as_bytes());
+        bytes[4..8].copy_from_slice(&(actual as i32).to_le_bytes());
+
+        assert_eq!(MemoryPackSerializer::serialize(&value)?, bytes);
+        assert_eq!(MemoryPackReader::new(&bytes).read_str()?, value);
+
+        bytes[4..8].copy_from_slice(&(-1_i32).to_le_bytes());
+        assert_eq!(MemoryPackReader::new(&bytes).read_string()?, value);
+
+        let expected = actual as i32 + 1;
+        bytes[4..8].copy_from_slice(&expected.to_le_bytes());
+        assert!(matches!(
+            MemoryPackReader::new(&bytes).read_string(),
+            Err(MemoryPackError::InvalidStringCharacterCount {
+                expected: declared,
+                actual: measured
+            }) if declared == expected && measured == actual
+        ));
+    }
+
+    Ok(())
+}
+
+#[test]
 fn null_empty_and_valid_surrogate_pairs() -> Result<(), MemoryPackError> {
     for marker in [-1_i32, 0] {
         let bytes = marker.to_le_bytes();

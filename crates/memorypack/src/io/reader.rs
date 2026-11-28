@@ -2,6 +2,7 @@ use std::{mem, ptr};
 
 use simdutf8::basic;
 
+use super::utf16::utf16_length;
 use crate::error::MemoryPackError;
 use crate::serialization::format::NULL_COLLECTION_LENGTH;
 use crate::state::MemoryPackReaderOptionalState;
@@ -92,15 +93,13 @@ impl<'a> MemoryPackReader<'a> {
     pub fn read_bytes(&mut self, length: usize) -> Result<&'a [u8], MemoryPackError> {
         let position = self.position;
 
-        let end = position
-            .checked_add(length)
-            .ok_or(MemoryPackError::UnexpectedEndOfBuffer)?;
-
-        if end > self.data.len() {
+        let Some(end) = position.checked_add(length) else {
             return Err(MemoryPackError::UnexpectedEndOfBuffer);
-        }
+        };
 
-        let slice = &self.data[position..end];
+        let Some(slice) = self.data.get(position..end) else {
+            return Err(MemoryPackError::UnexpectedEndOfBuffer);
+        };
 
         self.position = end;
 
@@ -242,12 +241,37 @@ impl<'a> MemoryPackReader<'a> {
 
     #[inline]
     fn read_utf8_str(&mut self, byte_count: usize) -> Result<&'a str, MemoryPackError> {
-        let expected = self.read_i32()?;
-        let slice = self.read_bytes(byte_count)?;
-        let value = basic::from_utf8(slice).map_err(|_| MemoryPackError::InvalidUtf8)?;
-        let actual = value.encode_utf16().count();
+        let header_size = size_of::<i32>();
+        let (expected, slice) = match self.read_bytes(header_size + byte_count) {
+            Ok(record) => {
+                let Some((header, slice)) = record.split_first_chunk::<{ size_of::<i32>() }>()
+                else {
+                    return Err(MemoryPackError::UnexpectedEndOfBuffer);
+                };
+                (i32::from_le_bytes(*header), slice)
+            }
+            Err(_) => (self.read_i32()?, self.read_bytes(byte_count)?)
+        };
 
-        if expected < -1 || (expected >= 0 && expected as usize != actual) {
+        if (expected == -1 || expected as usize == byte_count) && slice.is_ascii() {
+            return Ok(unsafe { str::from_utf8_unchecked(slice) });
+        }
+
+        Self::validate_utf8_string(slice, expected)
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn validate_utf8_string(slice: &'a [u8], expected: i32) -> Result<&'a str, MemoryPackError> {
+        let value = basic::from_utf8(slice).map_err(|_| MemoryPackError::InvalidUtf8)?;
+
+        if expected == -1 {
+            return Ok(value);
+        }
+
+        let actual = utf16_length(value);
+
+        if usize::try_from(expected) != Ok(actual) {
             return Err(MemoryPackError::InvalidStringCharacterCount { expected, actual });
         }
 
