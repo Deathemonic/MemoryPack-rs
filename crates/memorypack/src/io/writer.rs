@@ -1,6 +1,7 @@
 use std::{mem, slice};
 
-use super::utf16::utf16_length;
+use simd_utf16_len::utf16_len;
+
 use crate::error::MemoryPackError;
 use crate::serialization::format::{NULL_COLLECTION_LENGTH, OBJECT_REFERENCE_HEADER};
 use crate::serializer_options::{MemoryPackSerializerOptions, StringEncoding};
@@ -96,7 +97,7 @@ impl MemoryPackWriter {
         let utf16_length = if bytes.is_ascii() {
             bytes.len()
         } else {
-            utf16_length(value)
+            utf16_len(value)
         };
 
         self.write_i32(!(bytes.len() as i32))?;

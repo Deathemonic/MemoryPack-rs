@@ -49,6 +49,7 @@ num-complex = { workspace = true, optional = true, features = ["serde"] }
 rust_decimal = { workspace = true, optional = true, features = ["serde"] }
 rustc-hash = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"], optional = true }
+simd-utf16-len = { workspace = true }
 simdutf8 = { workspace = true }
 thiserror = { workspace = true }
 url = { workspace = true, optional = true, features = ["serde"] }

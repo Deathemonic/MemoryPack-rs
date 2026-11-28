@@ -1,8 +1,8 @@
 use std::{mem, ptr};
 
+use simd_utf16_len::utf16_len;
 use simdutf8::basic;
 
-use super::utf16::utf16_length;
 use crate::error::MemoryPackError;
 use crate::serialization::format::NULL_COLLECTION_LENGTH;
 use crate::state::MemoryPackReaderOptionalState;
@@ -269,7 +269,7 @@ impl<'a> MemoryPackReader<'a> {
             return Ok(value);
         }
 
-        let actual = utf16_length(value);
+        let actual = utf16_len(value);
 
         if usize::try_from(expected) != Ok(actual) {
             return Err(MemoryPackError::InvalidStringCharacterCount { expected, actual });
